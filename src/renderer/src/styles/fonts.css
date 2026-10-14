@@ -1,0 +1,26 @@
+/*
+ * All fonts ship with the app (offline). The site's fonts have no Cyrillic, so each family is followed by a Cyrillic
+ * one in the same spirit — the browser picks it per character, Latin stays in the original font:
+ *   display: Midnight Creepy → Rubik Wet Paint (dripping);  labels: Special Elite → PT Mono (typewriter);
+ *   text: Space Grotesk → Onest (grotesque).
+ * Only the Cyrillic subsets of the fallbacks are loaded.
+ */
+@import "@fontsource/space-grotesk/400.css";
+@import "@fontsource/space-grotesk/500.css";
+@import "@fontsource/space-grotesk/700.css";
+@import "@fontsource/special-elite/400.css";
+@import "@fontsource/onest/cyrillic-400.css";
+@import "@fontsource/onest/cyrillic-500.css";
+@import "@fontsource/onest/cyrillic-700.css";
+@import "@fontsource/onest/cyrillic-ext-400.css";
+@import "@fontsource/pt-mono/cyrillic-400.css";
+@import "@fontsource/rubik-wet-paint/cyrillic-400.css";
+
+/* the full font (the site ships a Latin-only subset; titles here can be anything) */
+@font-face {
+  font-family: "Midnight Creepy";
+  src: url("../../../../assets/fonts/midnight-creepy.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}

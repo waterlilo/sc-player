@@ -1,0 +1,50 @@
+{
+  "name": "sky-player",
+  "productName": "sky player",
+  "version": "0.1.0",
+  "private": true,
+  "description": "sky player — a SoundCloud desktop client for Windows",
+  "author": "sky (@skythemontage)",
+  "main": "out/main/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "npm run typecheck && electron-vite build",
+    "typecheck": "tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.web.json --noEmit",
+    "lint": "eslint .",
+    "start": "electron-vite preview",
+    "postinstall": "node node_modules/electron/install.js",
+    "dev:debug": "electron-vite dev --remoteDebuggingPort 9223"
+  },
+  "dependencies": {
+    "@fontsource/onest": "5.3.1",
+    "@fontsource/pt-mono": "5.3.0",
+    "@fontsource/rubik-wet-paint": "5.3.0",
+    "@fontsource/space-grotesk": "5.3.0",
+    "@fontsource/special-elite": "5.3.0",
+    "@tanstack/react-query": "5.104.2",
+    "@tanstack/react-virtual": "3.14.19",
+    "framer-motion": "14.2.0",
+    "hls.js": "1.7.3",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "zustand": "5.0.15"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@tailwindcss/vite": "4.3.3",
+    "@types/node": "26.6.5",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "electron": "44.7.2",
+    "electron-vite": "6.0.0",
+    "eslint": "10.12.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "globals": "17.13.0",
+    "tailwindcss": "4.3.3",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.71.2",
+    "vite": "8.3.4"
+  }
+}
