@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { usePlaylists } from "@/api/queries";
 import PlaylistGrid from "@/components/playlists/PlaylistGrid";
 import Chip from "@/components/ui/Chip";
@@ -6,6 +6,7 @@ import { Screen, ScreenTitle } from "@/components/ui/Screen";
 import { EmptyState, ErrorState, Loading } from "@/components/ui/States";
 import { useT } from "@/i18n";
 import { useAuth } from "@/state/auth";
+import { useViewState } from "@/state/viewState";
 import Login from "./Login";
 
 type Filter = "all" | "mine" | "liked" | "albums";
@@ -14,7 +15,7 @@ type Filter = "all" | "mine" | "liked" | "albums";
 export function PlaylistsView({ userId }: { userId: number | "me" }) {
   const t = useT();
   const q = usePlaylists(userId);
-  const [filter, setFilter] = useState<Filter>("all");
+  const [filter, setFilter] = useViewState<Filter>(`filter:${userId}`, "all");
   const all = useMemo(() => q.data?.pages.flatMap((p) => p.items) ?? [], [q.data]);
   const shown = useMemo(
     () => all.filter((p) => (filter === "all" ? true : filter === "mine" ? p.relation === "own" : filter === "liked" ? p.relation === "liked" : p.isAlbum)),

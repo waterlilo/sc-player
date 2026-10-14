@@ -8,12 +8,13 @@ import { EmptyState, ErrorState, Loading } from "@/components/ui/States";
 import { errorText, useT } from "@/i18n";
 import { looksLikeLink, openLink } from "@/lib/links";
 import { errorCode } from "@/lib/sky";
+import { useViewState } from "@/state/viewState";
 
 /** Track search (phase 3 adds playlists, people and suggestions). A pasted soundcloud.com link opens directly. */
 export default function Search() {
   const t = useT();
-  const [text, setText] = useState("");
-  const [query, setQuery] = useState("");
+  const [text, setText] = useViewState("text", "");
+  const [query, setQuery] = useViewState("query", "");
   const [linkError, setLinkError] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
   const q = useSearchTracks(query);
@@ -26,7 +27,7 @@ export default function Search() {
     if (looksLikeLink(text)) return;
     const timer = window.setTimeout(() => setQuery(text.trim()), 350);
     return () => window.clearTimeout(timer);
-  }, [text]);
+  }, [text, setQuery]);
 
   const onSubmit = async () => {
     if (!looksLikeLink(text)) return setQuery(text.trim());

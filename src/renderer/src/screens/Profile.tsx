@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { artwork } from "@shared/types";
 import { useUser } from "@/api/queries";
 import { PaperButton } from "@/components/ui/Buttons";
@@ -11,6 +10,7 @@ import { compactNumber } from "@/lib/format";
 import { saveProfile, unsaveProfile } from "@/lib/links";
 import { call } from "@/lib/sky";
 import { useSettings } from "@/state/settings";
+import { useViewState } from "@/state/viewState";
 import { LikesList } from "./Likes";
 import { PlaylistsView } from "./Playlists";
 
@@ -19,11 +19,11 @@ export default function Profile({ userId }: { userId: number }) {
   const t = useT();
   const saved = useSettings((s) => s.savedProfiles.some((p) => p.id === userId));
   const user = useUser(userId);
-  const [tab, setTab] = useState<"likes" | "playlists">("likes");
+  const [tab, setTab] = useViewState<"likes" | "playlists">("tab", "likes");
   const u = user.data;
 
   return (
-    <Screen label={u?.username ?? t.profiles}>
+    <Screen label={u?.username ?? t.profiles} part={tab}>
       {user.isError && !u ? (
         <ErrorState error={user.error} onRetry={() => void user.refetch()} />
       ) : (

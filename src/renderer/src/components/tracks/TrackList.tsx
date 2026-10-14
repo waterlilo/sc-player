@@ -22,7 +22,7 @@ interface Props {
  */
 export default function TrackList({ tracks, source, hasMore = false, loadingMore = false, onLoadMore, label }: Props) {
   const t = useT();
-  const scrollRef = useScrollElement();
+  const scroller = useScrollElement();
   const listRef = useRef<HTMLDivElement>(null);
   const [margin, setMargin] = useState(0);
   const currentId = usePlayer((s) => s.queue[s.index]?.id ?? null);
@@ -30,20 +30,22 @@ export default function TrackList({ tracks, source, hasMore = false, loadingMore
 
   useLayoutEffect(() => {
     const list = listRef.current;
-    const scroller = scrollRef.current;
     if (!list || !scroller) return;
     const measure = () => setMargin(list.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop);
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(scroller.firstElementChild ?? scroller);
     return () => ro.disconnect();
-  }, [scrollRef]);
+  }, [scroller]);
 
   // the app does not use the React Compiler; the virtualizer re-renders this list itself
   // eslint-disable-next-line react-hooks/incompatible-library
   const virtualizer = useVirtualizer({
     count: tracks.length,
-    getScrollElement: () => scrollRef.current,
+    getScrollElement: () => scroller,
+    // on mount the virtualizer scrolls its element to initialOffset (0 by default), which wiped the position the screen
+    // restores when you come back to a page: start from wherever the scroller already is
+    initialOffset: () => scroller?.scrollTop ?? 0,
     estimateSize: () => ROW_HEIGHT,
     overscan: 10,
     scrollMargin: margin,
