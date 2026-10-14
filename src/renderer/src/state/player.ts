@@ -83,6 +83,8 @@ async function fetchMore(source: QueueSource): Promise<Page<Track> | null> {
     case "likes":
       if (!source.cursor) return null;
       return source.userId === "me" ? call("data:likes", source.cursor) : call("data:userLikes", source.userId, source.cursor);
+    case "userTracks":
+      return source.cursor ? call("data:userTracks", source.userId, source.cursor) : null;
     case "playlist":
       return source.cursor ? call("data:playlistTracks", source.playlistId, source.cursor) : null;
     case "search":

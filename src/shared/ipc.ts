@@ -57,6 +57,7 @@ export interface InvokeMap {
   "data:playlistTracks": (id: string, cursor: string | null) => Page<Track>;
   "data:user": (id: number) => User;
   "data:userLikes": (userId: number, cursor: string | null) => Page<Track>;
+  "data:userTracks": (userId: number, cursor: string | null) => Page<Track>;
   "data:userPlaylists": (userId: number, cursor: string | null) => Page<Playlist>;
   "data:resolve": (url: string) => Resolved;
   "data:search": (query: string, kind: SearchKind, cursor: string | null) => Page<Track> | Page<Playlist> | Page<User>;
@@ -95,6 +96,7 @@ export const INVOKE_CHANNELS = [
   "data:playlistTracks",
   "data:user",
   "data:userLikes",
+  "data:userTracks",
   "data:userPlaylists",
   "data:resolve",
   "data:search",

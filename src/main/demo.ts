@@ -98,6 +98,7 @@ export class DemoProvider implements MusicProvider {
   };
   getUser = async (id: number) => ({ ...me, id, username: artists[id % artists.length] ?? "demo" });
   getUserLikes = (_id: number, cursor?: string | null) => delay(page(LIKES.slice(40), cursor));
+  getUserTracks = (_id: number, cursor?: string | null) => delay(page(LIKES.slice(100, 160), cursor));
   getUserPlaylists = (_id: number, cursor?: string | null) => delay(page(PLAYLISTS.slice(2), cursor));
   resolve = async (): Promise<Resolved> => ({ kind: "user", user: { ...me, id: 12, username: "Paper Moon" } });
   search = (query: string, _kind: SearchKind, cursor?: string | null) => delay(page(LIKES.filter((t) => t.title.toLowerCase().includes(query.toLowerCase()) || t.artist.toLowerCase().includes(query.toLowerCase())), cursor, 30));

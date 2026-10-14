@@ -27,6 +27,13 @@ export const useLikes = (userId: number | "me", enabled = true) =>
     ...pages,
   });
 
+export const useUserTracks = (userId: number) =>
+  useInfiniteQuery({
+    queryKey: ["userTracks", userId],
+    queryFn: ({ pageParam }) => call("data:userTracks", userId, pageParam),
+    ...pages,
+  });
+
 export const usePlaylists = (userId: number | "me", enabled = true) =>
   useInfiniteQuery({
     queryKey: ["playlists", userId],

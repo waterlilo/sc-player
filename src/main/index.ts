@@ -65,6 +65,7 @@ function registerIpc() {
   handle("data:playlistTracks", (_e, p, c) => data.getPlaylistTracks(str(p, "playlist id"), cursor(c)));
   handle("data:user", (_e, u) => data.getUser(id(u)));
   handle("data:userLikes", (_e, u, c) => data.getUserLikes(id(u), cursor(c)));
+  handle("data:userTracks", (_e, u, c) => data.getUserTracks(id(u), cursor(c)));
   handle("data:userPlaylists", (_e, u, c) => data.getUserPlaylists(id(u), cursor(c)));
   handle("data:resolve", (_e, url) => data.resolve(str(url, "url")));
   handle("data:search", (_e, q, kind, c) => data.search(str(q, "query"), kinds.includes(kind) ? kind : bad("kind"), cursor(c)));

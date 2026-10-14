@@ -25,10 +25,14 @@ export const looksLikeLink = (text: string) => /^\s*(https?:\/\/)?([\w-]+\.)?sou
 export async function openLink(text: string, opts: { saveUser?: boolean } = {}) {
   const url = /^https?:\/\//i.test(text.trim()) ? text.trim() : `https://${text.trim()}`;
   const resolved = await call("data:resolve", url);
-  const { go } = useNav.getState();
+  const { go, open } = useNav.getState();
   if (resolved.kind === "user") {
-    if (opts.saveUser) saveProfile(resolved.user);
-    go({ name: "profile", userId: resolved.user.id });
+    const root = { name: "profile", userId: resolved.user.id } as const;
+    // a profile kept in the sidebar opens as its own section; otherwise it opens inside the current one
+    if (opts.saveUser) {
+      saveProfile(resolved.user);
+      open(`profile:${resolved.user.id}`, root);
+    } else go(root);
   } else if (resolved.kind === "playlist") {
     go({ name: "playlist", id: resolved.playlist.id });
   } else {

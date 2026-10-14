@@ -3,6 +3,8 @@ export const en = {
   appName: "sc player",
   // navigation
   likes: "Likes",
+  tracksTab: "Tracks",
+  emptyTracks: "no tracks uploaded",
   playlists: "Playlists",
   history: "History",
   search: "Search",

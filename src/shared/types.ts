@@ -76,6 +76,7 @@ export interface AppErrorInfo {
 /** Where a queue came from, so the player can load the next page when it reaches the end. */
 export type QueueSource =
   | { kind: "likes"; userId: number | "me"; cursor: string | null }
+  | { kind: "userTracks"; userId: number; cursor: string | null }
   | { kind: "playlist"; playlistId: string; cursor: string | null }
   | { kind: "search"; query: string; cursor: string | null }
   | { kind: "static" };

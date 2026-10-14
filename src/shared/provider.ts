@@ -22,6 +22,8 @@ export interface MusicProvider {
   getPlaylistTracks(id: string, cursor?: string | null): Promise<Page<Track>>;
   getUser(id: number): Promise<User>;
   getUserLikes(userId: number, cursor?: string | null): Promise<Page<Track>>;
+  /** tracks the user uploaded, newest first */
+  getUserTracks(userId: number, cursor?: string | null): Promise<Page<Track>>;
   getUserPlaylists(userId: number, cursor?: string | null): Promise<Page<Playlist>>;
   resolve(url: string): Promise<Resolved>;
   search(query: string, kind: SearchKind, cursor?: string | null): Promise<Page<Track> | Page<Playlist> | Page<User>>;

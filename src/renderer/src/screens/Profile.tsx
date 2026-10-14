@@ -1,10 +1,13 @@
 import { artwork } from "@shared/types";
-import { useUser } from "@/api/queries";
+import { useMemo } from "react";
+import type { QueueSource } from "@shared/types";
+import { useUser, useUserTracks } from "@/api/queries";
+import TrackList from "@/components/tracks/TrackList";
 import { PaperButton } from "@/components/ui/Buttons";
 import Chip from "@/components/ui/Chip";
 import Icon from "@/components/ui/Icon";
 import { Screen } from "@/components/ui/Screen";
-import { ErrorState } from "@/components/ui/States";
+import { EmptyState, ErrorState, Loading } from "@/components/ui/States";
 import { useT } from "@/i18n";
 import { compactNumber } from "@/lib/format";
 import { saveProfile, unsaveProfile } from "@/lib/links";
@@ -14,13 +17,34 @@ import { useViewState } from "@/state/viewState";
 import { LikesList } from "./Likes";
 import { PlaylistsView } from "./Playlists";
 
-/** Any user's public likes and playlists — works without signing in. Can be kept in the sidebar. */
+type Tab = "tracks" | "likes" | "playlists";
+
+/** The tracks a user uploaded, paged in while scrolling; the queue keeps loading them as it plays. */
+function UserTracks({ userId, label }: { userId: number; label: string }) {
+  const t = useT();
+  const q = useUserTracks(userId);
+  const tracks = useMemo(() => q.data?.pages.flatMap((p) => p.items) ?? [], [q.data]);
+  const cursor = q.data?.pages[q.data.pages.length - 1]?.next ?? null;
+  const source = useMemo<QueueSource>(() => ({ kind: "userTracks", userId, cursor }), [userId, cursor]);
+  if (q.isPending) return <Loading />;
+  if (q.isError && !tracks.length) return <ErrorState error={q.error} onRetry={() => void q.refetch()} />;
+  if (!tracks.length) return <EmptyState caption={t.emptyTracks} />;
+  return (
+    <>
+      <TrackList tracks={tracks} source={source} hasMore={q.hasNextPage} loadingMore={q.isFetchingNextPage} onLoadMore={() => void q.fetchNextPage()} label={label} />
+      {q.isFetchNextPageError && <ErrorState compact error={q.error} onRetry={() => void q.fetchNextPage()} />}
+    </>
+  );
+}
+
+/** Any user's public tracks, likes and playlists — works without signing in. Can be kept in the sidebar. */
 export default function Profile({ userId }: { userId: number }) {
   const t = useT();
   const saved = useSettings((s) => s.savedProfiles.some((p) => p.id === userId));
   const user = useUser(userId);
-  const [tab, setTab] = useViewState<"likes" | "playlists">("tab", "likes");
   const u = user.data;
+  // artists open on their own tracks; listeners (no uploads) on their likes
+  const [tab, setTab] = useViewState<Tab>("tab", u && !u.trackCount ? "likes" : "tracks");
 
   return (
     <Screen label={u?.username ?? t.profiles} part={tab}>
@@ -55,14 +79,25 @@ export default function Profile({ userId }: { userId: number }) {
         </header>
       )}
       <div role="tablist" className="mb-4 flex gap-2">
-        <Chip index={0} active={tab === "likes"} onClick={() => setTab("likes")}>
+        <Chip index={0} active={tab === "tracks"} onClick={() => setTab("tracks")}>
+          {t.tracksTab}
+        </Chip>
+        <Chip index={1} active={tab === "likes"} onClick={() => setTab("likes")}>
           {t.likes}
         </Chip>
-        <Chip index={1} active={tab === "playlists"} onClick={() => setTab("playlists")}>
+        <Chip index={2} active={tab === "playlists"} onClick={() => setTab("playlists")}>
           {t.playlists}
         </Chip>
       </div>
-      {tab === "likes" ? <LikesList key={`l${userId}`} userId={userId} label={`${u?.username ?? ""} — ${t.likes}`} /> : <PlaylistsView key={`p${userId}`} userId={userId} />}
+      {!u && user.isPending ? (
+        <Loading />
+      ) : tab === "tracks" ? (
+        <UserTracks key={`t${userId}`} userId={userId} label={`${u?.username ?? ""} — ${t.tracksTab}`} />
+      ) : tab === "likes" ? (
+        <LikesList key={`l${userId}`} userId={userId} label={`${u?.username ?? ""} — ${t.likes}`} />
+      ) : (
+        <PlaylistsView key={`p${userId}`} userId={userId} />
+      )}
     </Screen>
   );
 }

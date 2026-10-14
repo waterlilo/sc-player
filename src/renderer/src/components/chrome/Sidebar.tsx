@@ -4,7 +4,7 @@ import { errorText, useT } from "@/i18n";
 import { openLink, unsaveProfile } from "@/lib/links";
 import { errorCode } from "@/lib/sky";
 import { useAuth } from "@/state/auth";
-import { useNav, type Route } from "@/state/nav";
+import { useNav } from "@/state/nav";
 import { useSettings } from "@/state/settings";
 import MarkerEdge from "../deco/MarkerEdge";
 import Icon, { type IconName } from "../ui/Icon";
@@ -72,29 +72,28 @@ function AddProfile({ onDone }: { onDone: () => void }) {
 /** Sidebar: library, saved public profiles and the account. */
 export default function Sidebar() {
   const t = useT();
-  const route = useNav((s) => s.route);
-  const go = useNav((s) => s.go);
+  const section = useNav((s) => s.section);
+  const open = useNav((s) => s.open);
   const profiles = useSettings((s) => s.savedProfiles);
   const status = useAuth((s) => s.status);
   const logout = useAuth((s) => s.logout);
   const [adding, setAdding] = useState(false);
 
-  const is = (r: Route["name"]) => route.name === r;
 
   return (
     <nav aria-label="sky player" className="panel relative z-20 flex h-full w-[232px] flex-col">
       <MarkerEdge side="right" seed="b" />
       <ul className="flex flex-col gap-0.5 px-2 pt-4">
-        <NavItem icon="heart" active={is("likes")} onClick={() => go({ name: "likes" })}>
+        <NavItem icon="heart" active={section === "likes"} onClick={() => open("likes", { name: "likes" })}>
           {t.likes}
         </NavItem>
-        <NavItem icon="playlists" active={is("playlists") || is("playlist")} onClick={() => go({ name: "playlists" })}>
+        <NavItem icon="playlists" active={section === "playlists"} onClick={() => open("playlists", { name: "playlists" })}>
           {t.playlists}
         </NavItem>
-        <NavItem icon="history" active={is("history")} onClick={() => go({ name: "history" })}>
+        <NavItem icon="history" active={section === "history"} onClick={() => open("history", { name: "history" })}>
           {t.history}
         </NavItem>
-        <NavItem icon="search" active={is("search")} onClick={() => go({ name: "search" })}>
+        <NavItem icon="search" active={section === "search"} onClick={() => open("search", { name: "search" })}>
           {t.search}
         </NavItem>
       </ul>
@@ -111,16 +110,16 @@ export default function Sidebar() {
           <li key={p.id} className="group/profile relative">
             <button
               type="button"
-              onClick={() => go({ name: "profile", userId: p.id })}
-              aria-current={route.name === "profile" && route.userId === p.id ? "page" : undefined}
-              className={`flex w-full items-center gap-2.5 rounded-md px-3 py-1.5 text-left ${route.name === "profile" && route.userId === p.id ? "text-text" : "text-muted hover:text-text"}`}
+              onClick={() => open(`profile:${p.id}`, { name: "profile", userId: p.id })}
+              aria-current={section === `profile:${p.id}` ? "page" : undefined}
+              className={`flex w-full items-center gap-2.5 rounded-md px-3 py-1.5 text-left ${section === `profile:${p.id}` ? "text-text" : "text-muted hover:text-text"}`}
             >
               <span className="h-6 w-6 shrink-0 overflow-hidden rounded-full bg-[var(--paper)]">
                 {p.avatarUrl && <img src={artwork(p.avatarUrl, "t67x67") ?? undefined} alt="" className="h-full w-full object-cover" draggable={false} />}
               </span>
               <span className="relative min-w-0 text-sm">
                 <span className="block truncate">{p.username}</span>
-                {route.name === "profile" && route.userId === p.id && <ScribbleRing />}
+                {section === `profile:${p.id}` && <ScribbleRing />}
               </span>
             </button>
             <button type="button" aria-label={`${t.removeProfile}: ${p.username}`} title={t.removeProfile} onClick={() => unsaveProfile(p.id)} className="absolute right-1 top-1/2 hidden h-6 w-6 -translate-y-1/2 place-items-center rounded-full text-muted hover:text-blood group-focus-within/profile:grid group-hover/profile:grid">
