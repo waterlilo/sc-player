@@ -6,10 +6,11 @@ export type Route =
   | { name: "playlist"; id: string }
   | { name: "profile"; userId: number }
   | { name: "history" }
-  | { name: "search" };
+  | { name: "search" }
+  | { name: "settings" };
 
 /** A sidebar entry: Likes, Playlists, History, Search, or a saved profile ("profile:<id>"). */
-export type Section = "likes" | "playlists" | "history" | "search" | `profile:${number}`;
+export type Section = "likes" | "playlists" | "history" | "search" | "settings" | `profile:${number}`;
 
 interface Entry {
   route: Route;

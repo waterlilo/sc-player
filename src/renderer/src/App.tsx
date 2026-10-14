@@ -5,12 +5,14 @@ import Backdrop from "@/components/deco/Backdrop";
 import SvgDefs from "@/components/deco/SvgDefs";
 import PlayerBar from "@/components/player/PlayerBar";
 import QueuePanel from "@/components/player/QueuePanel";
+import ScreenBoundary from "@/components/ui/ScreenBoundary";
 import History from "@/screens/History";
 import Likes from "@/screens/Likes";
 import Playlist from "@/screens/Playlist";
 import Playlists from "@/screens/Playlists";
 import Profile from "@/screens/Profile";
 import Search from "@/screens/Search";
+import Settings from "@/screens/Settings";
 import { useNav, type Route } from "@/state/nav";
 
 function ScreenFor({ route }: { route: Route }) {
@@ -27,6 +29,8 @@ function ScreenFor({ route }: { route: Route }) {
       return <History />;
     case "search":
       return <Search />;
+    case "settings":
+      return <Settings />;
   }
 }
 
@@ -48,7 +52,9 @@ export default function App() {
         <main className="relative min-h-0 overflow-hidden">
           {/* short screen transition (~180 ms) */}
           <motion.div key={JSON.stringify(route)} className="h-full" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18, ease: "easeOut" }}>
-            <ScreenFor route={route} />
+            <ScreenBoundary>
+              <ScreenFor route={route} />
+            </ScreenBoundary>
           </motion.div>
           <QueuePanel />
         </main>

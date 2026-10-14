@@ -131,6 +131,12 @@ export default function Sidebar() {
 
       <div className="flex-1" />
 
+      <ul className="px-2 pb-2">
+        <NavItem icon="settings" active={section === "settings"} onClick={() => open("settings", { name: "settings" })}>
+          {t.settings}
+        </NavItem>
+      </ul>
+
       {status?.mode === "session" && status.user && (
         <div className="flex items-center gap-2 px-5 pb-4 text-sm text-muted">
           <span className="min-w-0 flex-1 truncate font-type text-xs">{status.user.username}</span>
