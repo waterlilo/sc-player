@@ -32,6 +32,9 @@ export interface PlayerSnapshot {
 
 /** State the renderer keeps in main's store (settings.json in userData). */
 export interface RendererState {
+  /** player volume 0..1 and mute, kept between runs */
+  volume: number;
+  muted: boolean;
   quality: QualityPref;
   savedProfiles: SavedProfile[];
   history: Track[];
@@ -39,6 +42,8 @@ export interface RendererState {
 }
 
 export const RENDERER_DEFAULTS: RendererState = {
+  volume: 0.8,
+  muted: false,
   quality: "auto",
   savedProfiles: [],
   history: [],

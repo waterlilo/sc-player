@@ -230,10 +230,12 @@ export const player = {
     const v = Math.max(0, Math.min(1, volume));
     set({ volume: v, muted: v === 0 ? get().muted : false });
     engine.setVolume(v, get().muted);
+    saveVolume();
   },
   toggleMute() {
     set({ muted: !get().muted });
     engine.setVolume(get().volume, get().muted);
+    saveVolume();
   },
   toggleShuffle() {
     const { queue, index, original } = get();
@@ -309,6 +311,19 @@ export function snapshot(): PlayerSnapshot | null {
   };
 }
 
+/** Volume and mute are remembered between runs (settings.json); written once the slider settles. */
+let volumeTimer = 0;
+function saveVolume() {
+  window.clearTimeout(volumeTimer);
+  volumeTimer = window.setTimeout(() => {
+    const { volume, muted } = get();
+    useSettings.getState().save({ volume, muted });
+  }, 300);
+}
+
+/** At start: the remembered volume. */
 export function initVolume() {
+  const { volume, muted } = useSettings.getState();
+  set({ volume: Math.max(0, Math.min(1, volume)), muted });
   engine.setVolume(get().volume, get().muted);
 }
