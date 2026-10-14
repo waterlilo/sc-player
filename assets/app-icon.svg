@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- sc player: a hand-drawn nod to the SoundCloud cloud, in the portfolio's night style -->
+  <rect width="64" height="64" rx="12" fill="#07050d"/>
+  <!-- spray-can blob -->
+  <path d="M31 6 C 45 5, 58 15, 58 30 C 59 45, 48 58, 33 58 C 17 59, 6 48, 6 33 C 5 18, 16 7, 31 6 Z" fill="#2a1d5c"/>
+  <path d="M40 10 C 49 13, 55 21, 56 30 C 52 22, 46 15, 40 10 Z" fill="#4a3591" opacity="0.7"/>
+  <!-- bars + cloud, scaled a little and centred so the outline keeps clear of the rounded corners -->
+  <g transform="translate(32 32) scale(0.9) translate(-34 -34)">
+  <!-- the bars: rising left to right, as on the SoundCloud logo -->
+  <g stroke-linecap="round" fill="none">
+    <path d="M8.2 38.5 L 8 46.4 M12.4 34.6 L 12.6 46.6 M16.6 30.4 L 16.4 46.5 M20.8 27 L 21 46.7 M25 28.8 L 24.8 46.6" stroke="#000" stroke-width="5.2"/>
+    <path d="M8.2 38.5 L 8 46.4 M12.4 34.6 L 12.6 46.6 M16.6 30.4 L 16.4 46.5 M20.8 27 L 21 46.7 M25 28.8 L 24.8 46.6" stroke="#f2dc1a" stroke-width="2.6"/>
+  </g>
+  <!-- the cloud, wobbly marker outline -->
+  <path d="M29 46.8 C 28 41, 28.6 34, 33.6 31.2 C 34.4 24.4, 40.6 19.6, 46.8 22.6 C 50.4 18.8, 57.6 21, 57.2 28.4 C 62.4 29.6, 63.2 37, 60.2 41.6 C 58.8 45.2, 55.6 46.6, 52 46.4 C 44 46.9, 36.6 46.3, 29 46.8 Z" fill="#f2dc1a" stroke="#000" stroke-width="3.4" stroke-linejoin="round"/>
+  <!-- a dirty olive shade inside the cloud -->
+  <path d="M34.6 44 C 36 39, 40 36.4, 45 37 C 49.4 37.6, 52.6 40.6, 53.6 44.2 C 47 44.8, 40.8 44.6, 34.6 44 Z" fill="#6e5804" opacity="0.55"/>
+  </g>
+  <!-- scratched star -->
+  <path d="M13.6 9.8 L 14.2 19.4 M9.2 14.8 L 18.8 14.2 M10.6 11.2 L 17.4 18 M17.2 11 L 10.8 17.6" stroke="#f2dc1a" stroke-width="1.6" stroke-linecap="round"/>
+</svg>
