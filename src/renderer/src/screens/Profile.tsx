@@ -28,7 +28,7 @@ export default function Profile({ userId }: { userId: number }) {
         <ErrorState error={user.error} onRetry={() => void user.refetch()} />
       ) : (
         <header className="mb-5 flex items-center gap-5">
-          <div className="sketch h-24 w-24 shrink-0 rotate-2 rounded-full bg-[var(--paper)]">
+          <div className="sketch sketch-round h-24 w-24 shrink-0 rounded-full bg-[var(--paper)]">
             {u?.avatarUrl && <img src={artwork(u.avatarUrl, "t300x300") ?? undefined} alt="" className="h-full w-full rounded-full object-cover" draggable={false} />}
           </div>
           <div className="min-w-0">

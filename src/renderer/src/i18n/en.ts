@@ -1,6 +1,6 @@
 /** Every UI string, in one place. The app is English only. */
 export const en = {
-  appName: "sky player",
+  appName: "sc player",
   // navigation
   likes: "Likes",
   playlists: "Playlists",

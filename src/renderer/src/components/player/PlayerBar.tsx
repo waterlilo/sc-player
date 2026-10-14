@@ -8,7 +8,6 @@ import { useUi } from "@/state/ui";
 import { IconButton } from "../ui/Buttons";
 import MarkerEdge from "../deco/MarkerEdge";
 import Icon from "../ui/Icon";
-import TitleTape from "./TitleTape";
 import Waveform from "./Waveform";
 
 function Time() {
@@ -84,7 +83,9 @@ export default function PlayerBar() {
         <div className="min-w-0 flex-1">
           {track ? (
             <>
-              <TitleTape text={track.title} />
+              <div className="truncate font-medium text-text" title={track.title}>
+                {track.title}
+              </div>
               <button type="button" onClick={() => go({ name: "profile", userId: track.user.id })} className="mt-1 block max-w-full truncate text-sm text-muted hover:text-text hover:underline">
                 {track.artist}
               </button>

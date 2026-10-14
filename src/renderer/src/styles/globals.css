@@ -161,6 +161,10 @@ body {
   filter: url(#rough-1);
   transition: border-color 0.2s ease;
 }
+/* round things (avatars) get a round rough outline, not the uneven rectangle */
+.sketch-round::after {
+  border-radius: 50%;
+}
 .sketch-thin::after {
   border-width: 2px;
 }
