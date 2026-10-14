@@ -41,13 +41,15 @@ export default function Login() {
               {t.orPaste}
             </label>
             <div className="flex w-full gap-2">
+              <label className="field sketch sketch-thin paper-fill flex min-w-0 flex-1 rounded-md">
               <input
                 id="public-link"
                 value={link}
                 onChange={(e) => setLink(e.target.value)}
                 placeholder="https://soundcloud.com/…"
-                className="paper-fill sketch-input min-w-0 flex-1 rounded-md px-3 py-2 text-text placeholder:text-muted/70"
+                className="min-w-0 flex-1 px-3 py-2 text-text placeholder:text-muted/70"
               />
+              </label>
               <PaperButton type="submit" disabled={opening}>
                 {t.open}
               </PaperButton>

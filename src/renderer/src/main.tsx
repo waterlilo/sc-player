@@ -8,14 +8,12 @@ import { initActivity, subscribeActivity } from "@/lib/activity";
 import { initAnimationClock } from "@/lib/animClock";
 import { applyQuality } from "@/lib/quality";
 import { call } from "@/lib/sky";
-import { initTheme } from "@/lib/theme";
 import { useAuth } from "@/state/auth";
 import { initVolume } from "@/state/player";
 import { useSettings } from "@/state/settings";
 import App from "./App";
 
 async function boot() {
-  initTheme();
   initActivity();
   try {
     useSettings.getState().hydrate(await call("store:get"));

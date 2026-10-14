@@ -1,37 +1,11 @@
 @import "tailwindcss";
 
 /* ------------------------------------------------------------------ */
-/* Theme tokens — taken from the portfolio (app/globals.css) as is.    */
-/* Registered so they crossfade between night and day.                 */
+/* Night palette — the portfolio tokens (app/globals.css). The app has  */
+/* only this theme.                                                      */
 /* ------------------------------------------------------------------ */
 
-@property --bg-2 { syntax: "<color>"; inherits: true; initial-value: #120c24; }
-@property --sky { syntax: "<color>"; inherits: true; initial-value: #2a1d5c; }
-@property --sky-shade { syntax: "<color>"; inherits: true; initial-value: #4a3591; }
-@property --glow { syntax: "<color>"; inherits: true; initial-value: #f2dc1a; }
-@property --glow-soft { syntax: "<color>"; inherits: true; initial-value: #fff27a; }
-@property --blood { syntax: "<color>"; inherits: true; initial-value: #9b1111; }
-@property --text { syntax: "<color>"; inherits: true; initial-value: #ece7ff; }
-@property --muted { syntax: "<color>"; inherits: true; initial-value: #a79ed0; }
-@property --ink { syntax: "<color>"; inherits: true; initial-value: #000000; }
-@property --paper { syntax: "<color>"; inherits: true; initial-value: #1b1336; }
-@property --tape { syntax: "<color>"; inherits: true; initial-value: rgba(242, 220, 26, 0.28); }
-@property --on-glow { syntax: "<color>"; inherits: true; initial-value: #07050d; }
-@property --line { syntax: "<color>"; inherits: true; initial-value: rgba(236, 231, 255, 0.4); }
-@property --grain-opacity { syntax: "<number>"; inherits: true; initial-value: 0.09; }
-@property --tp-acid { syntax: "<color>"; inherits: true; initial-value: #f2dc1a; }
-@property --tp-acid-fg { syntax: "<color>"; inherits: true; initial-value: #07050d; }
-@property --tp-ink { syntax: "<color>"; inherits: true; initial-value: #2a1d5c; }
-@property --tp-ink-fg { syntax: "<color>"; inherits: true; initial-value: #ece7ff; }
-/* app-only: the panels (sidebar, title bar, player) and the frosted sheet behind lists by day */
-@property --panel { syntax: "<color>"; inherits: true; initial-value: #120c24; }
-@property --sheet { syntax: "<color>"; inherits: true; initial-value: rgba(255, 255, 255, 0); }
-/* the accent as text colour: --glow at night; by day the orange is too light for text on the pale sheet (AA) */
-@property --glow-ink { syntax: "<color>"; inherits: true; initial-value: #f2dc1a; }
-@property --row-hover { syntax: "<color>"; inherits: true; initial-value: rgba(236, 231, 255, 0.06); }
-
-:root,
-[data-theme="night"] {
+:root {
   --bg: #07050d;
   --bg-2: #120c24;
   --sky: #2a1d5c;
@@ -49,56 +23,12 @@
   --grain-opacity: 0.09;
   --tp-acid: #f2dc1a;
   --tp-acid-fg: #07050d;
-  --tp-ink: #2a1d5c;
-  --tp-ink-fg: #ece7ff;
-  --panel: #120c24;
-  --sheet: rgba(255, 255, 255, 0);
+  /* app-only: panels (title bar, sidebar, player, queue) are darker and flat, so they read apart from the stippled
+     content area; the marker lines between them use --edge */
+  --panel: #0b0816;
+  --edge: #6b55c8;
   --row-hover: rgba(236, 231, 255, 0.06);
-  --glow-ink: #f2dc1a;
   color-scheme: dark;
-}
-
-[data-theme="day"] {
-  --bg: linear-gradient(180deg, #2b4fd1 0%, #8fa9f2 100%);
-  --bg-2: rgba(255, 255, 255, 0.55);
-  --sky: #ffffff;
-  --sky-shade: #c3d0fa;
-  --glow: #ff9a1f;
-  --glow-soft: #ffd27a;
-  --blood: #c0392b;
-  --text: #0f1433;
-  --muted: #3d4a8a;
-  --ink: #0f1433;
-  --paper: #fbf6e6;
-  --tape: rgba(255, 255, 255, 0.62);
-  --on-glow: #0f1433;
-  --line: rgba(15, 20, 51, 0.45);
-  --grain-opacity: 0.06;
-  --tp-acid: #ff9a1f;
-  --tp-acid-fg: #0f1433;
-  --tp-ink: #fbf6e6;
-  --tp-ink-fg: #0f1433;
-  /* --bg-2 (.55) is too thin for --muted text to keep AA over the deep blue without a live blur (which would be
-     redrawn under the moving grain): the panels and the list sheet use a denser white instead */
-  --panel: rgba(255, 255, 255, 0.74);
-  --sheet: rgba(255, 255, 255, 0.72);
-  --row-hover: rgba(15, 20, 51, 0.06);
-  --glow-ink: #a14a00;
-  color-scheme: light;
-}
-
-/*
- * Theme switch (SPEC 6.1): surfaces and art transition 1.2 s ease; text colours on light-vs-dark surfaces flip in one
- * step at 0.32 s — when the surfaces are ~45% of the way — so text never meets its background halfway.
- */
-:root {
-  transition:
-    --bg-2 1.2s ease, --sky 1.2s ease, --sky-shade 1.2s ease, --glow 1.2s ease, --glow-soft 1.2s ease,
-    --blood 1.2s ease, --ink 1.2s ease, --paper 1.2s ease, --tape 1.2s ease,
-    --on-glow 1.2s ease, --line 1.2s ease, --grain-opacity 1.2s ease,
-    --tp-acid 1.2s ease, --tp-acid-fg 1.2s ease, --tp-ink 1.2s ease,
-    --panel 1.2s ease, --sheet 1.2s ease, --row-hover 1.2s ease,
-    --text 0.32s steps(1, end), --glow-ink 0.32s steps(1, end), --muted 0.32s steps(1, end), --tp-ink-fg 0.32s steps(1, end);
 }
 
 @theme inline {
@@ -107,7 +37,6 @@
   --color-sky-shade: var(--sky-shade);
   --color-glow: var(--glow);
   --color-glow-soft: var(--glow-soft);
-  --color-glow-ink: var(--glow-ink);
   --color-blood: var(--blood);
   --color-text: var(--text);
   --color-muted: var(--muted);
@@ -125,7 +54,7 @@ body,
   height: 100%;
 }
 
-/* the window itself is painted in the theme colour by main (no flash before the first frame) */
+/* the window itself is painted #07050d by main (no flash before the first frame) */
 html {
   background: transparent;
 }
@@ -167,68 +96,20 @@ body {
 }
 
 /* ------------------------------------------------------------------ */
-/* Window backdrop: near-black + fixed spray-can stipple; day sky       */
+/* Window backdrop: near-black + fixed spray-can stipple               */
 /* ------------------------------------------------------------------ */
 
 .sky-night {
   background: #07050d;
 }
-.sky-day {
-  background: linear-gradient(180deg, #2b4fd1 0%, #8fa9f2 100%);
-  opacity: 0;
-  transition: opacity 1.2s ease;
-}
-.stipple-night,
-.stipple-day {
+.stipple-night {
   background-repeat: no-repeat;
   background-size: cover;
   background-position: center;
-  transition: opacity 1.2s ease;
 }
 .stipple-night {
   background-image: url("../../../../assets/textures/stipple-night.webp");
 }
-.stipple-day {
-  opacity: 0;
-  background-image: url("../../../../assets/textures/stipple-day.webp");
-}
-[data-theme="day"] .sky-day,
-[data-theme="day"] .stipple-day {
-  opacity: 1;
-}
-[data-theme="day"] .stipple-night {
-  opacity: 0;
-}
-.day-only {
-  opacity: 0;
-  transition: opacity 1.2s ease;
-}
-[data-theme="day"] .day-only {
-  opacity: 1;
-}
-.night-only {
-  transition: opacity 1.2s ease;
-}
-[data-theme="day"] .night-only {
-  opacity: 0;
-}
-
-/* pre-rendered stipple textures used as alpha masks, tinted by the element's background (theme colours) */
-.tex-mask {
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-size: 100% 100%;
-  mask-size: 100% 100%;
-}
-.tex-feather.tex-cloud-a {
-  -webkit-mask-image: url("../../../../assets/textures/cloud-a-feather.webp");
-  mask-image: url("../../../../assets/textures/cloud-a-feather.webp");
-}
-.tex-feather.tex-cloud-b {
-  -webkit-mask-image: url("../../../../assets/textures/cloud-b-feather.webp");
-  mask-image: url("../../../../assets/textures/cloud-b-feather.webp");
-}
-
 /* ------------------------------------------------------------------ */
 /* Film grain — monochrome, jumped around ~12 fps, under the panels     */
 /* ------------------------------------------------------------------ */
@@ -252,11 +133,11 @@ body {
   87.5% { transform: translate(-49px, -71px); }
 }
 
+/* panels: flat near-black with a faint paper dot, so the stippled sky only shows in the content area */
 .panel {
-  background-color: var(--panel);
-}
-.sheet {
-  background-color: var(--sheet);
+  background:
+    radial-gradient(rgba(236, 231, 255, 0.035) 0.8px, transparent 1.2px) 0 0 / 4px 4px,
+    var(--panel);
 }
 
 /* ------------------------------------------------------------------ */
@@ -279,9 +160,6 @@ body {
   border-radius: 8px 14px 6px 12px / 12px 6px 14px 8px;
   filter: url(#rough-1);
   transition: border-color 0.2s ease;
-}
-.sketch-input {
-  box-shadow: inset 0 0 0 2px var(--line);
 }
 .sketch-thin::after {
   border-width: 2px;
@@ -326,13 +204,6 @@ body {
     0 0 12px color-mix(in srgb, var(--glow) 30%, transparent),
     3px 4px 0 rgba(0, 0, 0, 0.55);
 }
-[data-theme="day"] .display-heading {
-  text-shadow:
-    0 0 1px color-mix(in srgb, var(--glow) 60%, transparent),
-    0 0 10px color-mix(in srgb, var(--glow) 35%, transparent),
-    2px 3px 0 rgba(15, 20, 51, 0.18);
-}
-
 /* torn paper edge */
 .torn {
   clip-path: polygon(0% 10%, 5% 0%, 12% 6%, 20% 1%, 28% 7%, 37% 0%, 45% 5%, 54% 1%, 62% 7%, 71% 0%, 79% 6%, 88% 1%, 95% 6%, 100% 0%, 98% 22%, 100% 40%, 97% 58%, 100% 76%, 98% 92%, 100% 100%, 92% 95%, 84% 100%, 75% 94%, 66% 100%, 57% 95%, 48% 100%, 39% 94%, 30% 100%, 21% 95%, 12% 100%, 4% 94%, 0% 100%, 2% 80%, 0% 62%, 3% 44%, 0% 26%);
@@ -388,21 +259,6 @@ body {
 }
 
 /* ------------------------------------------------------------------ */
-/* Theme icon crossfade                                                 */
-/* ------------------------------------------------------------------ */
-
-.theme-ico {
-  transition: opacity 1.2s ease;
-}
-.theme-ico-day,
-[data-theme="day"] .theme-ico-night {
-  opacity: 0;
-}
-[data-theme="day"] .theme-ico-day {
-  opacity: 1;
-}
-
-/* ------------------------------------------------------------------ */
 /* When nobody looks, nothing moves.                                    */
 /* html[data-activity]: hidden (tray / minimized) stops every CSS       */
 /* animation; blurred (another app focused) stops the decorative loops. */
@@ -449,7 +305,7 @@ html[data-quality] .sketch-boil::after {
   border-radius: 8px 14px 6px 12px / 12px 6px 14px 8px;
   filter: url(#rough-1);
 }
-[data-theme="night"] .card-frame {
+.card-frame {
   box-shadow: 0 0 0 1px rgba(74, 53, 145, 0.25);
 }
 
@@ -477,4 +333,25 @@ html[data-quality] .sketch-boil::after {
 }
 .vol-range:focus-visible {
   outline-offset: 4px;
+}
+
+/* text fields: paper with a rough --line outline that turns --glow while focused (the field, not the bare input,
+   shows the focus) */
+.field {
+  --sketch-color: color-mix(in srgb, var(--edge) 80%, transparent);
+}
+.field:focus-within {
+  --sketch-color: var(--glow);
+}
+.field:focus-within::after {
+  box-shadow: 0 0 10px color-mix(in srgb, var(--glow) 40%, transparent);
+}
+.field input,
+.field input:focus-visible {
+  outline: none;
+  box-shadow: none;
+  background: transparent;
+}
+.field input::-webkit-search-cancel-button {
+  filter: invert(0.8);
 }

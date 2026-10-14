@@ -100,6 +100,8 @@ function playability(raw: RawTrack): Playability {
   if (raw.policy === "BLOCK") return "blocked";
   const all = raw.media?.transcodings ?? [];
   const usable = all.filter(isPlayable);
+  // SKY_DEBUG_STREAMS=1 prints what SoundCloud offers for each track (to see what changed when tracks stop playing)
+  if (process.env.SKY_DEBUG_STREAMS) console.log("[streams]", raw.id, raw.policy, JSON.stringify(all.map((t) => [t.format?.protocol, t.format?.mime_type, t.preset, t.quality, t.snipped])));
   if (!usable.length) return all.length ? "drm" : "blocked";
   if (raw.policy === "SNIP" || usable.every((t) => t.snipped)) return "preview";
   return "ok";

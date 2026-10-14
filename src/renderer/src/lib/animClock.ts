@@ -36,7 +36,7 @@ export function initAnimationClock(onActivity: (cb: () => void) => () => void) {
   window.setTimeout(later, 1200);
   onActivity(later);
   const mo = new MutationObserver(later);
-  mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-quality"] });
+  mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-quality"] });
   let t = 0;
   window.addEventListener("resize", () => {
     window.clearTimeout(t);

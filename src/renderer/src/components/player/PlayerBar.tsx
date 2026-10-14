@@ -6,6 +6,7 @@ import { useNav } from "@/state/nav";
 import { player, useCurrentTrack, usePlayer, usePosition } from "@/state/player";
 import { useUi } from "@/state/ui";
 import { IconButton } from "../ui/Buttons";
+import MarkerEdge from "../deco/MarkerEdge";
 import Icon from "../ui/Icon";
 import TitleTape from "./TitleTape";
 import Waveform from "./Waveform";
@@ -74,6 +75,7 @@ export default function PlayerBar() {
 
   return (
     <footer className="panel relative z-30 grid h-[88px] grid-cols-[minmax(220px,300px)_minmax(0,1fr)_minmax(200px,260px)] items-center gap-6 px-4">
+      <MarkerEdge side="top" seed="c" />
       {/* now playing */}
       <div className="flex min-w-0 items-center gap-3">
         <div className="h-14 w-14 shrink-0 overflow-hidden rounded-sm bg-[var(--paper)] shadow-[3px_4px_0_rgba(0,0,0,0.35)]">
@@ -105,7 +107,7 @@ export default function PlayerBar() {
         <div className="flex items-center gap-2">
           <Time />
           <div className="min-w-0 flex-1">
-            {track ? <Waveform key={track.id} track={track} height={30} /> : <div className="h-[30px]" />}
+            {track ? <Waveform key={track.id} track={track} height={34} /> : <div className="h-[34px]" />}
           </div>
           <span className="w-12 shrink-0 font-type text-xs tabular-nums text-muted">{duration((durationS || 0) * 1000)}</span>
         </div>

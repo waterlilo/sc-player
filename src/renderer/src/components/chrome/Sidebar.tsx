@@ -6,6 +6,7 @@ import { errorCode } from "@/lib/sky";
 import { useAuth } from "@/state/auth";
 import { useNav, type Route } from "@/state/nav";
 import { useSettings } from "@/state/settings";
+import MarkerEdge from "../deco/MarkerEdge";
 import Icon, { type IconName } from "../ui/Icon";
 import ScribbleRing from "../ui/ScribbleRing";
 
@@ -50,6 +51,7 @@ function AddProfile({ onDone }: { onDone: () => void }) {
   };
   return (
     <form onSubmit={submit} className="px-3 pb-2">
+      <label className="field sketch sketch-thin paper-fill block rounded-md">
       <input
         autoFocus
         value={link}
@@ -59,8 +61,9 @@ function AddProfile({ onDone }: { onDone: () => void }) {
         placeholder="soundcloud.com/…"
         aria-label={t.addProfileHint}
         title={t.addProfileHint}
-        className="paper-fill w-full rounded-md px-2 py-1.5 text-sm text-text outline-none placeholder:text-muted/70 focus-visible:outline-2"
+        className="w-full px-2 py-1.5 text-sm text-text placeholder:text-muted/70"
       />
+      </label>
       {error && <p className="mt-1 font-type text-xs text-text">{error}</p>}
     </form>
   );
@@ -79,7 +82,8 @@ export default function Sidebar() {
   const is = (r: Route["name"]) => route.name === r;
 
   return (
-    <nav aria-label="sky player" className="panel relative z-20 flex h-full w-[232px] flex-col overflow-hidden">
+    <nav aria-label="sky player" className="panel relative z-20 flex h-full w-[232px] flex-col">
+      <MarkerEdge side="right" seed="b" />
       <ul className="flex flex-col gap-0.5 px-2 pt-4">
         <NavItem icon="heart" active={is("likes")} onClick={() => go({ name: "likes" })}>
           {t.likes}

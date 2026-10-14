@@ -65,7 +65,7 @@ function TrackRow({ track, index, current, playing, onPlay }: Props) {
         className="grid h-8 w-8 place-items-center font-type text-xs text-muted"
       >
         {current ? (
-          <span className={`text-base text-glow-ink ${playing ? "" : "opacity-70"}`} aria-hidden="true">
+          <span className={`text-base text-glow ${playing ? "" : "opacity-70"}`} aria-hidden="true">
             ✦
           </span>
         ) : (
@@ -79,7 +79,7 @@ function TrackRow({ track, index, current, playing, onPlay }: Props) {
         {track.artworkUrl && <img src={artwork(track.artworkUrl, "large") ?? undefined} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" draggable={false} />}
       </div>
       <div className="min-w-0">
-        <div className={`truncate text-[0.95rem] font-medium ${current ? "text-glow-ink" : "text-text"}`}>{track.title}</div>
+        <div className={`truncate text-[0.95rem] font-medium ${current ? "text-glow" : "text-text"}`}>{track.title}</div>
         <div className="flex min-w-0 items-center gap-2 text-sm text-muted">
           <button type="button" tabIndex={-1} className="truncate hover:text-text hover:underline" onClick={() => go({ name: "profile", userId: track.user.id })}>
             {track.artist}

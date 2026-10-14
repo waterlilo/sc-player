@@ -1,10 +1,9 @@
 import { app, BrowserWindow, ipcMain, session, shell, type IpcMainInvokeEvent } from "electron";
-import { RENDERER_DEFAULTS, type AuthStatus, type InvokeChannel, type InvokeMap, type RendererState, type Result, type ThemePref } from "@shared/ipc";
+import { RENDERER_DEFAULTS, type AuthStatus, type InvokeChannel, type InvokeMap, type RendererState, type Result } from "@shared/ipc";
 import type { MusicProvider, SearchKind } from "@shared/provider";
 import { DemoProvider } from "./demo";
 import { auth, authStatus, chromeUserAgent, provider, ScError, scSession, toErrorInfo } from "./soundcloud";
 import { patchRenderer, store } from "./store";
-import { onSystemTheme, setThemePref, THEME_BG, themeState } from "./theme";
 import { createMainWindow, isAppUrl, send } from "./windows/main-window";
 
 let main: BrowserWindow | null = null;
@@ -41,7 +40,6 @@ const str = (v: unknown, what: string) => (typeof v === "string" && v.length < 4
 const cursor = (v: unknown) => (v === null || v === undefined ? null : str(v, "cursor"));
 const id = (v: unknown) => (typeof v === "number" && Number.isSafeInteger(v) && v > 0 ? v : bad("id"));
 const kinds: SearchKind[] = ["tracks", "playlists", "users"];
-const prefs: ThemePref[] = ["system", "night", "day"];
 
 function registerIpc() {
   handle("auth:status", () => status());
@@ -81,12 +79,6 @@ function registerIpc() {
   });
   handle("win:close", () => main?.close());
 
-  handle("theme:set", (_e, pref) => {
-    const state = setThemePref(prefs.includes(pref) ? pref : bad("theme"));
-    main?.setBackgroundColor(THEME_BG[state.theme]);
-    return state;
-  });
-
   handle("store:get", () => store().get().renderer);
   handle("store:set", (_e, patch) => {
     if (typeof patch !== "object" || patch === null) bad("patch");
@@ -99,9 +91,6 @@ function registerIpc() {
     if (target.protocol === "https:") void shell.openExternal(target.href);
   });
 
-  ipcMain.on("boot:theme", (e) => {
-    e.returnValue = themeState();
-  });
 }
 
 // ---- network --------------------------------------------------------------------------------------------------------
@@ -138,8 +127,4 @@ void app.whenReady().then(async () => {
   await auth.restore();
   main = createMainWindow();
   main.on("closed", () => (main = null));
-  onSystemTheme((state) => {
-    main?.setBackgroundColor(THEME_BG[state.theme]);
-    send(main, "theme:changed", state);
-  });
 });

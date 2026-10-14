@@ -7,12 +7,9 @@ import { getActivity, subscribeActivity } from "@/lib/activity";
 import { duration as fmt } from "@/lib/format";
 import { player, usePlayer, usePosition } from "@/state/player";
 
-const BAR = 3; // css px
-const GAP = 1;
 const FRAME_MS = 1000 / 30; // never more than 30 redraws a second
-const MAIN = 0.74; // bars take the top 74%, a faint reflection the rest
 
-/** Deterministic noise, so a track's rough edges look the same on every redraw. */
+/** Deterministic noise, so a track's bars wobble the same way on every redraw. */
 function rand(seed: number) {
   let s = seed % 2147483647 || 1;
   return () => (s = (s * 16807) % 2147483647) / 2147483647;
@@ -28,62 +25,62 @@ function cssColor(name: string) {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || "#f2dc1a";
 }
 
-/** Rough bars: every bar is a polygon whose top corners and sides wobble a little, as if drawn by hand. */
-function paintBars(ctx: CanvasRenderingContext2D, peaks: number[], w: number, h: number, dpr: number, color: string, seed: number) {
+interface Style {
+  color: string;
+  alpha: number;
+  /** soft halo around the bars (the played part glows a little) */
+  halo: string | null;
+}
+
+/**
+ * Bars mirrored around the middle line, with clear gaps; the ends wobble very slightly so they look drawn rather than
+ * printed. Painted once per size/track into an offscreen canvas.
+ */
+function paintBars(ctx: CanvasRenderingContext2D, peaks: number[], w: number, h: number, dpr: number, style: Style, seed: number, bar: number, gap: number) {
   ctx.clearRect(0, 0, w, h);
-  ctx.fillStyle = color;
-  const step = (BAR + GAP) * dpr;
+  ctx.fillStyle = style.color;
+  ctx.globalAlpha = style.alpha;
+  if (style.halo) {
+    ctx.shadowColor = style.halo;
+    ctx.shadowBlur = 5 * dpr;
+  }
+  const step = (bar + gap) * dpr;
   const count = Math.max(1, Math.floor(w / step));
-  const base = h * MAIN;
+  const mid = h / 2;
+  const half = h / 2 - 3 * dpr; // room for the halo
   const r = rand(seed);
+  const bars: number[] = [];
   for (let i = 0; i < count; i++) {
     const from = Math.floor((i / count) * peaks.length);
     const to = Math.max(from + 1, Math.floor(((i + 1) / count) * peaks.length));
     let peak = 0;
     for (let k = from; k < to; k++) peak = Math.max(peak, peaks[k] ?? 0);
-    const amp = Math.max(0.04, peak);
-    const x0 = i * step + (r() - 0.5) * 0.6 * dpr;
-    const x1 = x0 + BAR * dpr + (r() - 0.5) * 0.8 * dpr;
-    const top = base - amp * base * 0.96;
-    const jl = (r() - 0.5) * 2.2 * dpr;
-    const jr = (r() - 0.5) * 2.2 * dpr;
-    ctx.globalAlpha = 1;
-    ctx.beginPath();
-    ctx.moveTo(x0 + (r() - 0.5) * 0.5 * dpr, base);
-    ctx.lineTo(x0, top + jl);
-    ctx.lineTo((x0 + x1) / 2, top + Math.min(jl, jr) - r() * 1.2 * dpr);
-    ctx.lineTo(x1, top + jr);
-    ctx.lineTo(x1 + (r() - 0.5) * 0.5 * dpr, base);
-    ctx.closePath();
-    ctx.fill();
-    // reflection
-    ctx.globalAlpha = 0.32;
-    const refl = (h - base) * amp * 0.9;
-    ctx.fillRect(x0, base + 1 * dpr, x1 - x0, refl);
+    bars.push(peak);
   }
+  // loud masters sit near the top everywhere: stretch the track's own range (quiet 5% … loudest) so its shape shows
+  const sorted = [...bars].sort((a, b) => a - b);
+  const lo = sorted[Math.floor(sorted.length * 0.05)] ?? 0;
+  const hi = sorted[sorted.length - 1] ?? 1;
+  const span = Math.max(0.05, hi - lo);
+  for (let i = 0; i < count; i++) {
+    const level = Math.max(0, Math.min(1, ((bars[i] ?? 0) - lo) / span));
+    const amp = Math.max(1.5 * dpr, (0.12 + 0.88 * Math.pow(level, 1.6)) * half);
+    const x = i * step;
+    const bw = bar * dpr;
+    const up = amp + (r() - 0.5) * 0.9 * dpr;
+    const down = amp + (r() - 0.5) * 0.9 * dpr;
+    ctx.beginPath();
+    ctx.roundRect(x, mid - up, bw, up + down, Math.min(bw / 2, 1.2 * dpr));
+    ctx.fill();
+  }
+  ctx.shadowBlur = 0;
+  ctx.shadowColor = "transparent";
   ctx.globalAlpha = 1;
 }
 
-/** The "dirty" playhead glow: a speckle of dots, dense in the middle (stipple, not a smooth circle). Drawn once. */
-function paintStipple(color: string, size: number) {
-  const c = document.createElement("canvas");
-  c.width = c.height = size;
-  const ctx = c.getContext("2d")!;
-  ctx.fillStyle = color;
-  const r = rand(7);
-  const R = size / 2;
-  for (let i = 0; i < size * size * 0.22; i++) {
-    const x = r() * size;
-    const y = r() * size;
-    const d = Math.hypot(x - R, y - R) / R;
-    if (d < 1 && r() > d * 1.15) ctx.fillRect(Math.round(x), Math.round(y), 1 + Math.round(r() * 0.7), 1 + Math.round(r() * 0.7));
-  }
-  return c;
-}
-
 /**
- * Seek bar drawn from the track's waveform_url: played part in --glow, the rest in --sky-shade, a stippled glow at the
- * playhead, the time under the pointer on hover. Cheap by design: both colourings are painted once into offscreen
+ * Seek bar drawn from the track's waveform_url: played part in --glow with a soft halo, the rest a muted violet, a thin
+ * glowing playhead line, the time under the pointer on hover. Cheap by design: both colourings are painted once into offscreen
  * canvases; a frame only stacks them and is drawn only when the playhead moves by a device pixel, at most 30 times
  * a second, only while visible — nothing at all while the window is hidden.
  */
@@ -112,7 +109,6 @@ export default function Waveform({ track, height = 44, big = false }: { track: T
     const peaks = data ?? placeholder(track.id);
     const played = document.createElement("canvas");
     const rest = document.createElement("canvas");
-    let stipple: HTMLCanvasElement | null = null;
     let dpr = 1;
     let w = 0;
     let h = 0;
@@ -121,7 +117,6 @@ export default function Waveform({ track, height = 44, big = false }: { track: T
     let raf = 0;
     let timer = 0;
     let visible = true;
-    let recolorUntil = 0;
     let dirty = true;
     let glow = "";
 
@@ -132,16 +127,16 @@ export default function Waveform({ track, height = 44, big = false }: { track: T
       canvas.width = played.width = rest.width = w;
       canvas.height = played.height = rest.height = h;
       glow = cssColor("--glow");
-      paintBars(played.getContext("2d")!, peaks, w, h, dpr, glow, track.id);
-      paintBars(rest.getContext("2d")!, peaks, w, h, dpr, cssColor("--sky-shade"), track.id);
-      stipple = paintStipple(glow, Math.round((big ? 46 : 30) * dpr));
+      const bar = big ? 3 : 2;
+      const gap = 2;
+      paintBars(played.getContext("2d")!, peaks, w, h, dpr, { color: glow, alpha: 1, halo: "rgba(242, 220, 26, 0.45)" }, track.id, bar, gap);
+      paintBars(rest.getContext("2d")!, peaks, w, h, dpr, { color: "#6b55c8", alpha: 0.55, halo: null }, track.id, bar, gap);
       dirty = true;
     };
 
     const frame = (now: number) => {
       raf = 0;
       const { playing: moving, durationS: total } = live.current;
-      if (now < recolorUntil) paint();
       if (now - lastFrame >= FRAME_MS || dirty) {
         const time = drag.current ?? currentTime();
         const x = Math.round(total > 0 ? (Math.min(time, total) / total) * w : 0);
@@ -152,20 +147,19 @@ export default function Waveform({ track, height = 44, big = false }: { track: T
           ctx.clearRect(0, 0, w, h);
           ctx.drawImage(rest, 0, 0);
           if (x > 0) ctx.drawImage(played, 0, 0, x, h, 0, 0, x, h);
-          if (stipple && x > 0) {
-            const s = stipple.width;
-            ctx.globalCompositeOperation = "lighter";
-            ctx.globalAlpha = 0.85;
-            ctx.drawImage(stipple, x - s / 2, h * MAIN * 0.5 - s / 2);
-            ctx.globalAlpha = 1;
-            ctx.globalCompositeOperation = "source-over";
+          if (x > 0) {
+            // playhead: a thin glowing line across the whole height
+            ctx.shadowColor = "rgba(242, 220, 26, 0.8)";
+            ctx.shadowBlur = 6 * dpr;
             ctx.fillStyle = glow;
-            ctx.fillRect(x - dpr, 0, 2 * dpr, h * MAIN);
+            ctx.fillRect(x - dpr, 0, 2 * dpr, h);
+            ctx.shadowBlur = 0;
+            ctx.shadowColor = "transparent";
           }
         }
       }
-      // dragging or recolouring: every frame; playing: wake up when the playhead has moved by about a pixel
-      if (drag.current !== null || now < recolorUntil) schedule();
+      // dragging: every frame; playing: wake up when the playhead has moved by about a pixel
+      if (drag.current !== null) schedule();
       else if (moving) later(total > 0 ? Math.max(FRAME_MS, (total * 1000) / w) : 250);
     };
 
@@ -201,19 +195,12 @@ export default function Waveform({ track, height = 44, big = false }: { track: T
     });
     io.observe(wrap);
     const offActivity = subscribeActivity(() => kick.current());
-    // theme switch: the colours crossfade for 1.2 s, repaint along
-    const mo = new MutationObserver(() => {
-      recolorUntil = performance.now() + 1300;
-      schedule();
-    });
-    mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 
     return () => {
       cancelAnimationFrame(raf);
       window.clearTimeout(timer);
       ro.disconnect();
       io.disconnect();
-      mo.disconnect();
       offActivity();
     };
   }, [data, track.id, height, big]);
@@ -276,7 +263,7 @@ export default function Waveform({ track, height = 44, big = false }: { track: T
       <canvas ref={canvasRef} className="block h-full w-full" />
       {hover !== null && (
         <>
-          <div aria-hidden="true" className="pointer-events-none absolute top-0 w-px bg-text/50" style={{ left: hoverLeft, height: `${MAIN * 100}%` }} />
+          <div aria-hidden="true" className="pointer-events-none absolute top-0 w-px bg-text/50" style={{ left: hoverLeft, height: "100%" }} />
           <div aria-hidden="true" className="paper-fill pointer-events-none absolute -top-7 -translate-x-1/2 rounded px-1.5 py-0.5 font-type text-xs text-text shadow" style={{ left: hoverLeft }}>
             {fmt(hover * 1000)}
           </div>

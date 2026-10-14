@@ -16,8 +16,6 @@ export const en = {
   maximize: "Maximize",
   restore: "Restore",
   close: "Close",
-  switchToDay: "Switch to day sky",
-  switchToNight: "Switch to night sky",
   // lists
   all: "All",
   mine: "Mine",

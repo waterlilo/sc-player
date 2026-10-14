@@ -1,7 +1,6 @@
 import { join } from "node:path";
 import { BrowserWindow, shell } from "electron";
 import type { EventMap, WindowActivity } from "@shared/ipc";
-import { THEME_BG, themeState } from "../theme";
 
 export const TITLEBAR_HEIGHT = 40;
 const DEV_URL = process.env.ELECTRON_RENDERER_URL;
@@ -20,7 +19,6 @@ export function send<K extends keyof EventMap>(win: BrowserWindow | null, channe
  * Snap Layouts flyout working on the real maximize button.
  */
 export function createMainWindow() {
-  const { theme } = themeState();
   const win = new BrowserWindow({
     width: 1240,
     height: 800,
@@ -28,7 +26,7 @@ export function createMainWindow() {
     minHeight: 600,
     show: false,
     title: "sky player",
-    backgroundColor: THEME_BG[theme],
+    backgroundColor: "#07050d",
     titleBarStyle: "hidden",
     titleBarOverlay: { color: "#00000000", symbolColor: "#00000000", height: TITLEBAR_HEIGHT },
     webPreferences: {

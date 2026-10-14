@@ -45,7 +45,7 @@ export default function App() {
           <TitleBar />
         </div>
         <Sidebar />
-        <main className="sheet relative min-h-0 overflow-hidden">
+        <main className="relative min-h-0 overflow-hidden">
           {/* short screen transition (~180 ms) */}
           <motion.div key={JSON.stringify(route)} className="h-full" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18, ease: "easeOut" }}>
             <ScreenFor route={route} />

@@ -48,7 +48,7 @@ export default function Search() {
           void onSubmit();
         }}
       >
-        <label className="paper-fill sketch sketch-thin flex flex-1 items-center gap-2 rounded-md px-3">
+        <label className="field sketch sketch-thin paper-fill flex flex-1 items-center gap-2 rounded-md px-3">
           <Icon name="search" size={18} className="text-muted" />
           <input
             ref={input}

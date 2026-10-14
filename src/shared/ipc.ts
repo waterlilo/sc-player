@@ -6,13 +6,6 @@ import type { AppErrorInfo, Page, Playlist, QueueSource, Resolved, SavedProfile,
  * them as typed methods on window.sky; events flow main → renderer through EventMap. Nothing else crosses the bridge.
  */
 
-export type ThemePref = "system" | "night" | "day";
-export type Theme = "night" | "day";
-export interface ThemeState {
-  pref: ThemePref;
-  theme: Theme;
-}
-
 export type AuthMode = "session" | "public";
 export interface AuthStatus {
   mode: AuthMode;
@@ -75,8 +68,6 @@ export interface InvokeMap {
   "win:toggleMaximize": () => void;
   "win:close": () => void;
 
-  "theme:set": (pref: ThemePref) => ThemeState;
-
   "store:get": () => RendererState;
   "store:set": (patch: Partial<RendererState>) => void;
 
@@ -86,13 +77,7 @@ export interface InvokeMap {
 export interface EventMap {
   "win:activity": WindowActivity;
   "win:maximized": boolean;
-  "theme:changed": ThemeState;
   "auth:changed": AuthStatus;
-}
-
-/** Synchronous channels, answered before the first paint. */
-export interface SyncMap {
-  "boot:theme": ThemeState;
 }
 
 export type InvokeChannel = keyof InvokeMap;
@@ -119,12 +104,11 @@ export const INVOKE_CHANNELS = [
   "win:minimize",
   "win:toggleMaximize",
   "win:close",
-  "theme:set",
   "store:get",
   "store:set",
   "shell:open",
 ] as const satisfies readonly InvokeChannel[];
-export const EVENT_CHANNELS = ["win:activity", "win:maximized", "theme:changed", "auth:changed"] as const satisfies readonly (keyof EventMap)[];
+export const EVENT_CHANNELS = ["win:activity", "win:maximized", "auth:changed"] as const satisfies readonly (keyof EventMap)[];
 
 type MissingInvoke = Exclude<InvokeChannel, (typeof INVOKE_CHANNELS)[number]>;
 type MissingEvent = Exclude<keyof EventMap, (typeof EVENT_CHANNELS)[number]>;
@@ -134,5 +118,4 @@ export const _channelsComplete: [MissingInvoke, MissingEvent] extends [never, ne
 export interface SkyBridge {
   invoke<K extends InvokeChannel>(channel: K, ...args: Parameters<InvokeMap[K]>): Promise<Result<ReturnType<InvokeMap[K]>>>;
   on<K extends keyof EventMap>(channel: K, listener: (payload: EventMap[K]) => void): () => void;
-  boot: { theme: ThemeState };
 }

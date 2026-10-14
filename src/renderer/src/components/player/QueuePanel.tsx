@@ -6,6 +6,7 @@ import { duration } from "@/lib/format";
 import { player, usePlayer } from "@/state/player";
 import { useUi } from "@/state/ui";
 import { IconButton } from "../ui/Buttons";
+import MarkerEdge from "../deco/MarkerEdge";
 import Icon from "../ui/Icon";
 
 const SHOWN = 200;
@@ -94,8 +95,9 @@ export default function QueuePanel() {
           exit={{ x: 24, opacity: 0 }}
           transition={{ duration: 0.18, ease: "easeOut" }}
           onKeyDown={(e) => e.key === "Escape" && close()}
-          className="panel absolute bottom-0 right-0 top-0 z-40 flex w-[360px] flex-col border-l-2 border-[var(--ink)] shadow-[-8px_0_24px_rgba(0,0,0,0.35)]"
+          className="panel absolute bottom-0 right-0 top-0 z-40 flex w-[360px] flex-col shadow-[-8px_0_24px_rgba(0,0,0,0.45)]"
         >
+          <MarkerEdge side="left" seed="b" />
           <div className="flex items-center justify-between px-4 pb-2 pt-4">
             <h2 className="display-heading -rotate-1 text-3xl text-text">{t.queue.toLowerCase()}</h2>
             <div className="flex items-center">
@@ -112,12 +114,12 @@ export default function QueuePanel() {
               <>
                 <h3 className="px-2 pb-1 pt-1 font-type text-xs uppercase tracking-[0.2em] text-muted">{t.nowPlaying}</h3>
                 <div className="flex items-center gap-2.5 rounded-md px-2 py-1.5">
-                  <span className="pl-1 text-glow-ink" aria-hidden="true">✦</span>
+                  <span className="pl-1 text-glow" aria-hidden="true">✦</span>
                   <div className="h-9 w-9 shrink-0 overflow-hidden rounded-sm bg-[var(--paper)]">
                     {current.artworkUrl && <img src={artwork(current.artworkUrl, "large") ?? undefined} alt="" className="h-full w-full object-cover" draggable={false} />}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm text-glow-ink">{current.title}</div>
+                    <div className="truncate text-sm text-glow">{current.title}</div>
                     <div className="truncate text-xs text-muted">{current.artist}</div>
                   </div>
                 </div>
