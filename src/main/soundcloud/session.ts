@@ -8,7 +8,7 @@ export const scSession = () => session.fromPartition(SC_PARTITION);
 export function chromeUserAgent() {
   return app.userAgentFallback
     .split(" ")
-    .filter((part) => !/^(Electron|sky-player|sky player)\//i.test(part))
+    .filter((part) => !/^(Electron|sky-player|sky player|sc-player|sc player)\//i.test(part))
     .join(" ");
 }
 

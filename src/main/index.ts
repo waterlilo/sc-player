@@ -1,3 +1,5 @@
+import { existsSync, renameSync } from "node:fs";
+import { join } from "node:path";
 import { app, BrowserWindow, ipcMain, session, shell, type IpcMainInvokeEvent } from "electron";
 import { RENDERER_DEFAULTS, type AuthStatus, type InvokeChannel, type InvokeMap, type RendererState, type Result } from "@shared/ipc";
 import type { MusicProvider, SearchKind } from "@shared/provider";
@@ -8,13 +10,29 @@ import { createMainWindow, isAppUrl, send } from "./windows/main-window";
 
 let main: BrowserWindow | null = null;
 
+// The app was called "sky player" before: move its data (settings, sign-in) to the new folder once. If the new folder
+// already exists without settings (a first start that couldn't move the old one), it is set aside, not deleted.
+{
+  const old = join(app.getPath("appData"), "sky player");
+  const current = app.getPath("userData");
+  const has = (dir: string) => existsSync(join(dir, "settings.json"));
+  if (old !== current && has(old) && !has(current)) {
+    try {
+      if (existsSync(current)) renameSync(current, `${current}.unused-${Date.now()}`);
+      renameSync(old, current);
+    } catch {
+      /* in use or not allowed: start fresh */
+    }
+  }
+}
+
 /** SKY_DEMO=1 in development: made-up data instead of SoundCloud (src/main/demo.ts). */
 const DEMO = !app.isPackaged && process.env.SKY_DEMO === "1";
 const data: MusicProvider = DEMO ? new DemoProvider() : provider;
 const status = async (): Promise<AuthStatus> => (DEMO ? { mode: "session", user: await data.getMe() } : authStatus());
 
 if (!app.requestSingleInstanceLock()) app.quit();
-app.setAppUserModelId("com.skythemontage.skyplayer");
+app.setAppUserModelId("com.skythemontage.scplayer");
 
 // ---- IPC ------------------------------------------------------------------------------------------------------------
 

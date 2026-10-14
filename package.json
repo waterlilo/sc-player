@@ -1,9 +1,9 @@
 {
   "name": "sky-player",
-  "productName": "sky player",
+  "productName": "sc player",
   "version": "0.1.0",
   "private": true,
-  "description": "sky player — a SoundCloud desktop client for Windows",
+  "description": "sc player — a SoundCloud desktop client for Windows",
   "author": "sky (@skythemontage)",
   "main": "out/main/index.js",
   "type": "module",
@@ -14,37 +14,77 @@
     "lint": "eslint .",
     "start": "electron-vite preview",
     "postinstall": "node node_modules/electron/install.js",
-    "dev:debug": "electron-vite dev --remoteDebuggingPort 9223"
+    "dev:debug": "electron-vite dev --remoteDebuggingPort 9223",
+    "icon": "node scripts/make-icon.mjs",
+    "dist": "npm run lint && npm run build && electron-builder --win nsis portable --publish never"
   },
-  "dependencies": {
+  "dependencies": {},
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
     "@fontsource/onest": "5.3.1",
     "@fontsource/pt-mono": "5.3.0",
     "@fontsource/rubik-wet-paint": "5.3.0",
     "@fontsource/space-grotesk": "5.3.0",
     "@fontsource/special-elite": "5.3.0",
+    "@tailwindcss/vite": "4.3.3",
     "@tanstack/react-query": "5.104.2",
     "@tanstack/react-virtual": "3.14.19",
-    "framer-motion": "14.2.0",
-    "hls.js": "1.7.3",
-    "react": "19.3.1",
-    "react-dom": "19.3.1",
-    "zustand": "5.0.15"
-  },
-  "devDependencies": {
-    "@eslint/js": "10.0.1",
-    "@tailwindcss/vite": "4.3.3",
     "@types/node": "26.6.5",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.1.2",
     "electron": "44.7.2",
+    "electron-builder": "26.15.3",
     "electron-vite": "6.0.0",
     "eslint": "10.12.0",
     "eslint-plugin-react-hooks": "7.1.1",
+    "framer-motion": "14.2.0",
     "globals": "17.13.0",
+    "hls.js": "1.7.3",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "sharp": "0.35.5",
     "tailwindcss": "4.3.3",
     "typescript": "6.0.3",
     "typescript-eslint": "8.71.2",
-    "vite": "8.3.4"
+    "vite": "8.3.4",
+    "zustand": "5.0.15"
+  },
+  "build": {
+    "appId": "com.skythemontage.scplayer",
+    "productName": "sc player",
+    "copyright": "sky (@skythemontage)",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "win": {
+      "icon": "build/icon.png",
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "sc player",
+      "artifactName": "sc-player-setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "sc-player-portable-${version}.${ext}"
+    },
+    "electronLanguages": [
+      "en-US",
+      "ru"
+    ],
+    "compression": "maximum"
   }
 }

@@ -25,7 +25,7 @@ export function createMainWindow() {
     minWidth: 900,
     minHeight: 600,
     show: false,
-    title: "sky player",
+    title: "sc player",
     backgroundColor: "#07050d",
     titleBarStyle: "hidden",
     titleBarOverlay: { color: "#00000000", symbolColor: "#00000000", height: TITLEBAR_HEIGHT },

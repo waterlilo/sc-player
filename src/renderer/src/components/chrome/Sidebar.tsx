@@ -81,7 +81,7 @@ export default function Sidebar() {
 
 
   return (
-    <nav aria-label="sky player" className="panel relative z-20 flex h-full w-[232px] flex-col">
+    <nav aria-label="sc player" className="panel relative z-20 flex h-full w-[232px] flex-col">
       <MarkerEdge side="right" seed="b" />
       <ul className="flex flex-col gap-0.5 px-2 pt-4">
         <NavItem icon="heart" active={section === "likes"} onClick={() => open("likes", { name: "likes" })}>
