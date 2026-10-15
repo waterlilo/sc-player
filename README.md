@@ -1,7 +1,6 @@
 # sc player
 
-Десктопный клиент SoundCloud для Windows: лайки, плейлисты и любые публичные профили — без рекламы, в стиле
-ночного портфолио [@skythemontage](https://soundcloud.com/skythemontage).
+Десктопный клиент SoundCloud для Windows: лайки, плейлисты и любые публичные профили — без рекламы.
 
 ## Установка
 
