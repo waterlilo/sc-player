@@ -8,7 +8,10 @@ import { EmptyState, ErrorState, Loading } from "@/components/ui/States";
 import { errorText, useT } from "@/i18n";
 import { looksLikeLink, openLink } from "@/lib/links";
 import { errorCode } from "@/lib/sky";
+import { useSettings } from "@/state/settings";
 import { useViewState } from "@/state/viewState";
+
+const HISTORY = 12;
 
 /** Track search (phase 3 adds playlists, people and suggestions). A pasted soundcloud.com link opens directly. */
 export default function Search() {
@@ -21,6 +24,23 @@ export default function Search() {
   const tracks = useMemo(() => q.data?.pages.flatMap((p) => p.items) ?? [], [q.data]);
   const cursor = q.data?.pages[q.data.pages.length - 1]?.next ?? null;
   const source = useMemo<QueueSource>(() => ({ kind: "search", query, cursor }), [query, cursor]);
+
+  const history = useSettings((s) => s.searchHistory);
+  const saveSettings = useSettings((s) => s.save);
+
+  // a search that found something goes to the recent searches
+  const found = q.isSuccess && tracks.length > 0;
+  useEffect(() => {
+    if (!found || query.length < 2) return;
+    const { searchHistory } = useSettings.getState();
+    if (searchHistory[0]?.toLowerCase() === query.toLowerCase()) return;
+    saveSettings({ searchHistory: [query, ...searchHistory.filter((h) => h.toLowerCase() !== query.toLowerCase())].slice(0, HISTORY) });
+  }, [found, query, saveSettings]);
+
+  const pick = (h: string) => {
+    setText(h);
+    setQuery(h);
+  };
 
   useEffect(() => input.current?.focus(), []);
   useEffect(() => {
@@ -68,7 +88,35 @@ export default function Search() {
           {linkError}
         </p>
       )}
-      {query.length < 2 ? (
+      {query.length < 2 && !text.trim() && history.length > 0 ? (
+        <section aria-label={t.recentSearches} className="max-w-xl">
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="font-type text-xs uppercase tracking-[0.2em] text-muted">{t.recentSearches}</h2>
+            <button type="button" onClick={() => saveSettings({ searchHistory: [] })} className="font-type text-xs text-muted underline-offset-2 hover:text-text hover:underline">
+              {t.clearHistory}
+            </button>
+          </div>
+          <ul className="flex flex-col">
+            {history.map((h) => (
+              <li key={h} className="group flex items-center gap-2 rounded-md hover:bg-[var(--row-hover)]">
+                <button type="button" onClick={() => pick(h)} className="flex min-w-0 flex-1 items-center gap-2.5 px-2 py-1.5 text-left text-text">
+                  <Icon name="history" size={16} className="shrink-0 text-muted" />
+                  <span className="truncate">{h}</span>
+                </button>
+                <button
+                  type="button"
+                  aria-label={`${t.removeFromHistory}: ${h}`}
+                  title={t.removeFromHistory}
+                  onClick={() => saveSettings({ searchHistory: history.filter((x) => x !== h) })}
+                  className="mr-1 grid h-7 w-7 place-items-center rounded-full text-muted opacity-0 hover:text-text focus-visible:opacity-100 group-hover:opacity-100"
+                >
+                  <Icon name="close" size={13} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : query.length < 2 ? (
         <EmptyState caption={t.emptySearch} />
       ) : q.isPending ? (
         <Loading />

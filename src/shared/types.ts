@@ -48,6 +48,24 @@ export interface Playlist {
   permalinkUrl: string;
   isAlbum: boolean;
   relation: PlaylistRelation | null;
+  /** release date (albums) or creation date, ISO */
+  releaseDate: string | null;
+  genre: string | null;
+}
+
+/** Everything the track page shows beyond the list row. */
+export interface TrackDetails {
+  track: Track;
+  plays: number | null;
+  likes: number | null;
+  reposts: number | null;
+  comments: number | null;
+  genre: string | null;
+  createdAt: string | null;
+  releaseDate: string | null;
+  label: string | null;
+  description: string | null;
+  tags: string[];
 }
 
 export interface Page<T> {

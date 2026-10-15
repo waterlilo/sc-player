@@ -1,14 +1,23 @@
 import { existsSync, renameSync } from "node:fs";
 import { join } from "node:path";
-import { app, BrowserWindow, ipcMain, session, shell, type IpcMainInvokeEvent } from "electron";
+import { app, BrowserWindow, clipboard, ipcMain, session, shell, type IpcMainInvokeEvent } from "electron";
 import { RENDERER_DEFAULTS, type AuthStatus, type InvokeChannel, type InvokeMap, type RendererState, type Result } from "@shared/ipc";
 import type { MusicProvider, SearchKind } from "@shared/provider";
+import type { QueueSource } from "@shared/types";
 import { DemoProvider } from "./demo";
 import { auth, authStatus, chromeUserAgent, provider, ScError, scSession, toErrorInfo } from "./soundcloud";
-import { patchRenderer, store } from "./store";
+import { patchRenderer, prefs, store } from "./store";
+import { applyAutostart, startedHidden } from "./system/autostart";
+import { applyHotkeys, initHotkeys, suspendHotkeys } from "./system/hotkeys";
+import { log, logsDir } from "./system/log";
+import { netCheck } from "./system/netcheck";
+import { notifyTrack } from "./system/notify";
+import { createTray, showWindow, updateTray } from "./system/tray";
+import * as updater from "./system/updater";
 import { createMainWindow, isAppUrl, send } from "./windows/main-window";
 
 let main: BrowserWindow | null = null;
+let quitting = false;
 
 // The app was called "sky player" before: move its data (settings, sign-in) to the new folder once. If the new folder
 // already exists without settings (a first start that couldn't move the old one), it is set aside, not deleted.
@@ -28,6 +37,8 @@ let main: BrowserWindow | null = null;
 
 /** SKY_DEMO=1 in development: made-up data instead of SoundCloud (src/main/demo.ts). */
 const DEMO = !app.isPackaged && process.env.SKY_DEMO === "1";
+// the demo keeps its own settings, history and sign-in, apart from the real ones
+if (DEMO) app.setPath("userData", join(app.getPath("appData"), "sc player demo"));
 const data: MusicProvider = DEMO ? new DemoProvider() : provider;
 const status = async (): Promise<AuthStatus> => (DEMO ? { mode: "session", user: await data.getMe() } : authStatus());
 
@@ -45,7 +56,9 @@ function handle<K extends InvokeChannel>(channel: K, fn: Handler<K>) {
     try {
       return { ok: true, data: await fn(e, ...(args as Parameters<InvokeMap[K]>)) };
     } catch (err) {
-      return { ok: false, error: toErrorInfo(err) };
+      const info = toErrorInfo(err);
+      if (info.code !== "not_found") log("main", `${channel}: ${info.code} ${info.message}`);
+      return { ok: false, error: info };
     }
   });
 }
@@ -58,6 +71,22 @@ const str = (v: unknown, what: string) => (typeof v === "string" && v.length < 4
 const cursor = (v: unknown) => (v === null || v === undefined ? null : str(v, "cursor"));
 const id = (v: unknown) => (typeof v === "number" && Number.isSafeInteger(v) && v > 0 ? v : bad("id"));
 const kinds: SearchKind[] = ["tracks", "playlists", "users"];
+/** a queue source from the page: only the fields each kind needs, type-checked */
+function queueSource(v: unknown): QueueSource {
+  const s = (typeof v === "object" && v !== null ? v : bad("source")) as Record<string, unknown>;
+  switch (s.kind) {
+    case "likes":
+      return { kind: "likes", userId: s.userId === "me" ? "me" : id(s.userId), cursor: null };
+    case "userTracks":
+      return { kind: "userTracks", userId: id(s.userId), cursor: null };
+    case "playlist":
+      return { kind: "playlist", playlistId: str(s.playlistId, "playlist id"), cursor: null };
+    case "search":
+      return { kind: "search", query: str(s.query, "query"), cursor: null };
+    default:
+      return { kind: "static" };
+  }
+}
 
 function registerIpc() {
   handle("auth:status", () => status());
@@ -85,6 +114,10 @@ function registerIpc() {
   handle("data:userLikes", (_e, u, c) => data.getUserLikes(id(u), cursor(c)));
   handle("data:userTracks", (_e, u, c) => data.getUserTracks(id(u), cursor(c)));
   handle("data:userPlaylists", (_e, u, c) => data.getUserPlaylists(id(u), cursor(c)));
+  handle("data:tracks", (_e, ids) => data.getTracks(Array.isArray(ids) ? ids.map(id) : bad("ids")));
+  handle("data:sourceIds", (_e, source) => data.getSourceIds(queueSource(source)));
+  handle("data:related", (_e, t) => data.getRelated(id(t)));
+  handle("data:trackDetails", (_e, t) => data.getTrackDetails(id(t)));
   handle("data:resolve", (_e, url) => data.resolve(str(url, "url")));
   handle("data:search", (_e, q, kind, c) => data.search(str(q, "query"), kinds.includes(kind) ? kind : bad("kind"), cursor(c)));
   handle("data:suggest", (_e, q) => data.searchSuggestions(str(q, "query")));
@@ -102,14 +135,48 @@ function registerIpc() {
   handle("store:set", (_e, patch) => {
     if (typeof patch !== "object" || patch === null) bad("patch");
     const known = Object.keys(RENDERER_DEFAULTS);
+    const before = prefs();
     patchRenderer(Object.fromEntries(Object.entries(patch).filter(([k]) => known.includes(k))) as Partial<RendererState>);
+    if ("prefs" in patch) applySystemPrefs(before);
   });
 
+  handle("player:state", (_e, info) => {
+    updateTray(info);
+    void notifyTrack(info, prefs().notifications, !!main?.isVisible() && !!main?.isFocused());
+  });
+  handle("hotkeys:suspend", (_e, on) => {
+    send(main, "hotkeys:failed", suspendHotkeys(on === true));
+  });
+  handle("app:info", () => ({ version: app.getVersion(), portable: !!process.env.PORTABLE_EXECUTABLE_DIR, packaged: app.isPackaged, logsDir: logsDir() }));
+  handle("log:write", (_e, message) => log("page", str(message, "message")));
+  handle("diag:openLogs", async () => {
+    await shell.openPath(logsDir());
+  });
+  handle("diag:netcheck", () => netCheck());
+  handle("diag:clearCache", async () => {
+    provider.reset();
+    await Promise.all([session.defaultSession.clearCache(), scSession().clearCache()]);
+  });
+  handle("update:check", () => updater.check());
+  handle("update:download", () => updater.download());
+  handle("update:install", () => {
+    quitting = true;
+    updater.install();
+  });
+
+  handle("clipboard:write", (_e, text) => clipboard.writeText(str(text, "text")));
   handle("shell:open", (_e, url) => {
     const target = new URL(str(url, "url"));
     if (target.protocol === "https:") void shell.openExternal(target.href);
   });
 
+}
+
+/** Settings changed: apply what main is responsible for (autostart, global shortcuts). */
+function applySystemPrefs(before: ReturnType<typeof prefs>) {
+  const now = prefs();
+  if (now.startWithWindows !== before.startWithWindows) applyAutostart(now.startWithWindows);
+  if (JSON.stringify(now.hotkeys) !== JSON.stringify(before.hotkeys)) send(main, "hotkeys:failed", applyHotkeys(now.hotkeys));
 }
 
 // ---- network --------------------------------------------------------------------------------------------------------
@@ -129,21 +196,34 @@ function allowAudioCors() {
 
 // ---- lifecycle ------------------------------------------------------------------------------------------------------
 
-app.on("second-instance", () => {
-  if (!main) return;
-  if (main.isMinimized()) main.restore();
-  main.show();
-  main.focus();
-});
+app.on("second-instance", () => showWindow(main));
 
 app.on("window-all-closed", () => app.quit());
-app.on("before-quit", () => store().flush());
+app.on("before-quit", () => {
+  quitting = true;
+  store().flush();
+});
+process.on("uncaughtException", (err) => log("main", `uncaught: ${err.stack ?? err.message}`));
 
 void app.whenReady().then(async () => {
   scSession().setUserAgent(chromeUserAgent());
   allowAudioCors();
   registerIpc();
   await auth.restore();
-  main = createMainWindow();
+  const p = prefs();
+  main = createMainWindow({ startHidden: startedHidden() && p.startMinimized, closeToTray: () => prefs().closeToTray, quitting: () => quitting });
   main.on("closed", () => (main = null));
+  createTray({
+    window: () => main,
+    command: (c) => send(main, "player:command", c),
+    quit: () => {
+      quitting = true;
+      app.quit();
+    },
+  });
+  initHotkeys((action) => (action === "showWindow" ? showWindow(main) : send(main, "player:command", action)));
+  const failed = applyHotkeys(p.hotkeys);
+  main.webContents.once("did-finish-load", () => send(main, "hotkeys:failed", failed));
+  applyAutostart(p.startWithWindows);
+  updater.initUpdater(() => main, () => prefs().checkUpdates);
 });

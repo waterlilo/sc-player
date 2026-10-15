@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import { app } from "electron";
-import { RENDERER_DEFAULTS, type RendererState } from "@shared/ipc";
+import { RENDERER_DEFAULTS, withPrefDefaults, type Prefs, type RendererState } from "@shared/ipc";
 import { JsonFile } from "./json-file";
 
 export interface MainState {
@@ -20,4 +20,9 @@ export function store() {
 export function patchRenderer(patch: Partial<RendererState>) {
   const s = store();
   s.patch({ renderer: { ...RENDERER_DEFAULTS, ...s.get().renderer, ...patch } });
+}
+
+/** The Settings screen's values, with defaults for anything a newer version added. */
+export function prefs(): Prefs {
+  return withPrefDefaults(store().get().renderer?.prefs);
 }

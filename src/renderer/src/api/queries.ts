@@ -61,6 +61,10 @@ export const useSearchTracks = (query: string) =>
     ...pages,
   });
 
+export const useTrackDetails = (id: number) => useQuery({ queryKey: ["track", id], queryFn: () => call("data:trackDetails", id), staleTime: 5 * 60_000 });
+
+export const useRelated = (id: number) => useQuery({ queryKey: ["related", id], queryFn: () => call("data:related", id), staleTime: 10 * 60_000 });
+
 export const useWaveform = (url: string | null) =>
   useQuery({
     queryKey: ["waveform", url],

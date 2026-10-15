@@ -13,6 +13,9 @@ import Playlists from "@/screens/Playlists";
 import Profile from "@/screens/Profile";
 import Search from "@/screens/Search";
 import Settings from "@/screens/Settings";
+import Track from "@/screens/Track";
+import TrackMenu from "@/components/tracks/TrackMenu";
+import Toast from "@/components/ui/Toast";
 import { useNav, type Route } from "@/state/nav";
 
 function ScreenFor({ route }: { route: Route }) {
@@ -23,6 +26,8 @@ function ScreenFor({ route }: { route: Route }) {
       return <Playlists />;
     case "playlist":
       return <Playlist id={route.id} />;
+    case "track":
+      return <Track id={route.id} />;
     case "profile":
       return <Profile userId={route.userId} />;
     case "history":
@@ -44,6 +49,7 @@ export default function App() {
     <>
       <SvgDefs />
       <Backdrop />
+      <TrackMenu />
       <div className="relative z-10 grid h-full grid-cols-[232px_minmax(0,1fr)] grid-rows-[40px_minmax(0,1fr)_88px]">
         <div className="col-span-2">
           <TitleBar />
@@ -57,6 +63,7 @@ export default function App() {
             </ScreenBoundary>
           </motion.div>
           <QueuePanel />
+          <Toast />
         </main>
         <div className="col-span-2">
           <PlayerBar />

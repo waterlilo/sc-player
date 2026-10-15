@@ -1,5 +1,5 @@
 import type { MusicProvider, SearchKind } from "@shared/provider";
-import type { Page, Playlist, Resolved, StreamInfo, Track, User } from "@shared/types";
+import type { Page, Playlist, QueueSource, Resolved, StreamInfo, Track, User } from "@shared/types";
 import { ScError } from "./soundcloud/errors";
 
 /**
@@ -55,6 +55,8 @@ const PLAYLISTS: Playlist[] = Array.from({ length: 9 }, (_, i) => ({
   permalinkUrl: "https://soundcloud.com/demo",
   isAlbum: i === 4,
   relation: i % 3 ? "own" : "liked",
+  releaseDate: "2025-10-31T00:00:00Z",
+  genre: null,
 }));
 
 function page<T>(list: T[], cursor: string | null | undefined, size = 50): Page<T> {
@@ -98,6 +100,23 @@ export class DemoProvider implements MusicProvider {
   };
   getUser = async (id: number) => ({ ...me, id, username: artists[id % artists.length] ?? "demo" });
   getUserLikes = (_id: number, cursor?: string | null) => delay(page(LIKES.slice(40), cursor));
+  getTracks = async (ids: number[]) => ids.map((id) => LIKES.find((t) => t.id === id)).filter((t): t is Track => !!t);
+  getSourceIds = async (source: QueueSource) => {
+    if (source.kind === "playlist") {
+      const p = PLAYLISTS.find((x) => x.id === source.playlistId);
+      const start = Number(source.playlistId) - 500;
+      return LIKES.slice(start, start + (p?.trackCount ?? 0)).map((t) => t.id);
+    }
+    if (source.kind === "likes") return (source.userId === "me" ? LIKES : LIKES.slice(40)).map((t) => t.id);
+    if (source.kind === "userTracks") return LIKES.slice(100, 160).map((t) => t.id);
+    return [];
+  };
+  getTrackDetails = async (id: number) => {
+    const track = LIKES.find((t) => t.id === id);
+    if (!track) throw new ScError("not_found", "demo");
+    return { track, plays: 12345, likes: 321, reposts: 12, comments: 4, genre: "Witch house", createdAt: "2025-10-31T00:00:00Z", releaseDate: null, label: null, description: "Демо-описание трека. Вторая строка.", tags: ["night", "ae", "slowed"] };
+  };
+  getRelated = async (id: number) => LIKES.filter((t) => t.id !== id).slice(200, 220);
   getUserTracks = (_id: number, cursor?: string | null) => delay(page(LIKES.slice(100, 160), cursor));
   getUserPlaylists = (_id: number, cursor?: string | null) => delay(page(PLAYLISTS.slice(2), cursor));
   resolve = async (): Promise<Resolved> => ({ kind: "user", user: { ...me, id: 12, username: "Paper Moon" } });

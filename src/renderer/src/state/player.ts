@@ -3,6 +3,7 @@ import type { PlayerSnapshot, RepeatMode } from "@shared/ipc";
 import type { ErrorCode, Page, QueueSource, Track } from "@shared/types";
 import * as engine from "@/audio/engine";
 import { getActivity, subscribeActivity } from "@/lib/activity";
+import { isHidden } from "@/lib/hidden";
 import { call } from "@/lib/sky";
 import { useSettings } from "./settings";
 
@@ -10,10 +11,18 @@ export type PlayerStatus = "idle" | "loading" | "playing" | "paused" | "error";
 
 interface PlayerStore {
   queue: Track[];
-  /** queue order before shuffle; null = shuffle off */
-  original: Track[] | null;
   index: number;
   source: QueueSource;
+  shuffle: boolean;
+  /** the loaded list in its own order, kept while shuffled (to go back to it) */
+  original: Track[] | null;
+  /**
+   * Track ids still to come, in play order: the rest of a shuffled list, or the list in order after what's loaded.
+   * Filled into the queue a few at a time as it plays.
+   */
+  pending: number[];
+  /** where the autopilot's similar tracks begin in the queue, -1 when there are none */
+  autoFrom: number;
   status: PlayerStatus;
   error: ErrorCode | null;
   duration: number;
@@ -23,13 +32,18 @@ interface PlayerStore {
 }
 
 const HISTORY_LIMIT = 300;
-const playable = (t: Track | undefined) => !!t && (t.playability === "ok" || t.playability === "preview");
+const FILL = 20; // tracks fetched from `pending` at a time
+const AHEAD = 3; // keep at least this many tracks queued after the current one
+const playable = (t: Track | undefined) => !!t && (t.playability === "ok" || t.playability === "preview") && !isHidden(t);
 
 export const usePlayer = create<PlayerStore>(() => ({
   queue: [],
-  original: null,
   index: -1,
   source: { kind: "static" },
+  shuffle: false,
+  original: null,
+  pending: [],
+  autoFrom: -1,
   status: "idle",
   error: null,
   duration: 0,
@@ -59,6 +73,9 @@ function shuffled<T>(list: T[]): T[] {
   return a;
 }
 
+/** Tracks added by hand ("play next", "add to queue"): they stay put when the queue is rebuilt. */
+const manual = new WeakSet<Track>();
+
 function remember(track: Track) {
   const { history, save } = useSettings.getState();
   save({ history: [track, ...history.filter((t) => t.id !== track.id)].slice(0, HISTORY_LIMIT) });
@@ -74,11 +91,56 @@ function start(index: number, opts: { autoplay?: boolean; startAt?: number } = {
   void topUp();
 }
 
-// ---- endless sources: when the queue nears its end, the next page of the list it came from is appended -----------
+// ---- whole lists --------------------------------------------------------------------------------------------------
+
+const sourceKey = (s: QueueSource) => JSON.stringify({ ...s, cursor: null });
+const idCache = new Map<string, { at: number; ids: number[] }>();
+const ID_TTL = 10 * 60_000;
+
+/** Every track id of the list a queue came from (all likes, the whole playlist), cached for a few minutes. */
+async function sourceIds(source: QueueSource): Promise<number[]> {
+  if (source.kind === "static") return [];
+  const key = sourceKey(source);
+  const hit = idCache.get(key);
+  if (hit && Date.now() - hit.at < ID_TTL) return hit.ids;
+  const ids = await call("data:sourceIds", source);
+  idCache.set(key, { at: Date.now(), ids });
+  return ids;
+}
+const cachedSourceIds = (source: QueueSource) => {
+  const hit = idCache.get(sourceKey(source));
+  return hit && Date.now() - hit.at < ID_TTL ? hit.ids : null;
+};
+
+/** bumped whenever the queue is rebuilt: a whole-list shuffle that arrives late for an older queue is dropped */
+let rebuild = 0;
+
+/**
+ * A true shuffle: the rest of the WHOLE list (not just the loaded page) in one uniform random order. What has been
+ * played stays, tracks added by hand stay next, everything else is replaced by the shuffled remainder.
+ */
+async function shuffleWholeList() {
+  const gen = ++rebuild;
+  const { source } = get();
+  let ids: number[];
+  try {
+    ids = await sourceIds(source);
+  } catch {
+    return; // keep the shuffle of the loaded tracks
+  }
+  const now = get();
+  if (gen !== rebuild || !now.shuffle || !ids.length) return;
+  const played = new Set(now.queue.slice(0, now.index + 1).map((t) => t.id));
+  const keep = now.queue.slice(now.index + 1).filter((t) => manual.has(t));
+  set({ queue: [...now.queue.slice(0, now.index + 1), ...keep], pending: shuffled(ids.filter((id) => !played.has(id))), autoFrom: -1 });
+  await topUp(true);
+}
+
+// ---- keeping the queue filled -------------------------------------------------------------------------------------
 
 let toppingUp = false;
 
-async function fetchMore(source: QueueSource): Promise<Page<Track> | null> {
+async function fetchPage(source: QueueSource): Promise<Page<Track> | null> {
   switch (source.kind) {
     case "likes":
       if (!source.cursor) return null;
@@ -94,29 +156,71 @@ async function fetchMore(source: QueueSource): Promise<Page<Track> | null> {
   }
 }
 
-async function topUp() {
-  const { queue, index, source } = get();
-  if (toppingUp || queue.length - index > 3 || source.kind === "static" || !source.cursor) return;
+const append = (tracks: Track[]) => {
+  const fresh = tracks.filter(playable);
+  if (fresh.length) set({ queue: [...get().queue, ...fresh] });
+  return fresh.length;
+};
+
+/**
+ * Keeps a few tracks queued ahead. In order: the next ids from `pending`; else the next page of the list (in list
+ * order); else the list is really over — repeat "all" starts it again (a fresh shuffle when shuffled), and with
+ * repeat off the autopilot continues with similar tracks. The autopilot never steps in while any of the list is left.
+ */
+async function topUp(force = false) {
+  if (toppingUp) return;
+  if (!force && get().queue.length - get().index > AHEAD) return;
   toppingUp = true;
+  const gen = rebuild;
   try {
-    const page = await fetchMore(source);
-    if (!page) return;
-    const known = new Set(get().queue.map((t) => t.id));
-    const fresh = page.items.filter((t) => !known.has(t.id));
-    const s = get();
-    set({
-      queue: [...s.queue, ...(s.original ? shuffled(fresh) : fresh)],
-      original: s.original ? [...s.original, ...fresh] : null,
-      source: { ...source, cursor: page.next },
-    });
+    for (let guard = 0; guard < 6 && get().queue.length - get().index <= AHEAD; guard++) {
+      const s = get();
+      if (s.pending.length) {
+        const take = s.pending.slice(0, FILL);
+        const tracks = await call("data:tracks", take);
+        if (gen !== rebuild) return;
+        set({ pending: get().pending.slice(take.length) });
+        append(tracks);
+        continue;
+      }
+      if (s.source.kind !== "static" && s.source.cursor) {
+        const page = await fetchPage(s.source);
+        if (gen !== rebuild) return;
+        if (!page) break;
+        const have = new Set(get().queue.map((t) => t.id));
+        set({ source: { ...s.source, cursor: page.next } });
+        append(page.items.filter((t) => !have.has(t.id)));
+        continue;
+      }
+      // the list is over
+      if (s.repeat === "all") {
+        if (s.shuffle && s.source.kind !== "static") {
+          const ids = await sourceIds(s.source);
+          if (gen !== rebuild) return;
+          const current = s.queue[s.index]?.id;
+          set({ pending: shuffled(ids.filter((id) => id !== current)) });
+          continue;
+        }
+        break; // in order: advance() wraps around to the first track
+      }
+      if (!useSettings.getState().prefs.autopilot) break;
+      const last = s.queue[s.queue.length - 1];
+      if (!last) break;
+      const related = await call("data:related", last.id);
+      if (gen !== rebuild) return;
+      const recent = new Set(get().queue.slice(-200).map((t) => t.id));
+      const from = get().queue.length;
+      if (!append(related.filter((t) => !recent.has(t.id)))) break;
+      if (get().autoFrom < 0) set({ autoFrom: from });
+    }
   } catch {
-    /* the list can't grow right now; the queue just ends here */
+    /* can't grow right now: the queue just ends here */
   } finally {
     toppingUp = false;
   }
 }
 
-/** Next playable index after `from` (wrapping when repeat is "all"), or -1. */
+/** Next playable index after `from` (wrapping when allowed), or -1. */
 function nextIndex(from: number, wrap: boolean) {
   const { queue } = get();
   for (let i = from + 1; i < queue.length; i++) if (playable(queue[i])) return i;
@@ -145,6 +249,21 @@ engine.bindEngine({
     }
     void advance(true);
   },
+  peekNext: () => {
+    const { repeat, index, queue } = get();
+    if (repeat === "one") return null;
+    return queue[nextIndex(index, repeat === "all")] ?? null;
+  },
+  advanced: (track) => {
+    const { queue, index } = get();
+    let at = queue.indexOf(track, index + 1);
+    if (at < 0) at = queue.findIndex((t, i) => i > index && t.id === track.id);
+    if (at < 0) return;
+    set({ index: at, error: null, duration: track.durationMs / 1000 });
+    usePosition.setState({ position: 0 });
+    remember(track);
+    void topUp();
+  },
   error: (code) => {
     set({ status: "error", error: code });
     // a track SoundCloud won't stream to us (DRM, region): skip it; network trouble waits for "retry"
@@ -160,7 +279,7 @@ subscribeActivity(() => {
 });
 
 async function advance(auto: boolean) {
-  await topUp();
+  await topUp(true);
   const { index, repeat } = get();
   const next = nextIndex(index, repeat === "all" || !auto);
   if (next >= 0) start(next);
@@ -174,27 +293,42 @@ async function advance(auto: boolean) {
 // ---- actions ------------------------------------------------------------------------------------------------------
 
 export const player = {
-  /** Play `tracks` from `index`; `source` lets the queue keep loading the list it came from. */
+  /** Play `tracks` from `index`; `source` lets the queue keep loading (or shuffle) the whole list it came from. */
   playFrom(tracks: Track[], index: number, source: QueueSource) {
     const target = tracks[index];
     if (!target) return;
-    const shuffleOn = get().original !== null;
-    if (shuffleOn) {
-      const rest = shuffled(tracks.filter((_, i) => i !== index));
-      set({ queue: [target, ...rest], original: [...tracks], source });
+    rebuild++;
+    if (get().shuffle) {
+      const rest = shuffled(tracks.filter((t, i) => i !== index && playable(t)));
+      set({ queue: [target, ...rest], original: [...tracks], pending: [], source, autoFrom: -1 });
       start(0);
+      void shuffleWholeList();
     } else {
-      set({ queue: [...tracks], original: null, source });
+      set({ queue: [...tracks], original: null, pending: [], source, autoFrom: -1 });
       start(index);
     }
   },
-  /** Shuffle-play a whole list. */
-  shuffleFrom(tracks: Track[], source: QueueSource) {
-    const list = tracks.filter(playable);
-    if (!list.length) return;
-    const order = shuffled(list);
-    set({ queue: order, original: [...tracks], source });
-    start(0);
+  /** The Shuffle button of a list: shuffle on, a random first track from the whole list when it's known. */
+  async shuffleFrom(tracks: Track[], source: QueueSource) {
+    const gen = ++rebuild;
+    set({ shuffle: true });
+    let first = shuffled(tracks.filter(playable))[0];
+    try {
+      // a whole-list pick when the ids come quickly (a playlist always does; huge likes may take longer)
+      const ids = await Promise.race([sourceIds(source), new Promise<null>((r) => setTimeout(() => r(null), 1500))]);
+      if (gen !== rebuild) return;
+      if (ids?.length) {
+        const picks = await call("data:tracks", shuffled(ids).slice(0, 5));
+        const pick = picks.find(playable);
+        if (pick) first = pick;
+      }
+    } catch {
+      /* fall back to a loaded track */
+    }
+    if (!first || gen !== rebuild) return;
+    const chosen = first;
+    const index = tracks.findIndex((t) => t.id === chosen.id);
+    player.playFrom(index >= 0 ? tracks : [chosen, ...tracks], index >= 0 ? index : 0, source);
   },
   jumpTo(index: number) {
     if (playable(get().queue[index])) start(index);
@@ -237,43 +371,67 @@ export const player = {
     engine.setVolume(get().volume, get().muted);
     saveVolume();
   },
+  /**
+   * Shuffle on: the loaded tracks are shuffled at once (no pause in the music), then the whole list is fetched and
+   * the rest of the queue becomes a uniform shuffle of all of it. Off: back to list order, right after the track
+   * that is playing.
+   */
   toggleShuffle() {
-    const { queue, index, original } = get();
-    const current = queue[index];
-    if (original) {
-      // back to the list order, at the track that is playing
-      const at = current ? original.findIndex((t) => t.id === current.id) : -1;
-      set({ queue: original, original: null, index: at >= 0 ? at : 0 });
-    } else {
-      const rest = shuffled(queue.filter((_, i) => i !== index));
-      set({ queue: current ? [current, ...rest] : rest, original: [...queue], index: current ? 0 : -1 });
+    const s = get();
+    const current = s.queue[s.index];
+    const played = s.queue.slice(0, s.index + 1);
+    const upcoming = s.queue.slice(s.index + 1);
+    const keep = upcoming.filter((t) => manual.has(t));
+    rebuild++;
+    if (!s.shuffle) {
+      const rest = shuffled(upcoming.filter((t) => !manual.has(t)));
+      set({ shuffle: true, original: s.original ?? s.queue.filter((t) => !manual.has(t)), queue: [...played, ...keep, ...rest], pending: shuffled(s.pending), autoFrom: -1 });
+      void shuffleWholeList();
+      return;
     }
+    const ids = cachedSourceIds(s.source);
+    const at = current && ids ? ids.indexOf(current.id) : -1;
+    if (ids && at >= 0) {
+      // the list order after the current track, filled as it plays (the cursor isn't needed any more)
+      set({ shuffle: false, original: null, queue: [...played, ...keep], pending: ids.slice(at + 1), source: { ...s.source, cursor: null } as QueueSource, autoFrom: -1 });
+    } else {
+      const list = s.original ?? [];
+      const pos = current ? list.findIndex((t) => t.id === current.id) : -1;
+      set({ shuffle: false, original: null, queue: [...played, ...keep, ...(pos >= 0 ? list.slice(pos + 1) : [])], pending: [], autoFrom: -1 });
+    }
+    void topUp(true);
   },
   cycleRepeat() {
     const order: RepeatMode[] = ["off", "all", "one"];
     set({ repeat: order[(order.indexOf(get().repeat) + 1) % order.length] });
   },
   playNext(track: Track) {
-    const { queue, index, original } = get();
+    const { queue, index, autoFrom } = get();
     if (index < 0) return player.playFrom([track], 0, { kind: "static" });
+    const item = { ...track };
+    manual.add(item);
     const q = [...queue];
-    q.splice(index + 1, 0, track);
-    set({ queue: q, original: original ? [...original, track] : null });
+    // after the current track and any tracks already added by hand
+    let at = index + 1;
+    while (at < q.length && manual.has(q[at]!)) at++;
+    q.splice(at, 0, item);
+    set({ queue: q, autoFrom: autoFrom >= at ? autoFrom + 1 : autoFrom });
   },
   addToQueue(track: Track) {
-    const { queue, index, original } = get();
+    const { queue, index, autoFrom } = get();
     if (index < 0) return player.playFrom([track], 0, { kind: "static" });
-    set({ queue: [...queue, track], original: original ? [...original, track] : null });
+    const item = { ...track };
+    manual.add(item);
+    // before the autopilot's suggestions, if there are any
+    const q = [...queue];
+    const at = autoFrom >= 0 ? autoFrom : q.length;
+    q.splice(at, 0, item);
+    set({ queue: q, autoFrom: autoFrom >= 0 ? autoFrom + 1 : -1 });
   },
   removeAt(i: number) {
-    const { queue, index, original } = get();
+    const { queue, index, autoFrom } = get();
     if (i === index || i < 0 || i >= queue.length) return;
-    const removed = queue[i]!;
-    set({
-      queue: queue.filter((_, k) => k !== i),
-      index: i < index ? index - 1 : index,
-      original: original ? original.filter((t) => t !== removed) : null,
-    });
+    set({ queue: queue.filter((_, k) => k !== i), index: i < index ? index - 1 : index, autoFrom: autoFrom > i ? autoFrom - 1 : autoFrom });
   },
   /** Drag in the queue panel: move upcoming item `from` to `to` (queue indexes). */
   move(from: number, to: number) {
@@ -285,8 +443,9 @@ export const player = {
     set({ queue: q });
   },
   clearUpcoming() {
+    rebuild++;
     const { queue, index } = get();
-    set({ queue: queue.slice(0, index + 1), source: { kind: "static" } });
+    set({ queue: queue.slice(0, index + 1), pending: [], source: { kind: "static" }, autoFrom: -1 });
   },
   retry() {
     const { index } = get();
@@ -327,3 +486,6 @@ export function initVolume() {
   set({ volume: Math.max(0, Math.min(1, volume)), muted });
   engine.setVolume(get().volume, get().muted);
 }
+
+// dev only: inspect the queue from DevTools (window.__player.getState())
+if (import.meta.env.DEV) (window as unknown as { __player: typeof usePlayer }).__player = usePlayer;

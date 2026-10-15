@@ -4,6 +4,7 @@ import { useT } from "@/i18n";
 import { duration } from "@/lib/format";
 import { useNav } from "@/state/nav";
 import { player } from "@/state/player";
+import { useUi } from "@/state/ui";
 import Icon from "../ui/Icon";
 
 export const ROW_HEIGHT = 56;
@@ -32,12 +33,18 @@ interface Props {
 function TrackRow({ track, index, current, playing, onPlay }: Props) {
   const t = useT();
   const go = useNav((s) => s.go);
+  const openMenu = useUi((s) => s.openMenu);
   const unplayable = track.playability === "blocked" || track.playability === "drm";
   const badge = track.playability === "ok" ? null : t[track.playability];
 
   const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
     if (e.target !== e.currentTarget) return;
     if (e.key === "Enter") onPlay(index);
+    else if (e.key === "ContextMenu" || (e.shiftKey && e.key === "F10")) {
+      e.preventDefault();
+      const r = e.currentTarget.getBoundingClientRect();
+      openMenu(r.left + 48, r.top + r.height / 2, track);
+    }
     else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       e.preventDefault();
       const row = e.currentTarget.parentElement?.[e.key === "ArrowDown" ? "nextElementSibling" : "previousElementSibling"];
@@ -53,6 +60,10 @@ function TrackRow({ track, index, current, playing, onPlay }: Props) {
       aria-disabled={unplayable || undefined}
       title={unplayable ? t.unplayable : undefined}
       onDoubleClick={() => onPlay(index)}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        openMenu(e.clientX, e.clientY, track);
+      }}
       onKeyDown={onKey}
       className={`group relative grid h-full grid-cols-[2.25rem_2.75rem_minmax(0,1fr)_auto_3.5rem] items-center gap-3 rounded-md pl-3 pr-2 outline-offset-[-2px] hover:bg-[var(--row-hover)] ${unplayable ? "opacity-45" : ""}`}
     >
@@ -79,7 +90,9 @@ function TrackRow({ track, index, current, playing, onPlay }: Props) {
         {track.artworkUrl && <img src={artwork(track.artworkUrl, "large") ?? undefined} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" draggable={false} />}
       </div>
       <div className="min-w-0">
-        <div className={`truncate text-[0.95rem] font-medium ${current ? "text-glow" : "text-text"}`}>{track.title}</div>
+        <button type="button" tabIndex={-1} onClick={() => go({ name: "track", id: track.id })} className={`block max-w-full truncate text-left text-[0.95rem] font-medium hover:underline ${current ? "text-glow" : "text-text"}`}>
+          {track.title}
+        </button>
         <div className="flex min-w-0 items-center gap-2 text-sm text-muted">
           <button type="button" tabIndex={-1} className="truncate hover:text-text hover:underline" onClick={() => go({ name: "profile", userId: track.user.id })}>
             {track.artist}

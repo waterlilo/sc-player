@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { useState, type KeyboardEvent } from "react";
+import { Fragment, useState, type KeyboardEvent } from "react";
 import { artwork, type Track } from "@shared/types";
 import { useT } from "@/i18n";
 import { duration } from "@/lib/format";
@@ -79,11 +79,15 @@ export default function QueuePanel() {
   const close = useUi((s) => s.closeQueue);
   const queue = usePlayer((s) => s.queue);
   const index = usePlayer((s) => s.index);
+  const pending = usePlayer((s) => s.pending.length);
+  const autoFrom = usePlayer((s) => s.autoFrom);
+  const shuffle = usePlayer((s) => s.shuffle);
   const [drag, setDrag] = useState<number | null>(null);
   const [over, setOver] = useState<number | null>(null);
   const current = queue[index];
   const upcoming = queue.slice(index + 1, index + 1 + SHOWN);
-  const more = queue.length - (index + 1) - upcoming.length;
+  // what is still to come beyond the shown rows: queued ones plus the rest of the list, not yet loaded
+  const more = queue.length - (index + 1) - upcoming.length + pending;
 
   return (
     <AnimatePresence>
@@ -125,14 +129,18 @@ export default function QueuePanel() {
                 </div>
               </>
             )}
-            <h3 className="px-2 pb-1 pt-4 font-type text-xs uppercase tracking-[0.2em] text-muted">{t.upNext}</h3>
+            <h3 className="px-2 pb-1 pt-4 font-type text-xs uppercase tracking-[0.2em] text-muted">
+              {t.upNext}
+              {shuffle && <span className="pl-2 normal-case tracking-normal text-glow">· {t.shuffledWhole}</span>}
+            </h3>
             {upcoming.length ? (
               <ol>
                 {upcoming.map((track, i) => {
                   const qi = index + 1 + i;
                   return (
+                    <Fragment key={`${track.id}-${qi}`}>
+                    {qi === autoFrom && <h3 className="px-2 pb-1 pt-4 font-type text-xs uppercase tracking-[0.2em] text-muted">{t.autopilotHeading}</h3>}
                     <Row
-                      key={`${track.id}-${qi}`}
                       track={track}
                       index={qi}
                       dragging={drag === qi}
@@ -149,13 +157,14 @@ export default function QueuePanel() {
                         setOver(null);
                       }}
                     />
+                    </Fragment>
                   );
                 })}
               </ol>
             ) : (
               <p className="px-2 py-3 font-type text-sm text-muted">{t.queueEmpty}</p>
             )}
-            {more > 0 && <p className="px-2 py-2 font-type text-xs text-muted">+{more}</p>}
+            {more > 0 && <p className="px-2 py-2 font-type text-xs text-muted">{t.moreInQueue(more)}</p>}
           </div>
         </motion.aside>
       )}

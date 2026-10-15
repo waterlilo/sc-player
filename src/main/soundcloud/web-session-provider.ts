@@ -1,15 +1,17 @@
-import type { MusicProvider, SearchKind } from "@shared/provider";
-import type { Page, Playlist, PlaylistRelation, Resolved, StreamInfo, Track, User } from "@shared/types";
+import { MAX_SOURCE_IDS, type MusicProvider, type SearchKind } from "@shared/provider";
+import type { Page, Playlist, PlaylistRelation, QueueSource, Resolved, StreamInfo, Track, TrackDetails, User } from "@shared/types";
 import { apiChanged, ScError } from "./errors";
 import type { ScHttp } from "./http";
-import { collection, mapPlaylist, mapTrack, mapUser, type RawCollection, type RawPlaylist, type RawTrack, type RawTranscoding, type RawUser } from "./mappers";
+import { collection, mapPlaylist, mapTrack, mapTrackDetails, mapUser, type RawCollection, type RawPlaylist, type RawTrack, type RawTranscoding, type RawUser } from "./mappers";
 import { scSession } from "./session";
+import { prefs } from "../store";
 import { pickTranscoding } from "./stream";
 
 const PAGE = 50;
 const TRACK_META_LIMIT = 4000;
 const LIST_TTL = 60_000;
 const ITEM_TTL = 5 * 60_000;
+const KNOWN_LIMIT = 20_000;
 
 type LibraryItem = { type?: string; playlist?: RawPlaylist; system_playlist?: RawPlaylist };
 type LikeItem = { track?: RawTrack; playlist?: RawPlaylist };
@@ -31,6 +33,8 @@ export class WebSessionProvider implements MusicProvider {
   /** a playlist's track ids, and the tracks api-v2 already sent in full */
   private playlists = new Map<string, { at: number; ids: number[]; full: Map<number, Track> }>();
   private meId: number | null = null;
+  /** every track seen recently, so a shuffled queue fills itself without asking SoundCloud again */
+  private known = new Map<number, Track>();
 
   constructor(
     private readonly http: ScHttp,
@@ -48,6 +52,11 @@ export class WebSessionProvider implements MusicProvider {
 
   private track(raw: RawTrack | undefined): Track | null {
     const track = mapTrack(raw);
+    if (track) {
+      this.known.delete(track.id);
+      this.known.set(track.id, track);
+      if (this.known.size > KNOWN_LIMIT) this.known.delete(this.known.keys().next().value!);
+    }
     if (track && raw?.media?.transcodings && raw.track_authorization) {
       if (this.streamMeta.size > TRACK_META_LIMIT) this.streamMeta.delete(this.streamMeta.keys().next().value!);
       this.streamMeta.set(track.id, { transcodings: raw.media.transcodings, auth: raw.track_authorization });
@@ -62,13 +71,68 @@ export class WebSessionProvider implements MusicProvider {
   /** Full tracks by id, in the given order (deleted or private ones are left out). api-v2 takes 50 ids at a time. */
   private async tracksById(ids: number[]): Promise<Track[]> {
     const found = new Map<number, Track>();
-    for (let i = 0; i < ids.length; i += PAGE) {
-      const chunk = ids.slice(i, i + PAGE);
+    for (const id of ids) {
+      const t = this.known.get(id);
+      if (t) found.set(id, t);
+    }
+    const missing = ids.filter((id) => !found.has(id));
+    for (let i = 0; i < missing.length; i += PAGE) {
+      const chunk = missing.slice(i, i + PAGE);
       const res = await this.http.json<RawTrack[]>("/tracks", { ids: chunk.join(",") }, { ttl: ITEM_TTL });
       if (!Array.isArray(res)) apiChanged("/tracks?ids is not a list");
       for (const t of this.tracks(res)) found.set(t.id, t);
     }
     return ids.map((id) => found.get(id)).filter((t): t is Track => !!t);
+  }
+
+  async getTracks(ids: number[]): Promise<Track[]> {
+    return this.tracksById(ids.filter((id) => Number.isSafeInteger(id) && id > 0).slice(0, 200));
+  }
+
+  /** Every track id of a paged list, 200 per request (the tracks themselves are kept in `known`). */
+  private async collectIds(path: string, pick: (item: LikeItem & RawTrack) => RawTrack | undefined): Promise<number[]> {
+    const ids: number[] = [];
+    let href: string | null = path;
+    let first = true;
+    while (href && ids.length < MAX_SOURCE_IDS) {
+      const res: RawCollection<LikeItem & RawTrack> = await this.http.json<RawCollection<LikeItem & RawTrack>>(href, first ? { limit: 200, linked_partitioning: 1 } : {}, { ttl: LIST_TTL });
+      first = false;
+      for (const item of collection(res, "ids")) {
+        const t = this.track(pick(item));
+        if (t) ids.push(t.id);
+      }
+      href = res.next_href ?? null;
+    }
+    return ids;
+  }
+
+  async getSourceIds(source: QueueSource): Promise<number[]> {
+    switch (source.kind) {
+      case "playlist":
+        return (await this.loadPlaylist(source.playlistId)).ids.slice(0, MAX_SOURCE_IDS);
+      case "likes":
+        return this.collectIds(`/users/${source.userId === "me" ? await this.myId() : source.userId}/track_likes`, (i) => i.track);
+      case "userTracks":
+        return this.collectIds(`/users/${source.userId}/tracks`, (i) => i);
+      case "search": {
+        const page = (await this.search(source.query, "tracks", null)) as Page<Track>;
+        return page.items.map((t) => t.id);
+      }
+      default:
+        return [];
+    }
+  }
+
+  async getTrackDetails(trackId: number): Promise<TrackDetails> {
+    const raw = await this.http.json<RawTrack>(`/tracks/${trackId}`, {}, { ttl: ITEM_TTL });
+    const track = this.track(raw);
+    if (!track) throw new ScError("not_found", "track not found");
+    return mapTrackDetails(raw, track);
+  }
+
+  async getRelated(trackId: number): Promise<Track[]> {
+    const res = await this.http.json<RawCollection<RawTrack>>(`/tracks/${trackId}/related`, { limit: 20 }, { ttl: LIST_TTL });
+    return this.tracks(collection(res, "related"));
   }
 
   // ---- me ---------------------------------------------------------------------------------------------------------
@@ -231,7 +295,7 @@ export class WebSessionProvider implements MusicProvider {
   async getStreamUrl(trackId: number): Promise<StreamInfo> {
     let meta = this.streamMeta.get(trackId) ?? (await this.freshMeta(trackId));
     for (let attempt = 0; ; attempt++) {
-      const t = pickTranscoding(meta.transcodings);
+      const t = pickTranscoding(meta.transcodings, prefs().streamQuality);
       if (!t) throw new ScError("unavailable", "no stream this player can decode (DRM)");
       try {
         const res = await this.http.json<{ url?: string }>(t.url, { track_authorization: meta.auth });

@@ -3,6 +3,8 @@ import { artwork } from "@shared/types";
 import { errorText, useT } from "@/i18n";
 import { openLink, unsaveProfile } from "@/lib/links";
 import { errorCode } from "@/lib/sky";
+import { shortVersion } from "@/lib/format";
+import { useSystem } from "@/lib/system";
 import { useAuth } from "@/state/auth";
 import { useNav } from "@/state/nav";
 import { useSettings } from "@/state/settings";
@@ -78,6 +80,7 @@ export default function Sidebar() {
   const status = useAuth((s) => s.status);
   const logout = useAuth((s) => s.logout);
   const [adding, setAdding] = useState(false);
+  const update = useSystem((s) => s.update);
 
 
   return (
@@ -131,6 +134,11 @@ export default function Sidebar() {
 
       <div className="flex-1" />
 
+      {(update.state === "available" || update.state === "ready") && (
+        <button type="button" onClick={() => open("settings", { name: "settings" })} className="marker-fill sketch sketch-thin mx-4 mb-2 -rotate-1 rounded-md px-3 py-1.5 text-left text-sm font-semibold">
+          ✦ {t.updateBanner(shortVersion(update.version))}
+        </button>
+      )}
       <ul className="px-2 pb-2">
         <NavItem icon="settings" active={section === "settings"} onClick={() => open("settings", { name: "settings" })}>
           {t.settings}

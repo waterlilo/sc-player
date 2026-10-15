@@ -1,12 +1,17 @@
 import type HlsType from "hls.js";
 import type { ErrorData } from "hls.js";
+import { EQ_BANDS } from "@shared/ipc";
 import type { ErrorCode, StreamInfo, Track } from "@shared/types";
 import { call, errorCode } from "@/lib/sky";
 
 /**
- * The one <audio> element. SoundCloud streams AAC over HLS (hls.js feeds it through Media Source Extensions); a
- * progressive MP3 plays directly. Stream URLs are signed and short-lived, so a network failure mid-track asks main for
- * a fresh URL once and resumes at the same position.
+ * Playback. SoundCloud streams AAC over HLS (hls.js feeds it through Media Source Extensions); a progressive MP3
+ * plays directly. Stream URLs are signed and short-lived, so a network failure mid-track asks main for a fresh URL
+ * once and resumes at the same position.
+ *
+ * Two decks (an <audio> each) make the crossfade: near the end of a track the next one starts on the other deck and
+ * the two volumes cross over. The equalizer is a Web Audio chain that is only built once it's switched on — until
+ * then the decks play straight to the speakers and cost nothing extra.
  */
 export interface EngineEvents {
   loading(): void;
@@ -16,154 +21,340 @@ export interface EngineEvents {
   duration(seconds: number): void;
   time(seconds: number): void;
   error(code: ErrorCode): void;
+  /** the next track to crossfade into, or null (no crossfade) */
+  peekNext(): Track | null;
+  /** a crossfade moved playback on to `track` */
+  advanced(track: Track): void;
 }
 
-/**
- * hls.js, light build (no subtitles, alternate audio or DRM, none of which SoundCloud audio needs), loaded with the
- * first HLS track so a cold start doesn't parse it.
- */
 let Hls: typeof HlsType | null = null;
 const loadHls = async () => (Hls ??= (await import("hls.js/light")).default);
 
-const audio = new Audio();
-audio.preload = "auto";
-let hls: HlsType | null = null;
 let events: EngineEvents | null = null;
-let current: Track | null = null;
-/** bumped on every load: answers for an older track are ignored */
-let generation = 0;
-let refreshed = false;
-let mediaRecovered = false;
-/** a track is starting: the pause events the old source fires while switching are not a real pause */
-let starting = false;
+let volume = 0.8;
+let muted = false;
+let crossfade = 0;
+let sinkId = "";
 
-export const engineElement = audio;
-export const currentTime = () => audio.currentTime;
-export const bufferedEnd = () => (audio.buffered.length ? audio.buffered.end(audio.buffered.length - 1) : 0);
+// ---- the optional Web Audio chain (equalizer) ---------------------------------------------------------------------
+
+let ctx: AudioContext | null = null;
+let bus: GainNode | null = null;
+let filters: BiquadFilterNode[] = [];
+let eq = { enabled: false, gains: EQ_BANDS.map(() => 0) as number[] };
+
+function graph() {
+  if (ctx) return ctx;
+  ctx = new AudioContext({ latencyHint: "playback" });
+  bus = ctx.createGain();
+  filters = EQ_BANDS.map((hz, i) => {
+    const f = ctx!.createBiquadFilter();
+    f.type = i === 0 ? "lowshelf" : i === EQ_BANDS.length - 1 ? "highshelf" : "peaking";
+    f.frequency.value = hz;
+    f.Q.value = 1.1;
+    return f;
+  });
+  bus.connect(filters[0]!);
+  filters.forEach((f, i) => f.connect(filters[i + 1] ?? ctx!.destination));
+  for (const deck of decks) deck.route();
+  applyEq();
+  if (sinkId) void setOutput(sinkId);
+  return ctx;
+}
+
+function applyEq() {
+  filters.forEach((f, i) => (f.gain.value = eq.enabled ? (eq.gains[i] ?? 0) : 0));
+}
+
+/** with the equalizer on, the audio graph sleeps while nothing plays (it would keep a thread busy) */
+let sleepTimer = 0;
+function sleepSoon() {
+  window.clearTimeout(sleepTimer);
+  sleepTimer = window.setTimeout(() => {
+    if (ctx && decks.every((d) => d.audio.paused)) void ctx.suspend();
+  }, 1500);
+}
+
+// ---- decks --------------------------------------------------------------------------------------------------------
+
+class Deck {
+  readonly audio = new Audio();
+  hls: HlsType | null = null;
+  track: Track | null = null;
+  /** bumped on every load: answers for an older track are ignored */
+  gen = 0;
+  refreshed = false;
+  mediaRecovered = false;
+  /** a track is starting: the pause events the old source fires while switching are not a real pause */
+  starting = false;
+  /** 0..1, the crossfade's share of this deck */
+  level = 1;
+  gain: GainNode | null = null;
+
+  constructor() {
+    this.audio.preload = "auto";
+    // so the equalizer may read the samples (SoundCloud's CDN answers with CORS; main adds the header if missing)
+    this.audio.crossOrigin = "anonymous";
+    const on = (ev: string, fn: () => void) => this.audio.addEventListener(ev, () => this === active && fn());
+    on("playing", () => {
+      this.starting = false;
+      events?.playing();
+    });
+    on("pause", () => {
+      if (!this.audio.ended && !this.starting) events?.paused();
+      sleepSoon();
+    });
+    on("waiting", () => events?.loading());
+    on("ended", () => events?.ended());
+    on("durationchange", () => {
+      if (Number.isFinite(this.audio.duration)) events?.duration(this.audio.duration);
+    });
+    on("timeupdate", () => {
+      events?.time(this.audio.currentTime);
+      maybeCrossfade();
+    });
+    this.audio.addEventListener("error", () => {
+      if (!this.hls && this.track) void this.recover("offline");
+    });
+  }
+
+  /** connect into the Web Audio chain once it exists */
+  route() {
+    if (!ctx || !bus || this.gain) return;
+    const src = ctx.createMediaElementSource(this.audio);
+    this.gain = ctx.createGain();
+    src.connect(this.gain).connect(bus);
+    this.audio.volume = 1;
+    this.applyLevel();
+  }
+
+  applyLevel() {
+    const v = muted ? 0 : volume * volume * this.level;
+    if (this.gain) this.gain.gain.value = v;
+    else this.audio.volume = Math.max(0, Math.min(1, v));
+  }
+
+  teardown() {
+    this.hls?.destroy();
+    this.hls = null;
+    this.audio.removeAttribute("src");
+    this.audio.load();
+  }
+
+  attach(info: StreamInfo, startAt: number, autoplay: boolean) {
+    this.teardown();
+    const H = Hls;
+    if (info.protocol === "hls" && H?.isSupported()) {
+      // no worker: the page's CSP stays strict, and remuxing a single audio stream is light
+      const hls = new H({ enableWorker: false, startPosition: startAt > 0 ? startAt : -1, maxBufferLength: 60, backBufferLength: 30 });
+      this.hls = hls;
+      hls.on(H.Events.ERROR, (_e, data: ErrorData) => {
+        if (!data.fatal) return;
+        if (data.type === H.ErrorTypes.MEDIA_ERROR && !this.mediaRecovered) {
+          this.mediaRecovered = true;
+          hls.recoverMediaError();
+          return;
+        }
+        void this.recover(data.type === H.ErrorTypes.NETWORK_ERROR ? "offline" : "unknown");
+      });
+      hls.loadSource(info.url);
+      hls.attachMedia(this.audio);
+    } else {
+      this.audio.src = info.url;
+      if (startAt > 0) this.audio.addEventListener("loadedmetadata", () => (this.audio.currentTime = startAt), { once: true });
+    }
+    if (autoplay) {
+      this.starting = true;
+      void ctx?.resume();
+      void this.audio.play().catch(() => {
+        this.starting = false;
+        if (this === active) events?.paused();
+      });
+    }
+  }
+
+  /** The signed URL probably expired: get a new one once and continue where we were. */
+  async recover(code: ErrorCode) {
+    const track = this.track;
+    if (!track) return;
+    if (this.refreshed) {
+      if (this === active) events?.error(code);
+      return;
+    }
+    this.refreshed = true;
+    const at = this.audio.currentTime;
+    const wasPlaying = !this.audio.paused;
+    const gen = this.gen;
+    try {
+      const info = await call("data:stream", track.id);
+      if (info.protocol === "hls") await loadHls();
+      if (gen !== this.gen) return;
+      this.attach(info, at, wasPlaying);
+    } catch (err) {
+      if (gen === this.gen && this === active) events?.error(errorCode(err));
+    }
+  }
+
+  /** Resolves true once the stream is attached (and playing, with autoplay). */
+  async load(track: Track, opts: { autoplay: boolean; startAt?: number }): Promise<boolean> {
+    const gen = ++this.gen;
+    this.track = track;
+    this.refreshed = false;
+    this.mediaRecovered = false;
+    this.starting = opts.autoplay;
+    this.teardown();
+    try {
+      const info = await call("data:stream", track.id);
+      if (info.protocol === "hls") await loadHls();
+      if (gen !== this.gen) return false;
+      this.attach(info, opts.startAt ?? 0, opts.autoplay);
+      return true;
+    } catch (err) {
+      if (gen === this.gen) {
+        this.starting = false;
+        if (this === active) events?.error(errorCode(err));
+      }
+      return false;
+    }
+  }
+
+  stop() {
+    this.gen++;
+    this.track = null;
+    this.audio.pause();
+    this.teardown();
+  }
+}
+
+const decks = [new Deck(), new Deck()] as const;
+let active: Deck = decks[0];
+const other = () => (active === decks[0] ? decks[1] : decks[0]);
+
+// ---- crossfade ----------------------------------------------------------------------------------------------------
+
+let fade: { from: Deck; to: Deck; startedAt: number; length: number; timer: number } | null = null;
+let preparing = false;
+
+function endFade() {
+  if (!fade) return;
+  window.clearInterval(fade.timer);
+  fade.from.stop();
+  fade.from.level = 1;
+  fade.to.level = 1;
+  fade.from.applyLevel();
+  fade.to.applyLevel();
+  fade = null;
+}
+
+function maybeCrossfade() {
+  if (!crossfade || fade || preparing || active.audio.paused) return;
+  const left = active.audio.duration - active.audio.currentTime;
+  if (!Number.isFinite(left) || left > crossfade || left < 0.5) return;
+  const next = events?.peekNext();
+  if (!next) return;
+  preparing = true;
+  const from = active;
+  const to = other();
+  const length = Math.max(0.5, left);
+  to.level = 0;
+  to.applyLevel();
+  void to.load(next, { autoplay: true }).then((ok) => {
+    preparing = false;
+    if (!ok || from !== active || from.audio.paused) {
+      if (to !== active) to.stop();
+      return;
+    }
+    // the next track is now the current one; the old deck fades out underneath
+    active = to;
+    events?.advanced(next);
+    if (Number.isFinite(to.audio.duration)) events?.duration(to.audio.duration);
+    const startedAt = performance.now();
+    fade = {
+      from,
+      to,
+      startedAt,
+      length,
+      timer: window.setInterval(() => {
+        const k = Math.min(1, (performance.now() - startedAt) / (length * 1000));
+        from.level = 1 - k;
+        to.level = k;
+        from.applyLevel();
+        to.applyLevel();
+        if (k >= 1) endFade();
+      }, 50),
+    };
+  });
+}
+
+// ---- public -------------------------------------------------------------------------------------------------------
+
+export const currentTime = () => active.audio.currentTime;
 
 export function bindEngine(handlers: EngineEvents) {
   events = handlers;
-  audio.addEventListener("playing", () => {
-    starting = false;
-    events?.playing();
-  });
-  audio.addEventListener("pause", () => {
-    if (!audio.ended && !starting) events?.paused();
-  });
-  audio.addEventListener("waiting", () => events?.loading());
-  audio.addEventListener("ended", () => events?.ended());
-  audio.addEventListener("durationchange", () => {
-    if (Number.isFinite(audio.duration)) events?.duration(audio.duration);
-  });
-  audio.addEventListener("timeupdate", () => events?.time(audio.currentTime));
-  audio.addEventListener("error", () => {
-    if (!hls && current) void recover("offline");
-  });
-}
-
-function teardown() {
-  hls?.destroy();
-  hls = null;
-  audio.removeAttribute("src");
-  audio.load();
-}
-
-function attach(info: StreamInfo, startAt: number, autoplay: boolean) {
-  teardown();
-  const H = Hls;
-  if (info.protocol === "hls" && H?.isSupported()) {
-    // no worker: the page's CSP stays strict, and remuxing a single audio stream is light
-    hls = new H({ enableWorker: false, startPosition: startAt > 0 ? startAt : -1, maxBufferLength: 60, backBufferLength: 30 });
-    hls.on(H.Events.ERROR, (_e, data: ErrorData) => {
-      if (!data.fatal) return;
-      if (data.type === H.ErrorTypes.MEDIA_ERROR && !mediaRecovered) {
-        mediaRecovered = true;
-        hls?.recoverMediaError();
-        return;
-      }
-      void recover(data.type === H.ErrorTypes.NETWORK_ERROR ? "offline" : "unknown");
-    });
-    hls.loadSource(info.url);
-    hls.attachMedia(audio);
-  } else {
-    audio.src = info.url;
-    if (startAt > 0) audio.addEventListener("loadedmetadata", () => (audio.currentTime = startAt), { once: true });
-  }
-  if (autoplay) {
-    starting = true;
-    void audio.play().catch(() => {
-      starting = false;
-      events?.paused();
-    });
-  }
-}
-
-/** The signed URL probably expired: get a new one once and continue where we were. */
-async function recover(code: ErrorCode) {
-  const track = current;
-  if (!track) return;
-  if (refreshed) {
-    events?.error(code);
-    return;
-  }
-  refreshed = true;
-  const at = audio.currentTime;
-  const wasPlaying = !audio.paused;
-  const gen = generation;
-  try {
-    const info = await call("data:stream", track.id);
-    if (info.protocol === "hls") await loadHls();
-    if (gen !== generation) return;
-    attach(info, at, wasPlaying);
-  } catch (err) {
-    if (gen === generation) events?.error(errorCode(err));
-  }
 }
 
 export async function load(track: Track, opts: { autoplay: boolean; startAt?: number }) {
-  const gen = ++generation;
-  current = track;
-  refreshed = false;
-  mediaRecovered = false;
-  starting = opts.autoplay;
-  teardown();
+  endFade();
+  preparing = false;
+  other().stop();
+  active.level = 1;
+  active.applyLevel();
   events?.loading();
-  try {
-    const info = await call("data:stream", track.id);
-    if (info.protocol === "hls") await loadHls();
-    if (gen !== generation) return;
-    attach(info, opts.startAt ?? 0, opts.autoplay);
-    if (!opts.autoplay) events?.paused();
-  } catch (err) {
-    if (gen === generation) {
-      starting = false;
-      events?.error(errorCode(err));
-    }
-  }
+  const ok = await active.load(track, opts);
+  if (ok && !opts.autoplay) events?.paused();
 }
 
 export function stop() {
-  generation++;
-  current = null;
-  teardown();
+  endFade();
+  decks.forEach((d) => d.stop());
 }
 
 export function play() {
-  if (!current) return;
-  void audio.play().catch(() => events?.paused());
+  if (!active.track) return;
+  void ctx?.resume();
+  void active.audio.play().catch(() => events?.paused());
 }
 
 export function pause() {
-  audio.pause();
+  endFade();
+  active.audio.pause();
 }
 
 export function seek(seconds: number) {
   if (!Number.isFinite(seconds)) return;
-  audio.currentTime = Math.max(0, seconds);
+  endFade();
+  active.audio.currentTime = Math.max(0, seconds);
 }
 
 /** 0..1 slider → a curve that feels even to the ear */
-export function setVolume(v: number, muted: boolean) {
-  audio.volume = Math.max(0, Math.min(1, v * v));
-  audio.muted = muted;
+export function setVolume(v: number, m: boolean) {
+  volume = Math.max(0, Math.min(1, v));
+  muted = m;
+  decks.forEach((d) => d.applyLevel());
 }
+
+export function setCrossfade(seconds: number) {
+  crossfade = Math.max(0, Math.min(12, seconds));
+}
+
+/** The equalizer: the Web Audio chain is built the first time it's switched on (and stays for the session). */
+export function setEq(next: { enabled: boolean; gains: number[] }) {
+  eq = next;
+  if (eq.enabled) graph();
+  applyEq();
+}
+
+/** Audio output device ("" = the system default). */
+export async function setOutput(id: string) {
+  sinkId = id;
+  try {
+    if (ctx && "setSinkId" in ctx) await (ctx as AudioContext & { setSinkId(id: string): Promise<void> }).setSinkId(id);
+    else await Promise.all(decks.map((d) => d.audio.setSinkId(id)));
+  } catch {
+    /* the device is gone: stay on the current one */
+  }
+}
+
+// dev only: drive the engine from DevTools (window.__engine.seek(25))
+if (import.meta.env.DEV) (window as unknown as { __engine: unknown }).__engine = { seek, currentTime, decks };

@@ -9,6 +9,8 @@ import { initAnimationClock } from "@/lib/animClock";
 import { applyQuality } from "@/lib/quality";
 import { call } from "@/lib/sky";
 import { useAuth } from "@/state/auth";
+import { initAudioPrefs } from "@/audio/prefs";
+import { initSystemBridge } from "@/lib/system";
 import { initVolume } from "@/state/player";
 import { useSettings } from "@/state/settings";
 import App from "./App";
@@ -22,6 +24,8 @@ async function boot() {
   }
   applyQuality(useSettings.getState().quality);
   initVolume();
+  initAudioPrefs();
+  initSystemBridge();
   void useAuth.getState().init();
 
   createRoot(document.getElementById("root")!).render(

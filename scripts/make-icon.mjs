@@ -5,4 +5,7 @@ import sharp from "sharp";
 
 mkdirSync("build", { recursive: true });
 await sharp("assets/app-icon.svg", { density: 1200 }).resize(512, 512).png().toFile("build/icon.png");
-console.log("build/icon.png");
+// the same picture for the window and the tray (bundled with main)
+mkdirSync("resources", { recursive: true });
+await sharp("build/icon.png").toFile("resources/icon.png");
+console.log("build/icon.png, resources/icon.png");

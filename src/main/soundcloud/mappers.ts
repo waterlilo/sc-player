@@ -1,4 +1,4 @@
-import type { Playability, Playlist, PlaylistRelation, Track, User, UserRef } from "@shared/types";
+import type { Playability, Playlist, PlaylistRelation, Track, TrackDetails, User, UserRef } from "@shared/types";
 import { apiChanged } from "./errors";
 
 /**
@@ -41,7 +41,18 @@ export interface RawTrack {
   policy?: string;
   media?: { transcodings?: RawTranscoding[] };
   track_authorization?: string;
-  publisher_metadata?: { artist?: string | null } | null;
+  publisher_metadata?: { artist?: string | null; release_title?: string | null } | null;
+  playback_count?: number | null;
+  likes_count?: number | null;
+  reposts_count?: number | null;
+  comment_count?: number | null;
+  genre?: string | null;
+  created_at?: string;
+  release_date?: string | null;
+  display_date?: string | null;
+  label_name?: string | null;
+  description?: string | null;
+  tag_list?: string;
 }
 
 export interface RawPlaylist {
@@ -58,6 +69,10 @@ export interface RawPlaylist {
   is_album?: boolean;
   set_type?: string;
   tracks?: RawTrack[];
+  release_date?: string | null;
+  published_at?: string | null;
+  created_at?: string;
+  genre?: string | null;
 }
 
 export interface RawCollection<T> {
@@ -138,5 +153,28 @@ export function mapPlaylist(raw: RawPlaylist | undefined, relation: PlaylistRela
     permalinkUrl: raw.permalink_url ?? "",
     isAlbum: raw.is_album ?? raw.set_type === "album",
     relation,
+    releaseDate: raw.release_date || raw.published_at || raw.created_at || null,
+    genre: raw.genre?.trim() || null,
+  };
+}
+
+/** "tag1 \"two words\" tag3" → ["tag1", "two words", "tag3"] */
+function tags(list: string | undefined): string[] {
+  return [...(list ?? "").matchAll(/"([^"]+)"|(\S+)/g)].map((m) => (m[1] ?? m[2] ?? "").trim()).filter(Boolean).slice(0, 12);
+}
+
+export function mapTrackDetails(raw: RawTrack | undefined, track: Track): TrackDetails {
+  return {
+    track,
+    plays: raw?.playback_count ?? null,
+    likes: raw?.likes_count ?? null,
+    reposts: raw?.reposts_count ?? null,
+    comments: raw?.comment_count ?? null,
+    genre: raw?.genre?.trim() || null,
+    createdAt: raw?.created_at ?? null,
+    releaseDate: raw?.release_date || raw?.display_date || null,
+    label: raw?.label_name?.trim() || null,
+    description: raw?.description?.trim() || null,
+    tags: tags(raw?.tag_list),
   };
 }

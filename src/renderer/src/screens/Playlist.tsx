@@ -36,7 +36,11 @@ export default function Playlist({ id }: { id: string }) {
             </div>
           </div>
           <div className="min-w-0 pb-1">
-            <div className="font-type text-xs uppercase tracking-[0.2em] text-muted">{p?.isAlbum ? t.album : t.playlist}</div>
+            <div className="font-type text-xs uppercase tracking-[0.2em] text-muted">
+              {p?.isAlbum ? t.album : t.playlist}
+              {p?.isAlbum && p.releaseDate && <span> · {new Date(p.releaseDate).getFullYear()}</span>}
+              {p?.genre && <span> · {p.genre}</span>}
+            </div>
             <h1 className="display-heading my-1 line-clamp-2 min-h-[2.5rem] text-4xl leading-tight text-text">{p?.title}</h1>
             {p && (
               <div className="flex flex-wrap items-center gap-x-2 font-type text-sm text-muted">

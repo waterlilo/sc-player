@@ -1,4 +1,4 @@
-import type { Page, Playlist, Resolved, StreamInfo, Track, User } from "./types";
+import type { Page, Playlist, QueueSource, Resolved, StreamInfo, Track, TrackDetails, User } from "./types";
 
 export type SearchKind = "tracks" | "playlists" | "users";
 
@@ -26,6 +26,13 @@ export interface MusicProvider {
   getUserTracks(userId: number, cursor?: string | null): Promise<Page<Track>>;
   getUserPlaylists(userId: number, cursor?: string | null): Promise<Page<Playlist>>;
   resolve(url: string): Promise<Resolved>;
+  /** full tracks by id, in the given order (unavailable ones left out); up to 200 ids */
+  getTracks(ids: number[]): Promise<Track[]>;
+  /** every track id of a list (a whole playlist, all likes, all uploads), for a true shuffle; capped at MAX_SOURCE_IDS */
+  getSourceIds(source: QueueSource): Promise<number[]>;
+  getTrackDetails(trackId: number): Promise<TrackDetails>;
+  /** tracks similar to this one (the queue autopilot) */
+  getRelated(trackId: number): Promise<Track[]>;
   search(query: string, kind: SearchKind, cursor?: string | null): Promise<Page<Track> | Page<Playlist> | Page<User>>;
   searchSuggestions(query: string): Promise<string[]>;
   getStreamUrl(trackId: number): Promise<StreamInfo>;
@@ -34,3 +41,5 @@ export interface MusicProvider {
   unlike(trackId: number): Promise<void>;
   addToPlaylist(playlistId: string, trackId: number): Promise<void>;
 }
+
+export const MAX_SOURCE_IDS = 10_000;

@@ -65,7 +65,7 @@ export default function PlayerBar() {
   const track = useCurrentTrack();
   const go = useNav((s) => s.go);
   const repeat = usePlayer((s) => s.repeat);
-  const shuffle = usePlayer((s) => s.original !== null);
+  const shuffle = usePlayer((s) => s.shuffle);
   const error = usePlayer((s) => (s.status === "error" ? s.error : null));
   const durationS = usePlayer((s) => s.duration);
   const queueOpen = useUi((s) => s.queueOpen);

@@ -4,6 +4,7 @@ export type Route =
   | { name: "likes" }
   | { name: "playlists" }
   | { name: "playlist"; id: string }
+  | { name: "track"; id: number }
   | { name: "profile"; userId: number }
   | { name: "history" }
   | { name: "search" }

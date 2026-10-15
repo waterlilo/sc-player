@@ -2,6 +2,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { QueueSource, Track } from "@shared/types";
 import { useT } from "@/i18n";
+import { useVisibleTracks } from "@/lib/hidden";
 import { player, usePlayer } from "@/state/player";
 import { useScrollElement } from "../ui/Screen";
 import TrackRow, { ROW_HEIGHT } from "./TrackRow";
@@ -20,8 +21,10 @@ interface Props {
  * Thousands of likes scroll smoothly: only the rows on screen exist (virtualized against the screen's scroller), and
  * the next page is requested when the last rows come near.
  */
-export default function TrackList({ tracks, source, hasMore = false, loadingMore = false, onLoadMore, label }: Props) {
+export default function TrackList({ tracks: all, source, hasMore = false, loadingMore = false, onLoadMore, label }: Props) {
   const t = useT();
+  // blocked artists and hidden keywords (Settings) are left out
+  const tracks = useVisibleTracks(all);
   const scroller = useScrollElement();
   const listRef = useRef<HTMLDivElement>(null);
   const [margin, setMargin] = useState(0);

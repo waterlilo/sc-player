@@ -1,4 +1,5 @@
 import { Component, type ReactNode } from "react";
+import { call } from "@/lib/sky";
 import { ErrorState } from "./States";
 
 /**
@@ -13,7 +14,7 @@ export default class ScreenBoundary extends Component<{ children: ReactNode }, {
   }
 
   componentDidCatch(error: unknown) {
-    console.error("screen crashed", error);
+    void call("log:write", `screen crashed: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`).catch(() => undefined);
   }
 
   render() {

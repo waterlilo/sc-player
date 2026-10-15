@@ -1,5 +1,5 @@
 import type { SearchKind } from "./provider";
-import type { AppErrorInfo, Page, Playlist, QueueSource, Resolved, SavedProfile, StreamInfo, Track, User } from "./types";
+import type { AppErrorInfo, Page, Playlist, QueueSource, Resolved, SavedProfile, StreamInfo, Track, TrackDetails, User } from "./types";
 
 /**
  * The one contract between main and renderer. main registers a handler for every InvokeMap channel, preload exposes
@@ -30,6 +30,87 @@ export interface PlayerSnapshot {
   repeat: RepeatMode;
 }
 
+export type HotkeyAction = "playPause" | "next" | "previous" | "showWindow";
+export type PlayerCommand = "playPause" | "next" | "previous";
+
+/** What main needs to know about playback: tray menu and tooltip, notifications. */
+export interface PlayerInfo {
+  track: { id: number; title: string; artist: string; artworkUrl: string | null } | null;
+  playing: boolean;
+}
+
+export type UpdateStatus =
+  | { state: "idle" | "checking" | "none" }
+  | { state: "available"; version: string; portable: boolean }
+  | { state: "downloading"; version: string; percent: number }
+  | { state: "ready"; version: string }
+  | { state: "error"; message: string };
+
+export interface NetCheck {
+  name: string;
+  ok: boolean;
+  ms: number | null;
+  detail: string;
+}
+
+export interface AppInfo {
+  version: string;
+  portable: boolean;
+  packaged: boolean;
+  logsDir: string;
+}
+export type StreamQuality = "high" | "low";
+
+/** Everything on the Settings screen. main reads the parts it acts on (tray, autostart, hotkeys, notifications). */
+export interface Prefs {
+  /** when the list runs out (repeat off), keep playing similar tracks */
+  autopilot: boolean;
+  /** the window's ✕ hides it to the tray instead of quitting */
+  closeToTray: boolean;
+  startWithWindows: boolean;
+  /** started with Windows: stay in the tray */
+  startMinimized: boolean;
+  /** a toast when the track changes while the window isn't in front */
+  notifications: boolean;
+  /** global shortcuts, Electron accelerator strings; "" = off */
+  hotkeys: Record<HotkeyAction, string>;
+  streamQuality: StreamQuality;
+  /** seconds of overlap between tracks, 0 = off */
+  crossfade: number;
+  eq: { enabled: boolean; preset: string; gains: number[] };
+  /** audio output device id, "" = system default */
+  outputDevice: string;
+  blockedArtists: { id: number; username: string }[];
+  /** tracks whose title or artist contains one of these are hidden and skipped */
+  hiddenKeywords: string[];
+  /** check GitHub for a new version at start and every few hours */
+  checkUpdates: boolean;
+}
+
+export const EQ_BANDS = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000] as const;
+
+export const PREFS_DEFAULTS: Prefs = {
+  autopilot: true,
+  closeToTray: true,
+  startWithWindows: false,
+  startMinimized: true,
+  notifications: false,
+  hotkeys: { playPause: "Control+Alt+Space", next: "Control+Alt+Right", previous: "Control+Alt+Left", showWindow: "Control+Alt+S" },
+  streamQuality: "high",
+  crossfade: 0,
+  eq: { enabled: false, preset: "flat", gains: EQ_BANDS.map(() => 0) },
+  outputDevice: "",
+  blockedArtists: [],
+  hiddenKeywords: [],
+  checkUpdates: true,
+};
+
+/** Fills in anything missing from stored prefs (new options in a newer version). */
+export function withPrefDefaults(stored: Partial<Prefs> | undefined): Prefs {
+  const p = { ...PREFS_DEFAULTS, ...stored };
+  return { ...p, hotkeys: { ...PREFS_DEFAULTS.hotkeys, ...stored?.hotkeys }, eq: { ...PREFS_DEFAULTS.eq, ...stored?.eq } };
+}
+
 /** State the renderer keeps in main's store (settings.json in userData). */
 export interface RendererState {
   /** player volume 0..1 and mute, kept between runs */
@@ -38,6 +119,8 @@ export interface RendererState {
   quality: QualityPref;
   savedProfiles: SavedProfile[];
   history: Track[];
+  searchHistory: string[];
+  prefs: Prefs;
   player: PlayerSnapshot | null;
 }
 
@@ -47,6 +130,8 @@ export const RENDERER_DEFAULTS: RendererState = {
   quality: "auto",
   savedProfiles: [],
   history: [],
+  searchHistory: [],
+  prefs: PREFS_DEFAULTS,
   player: null,
 };
 
@@ -65,6 +150,10 @@ export interface InvokeMap {
   "data:userTracks": (userId: number, cursor: string | null) => Page<Track>;
   "data:userPlaylists": (userId: number, cursor: string | null) => Page<Playlist>;
   "data:resolve": (url: string) => Resolved;
+  "data:tracks": (ids: number[]) => Track[];
+  "data:sourceIds": (source: QueueSource) => number[];
+  "data:related": (trackId: number) => Track[];
+  "data:trackDetails": (trackId: number) => TrackDetails;
   "data:search": (query: string, kind: SearchKind, cursor: string | null) => Page<Track> | Page<Playlist> | Page<User>;
   "data:suggest": (query: string) => string[];
   "data:stream": (trackId: number) => StreamInfo;
@@ -78,12 +167,29 @@ export interface InvokeMap {
   "store:set": (patch: Partial<RendererState>) => void;
 
   "shell:open": (url: string) => void;
+  "clipboard:write": (text: string) => void;
+
+  "player:state": (info: PlayerInfo) => void;
+  "hotkeys:suspend": (suspended: boolean) => void;
+  "app:info": () => AppInfo;
+  "log:write": (message: string) => void;
+  "diag:openLogs": () => void;
+  "diag:netcheck": () => NetCheck[];
+  "diag:clearCache": () => void;
+  "update:check": () => UpdateStatus;
+  "update:download": () => void;
+  "update:install": () => void;
 }
 
 export interface EventMap {
   "win:activity": WindowActivity;
   "win:maximized": boolean;
   "auth:changed": AuthStatus;
+  /** tray menu, global hotkeys */
+  "player:command": PlayerCommand;
+  /** global hotkeys that could not be registered (taken by another app) */
+  "hotkeys:failed": HotkeyAction[];
+  "update:status": UpdateStatus;
 }
 
 export type InvokeChannel = keyof InvokeMap;
@@ -104,6 +210,10 @@ export const INVOKE_CHANNELS = [
   "data:userTracks",
   "data:userPlaylists",
   "data:resolve",
+  "data:tracks",
+  "data:sourceIds",
+  "data:related",
+  "data:trackDetails",
   "data:search",
   "data:suggest",
   "data:stream",
@@ -114,8 +224,19 @@ export const INVOKE_CHANNELS = [
   "store:get",
   "store:set",
   "shell:open",
+  "clipboard:write",
+  "player:state",
+  "hotkeys:suspend",
+  "app:info",
+  "log:write",
+  "diag:openLogs",
+  "diag:netcheck",
+  "diag:clearCache",
+  "update:check",
+  "update:download",
+  "update:install",
 ] as const satisfies readonly InvokeChannel[];
-export const EVENT_CHANNELS = ["win:activity", "win:maximized", "auth:changed"] as const satisfies readonly (keyof EventMap)[];
+export const EVENT_CHANNELS = ["win:activity", "win:maximized", "auth:changed", "player:command", "hotkeys:failed", "update:status"] as const satisfies readonly (keyof EventMap)[];
 
 type MissingInvoke = Exclude<InvokeChannel, (typeof INVOKE_CHANNELS)[number]>;
 type MissingEvent = Exclude<keyof EventMap, (typeof EVENT_CHANNELS)[number]>;

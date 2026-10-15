@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import { BrowserWindow, shell } from "electron";
 import type { EventMap, WindowActivity } from "@shared/ipc";
+import { appIcon } from "../system/tray";
 
 export const TITLEBAR_HEIGHT = 40;
 const DEV_URL = process.env.ELECTRON_RENDERER_URL;
@@ -14,11 +15,11 @@ export function send<K extends keyof EventMap>(win: BrowserWindow | null, channe
 }
 
 /**
- * Frameless window. The caption buttons are Windows' own (Window Controls Overlay), made fully transparent: the page
+ * Frameless window, with the app icon. The caption buttons are Windows' own (Window Controls Overlay), made fully transparent: the page
  * draws its marker-style buttons underneath, while Windows keeps dragging, double-click to maximize and the Windows 11
  * Snap Layouts flyout working on the real maximize button.
  */
-export function createMainWindow() {
+export function createMainWindow(opts: { startHidden: boolean; closeToTray: () => boolean; quitting: () => boolean }) {
   const win = new BrowserWindow({
     width: 1240,
     height: 800,
@@ -26,6 +27,7 @@ export function createMainWindow() {
     minHeight: 600,
     show: false,
     title: "sc player",
+    icon: appIcon(),
     backgroundColor: "#07050d",
     titleBarStyle: "hidden",
     titleBarOverlay: { color: "#00000000", symbolColor: "#00000000", height: TITLEBAR_HEIGHT },
@@ -40,7 +42,17 @@ export function createMainWindow() {
     },
   });
 
-  win.once("ready-to-show", () => win.show());
+  // started with Windows and "start minimized": stay in the tray until the icon is clicked
+  win.once("ready-to-show", () => {
+    if (!opts.startHidden) win.show();
+  });
+
+  // the ✕ hides the window to the tray (Settings → close button), the music keeps playing
+  win.on("close", (e) => {
+    if (opts.quitting() || !opts.closeToTray()) return;
+    e.preventDefault();
+    win.hide();
+  });
 
   // the window only ever shows the app itself; links go to the real browser
   win.webContents.setWindowOpenHandler(({ url }) => {
