@@ -15,6 +15,7 @@
     "start": "electron-vite preview",
     "postinstall": "node node_modules/electron/install.js",
     "dev:debug": "electron-vite dev --remoteDebuggingPort 9223",
+    "stats": "node scripts/stats.mjs",
     "icon": "node scripts/make-icon.mjs",
     "dist": "node scripts/dist.mjs",
     "test": "node --test \"src/**/*.test.ts\""
