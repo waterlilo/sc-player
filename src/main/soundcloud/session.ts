@@ -16,3 +16,45 @@ export function chromeUserAgent() {
 
 export const API_V2 = "https://api-v2.soundcloud.com";
 export const API_HOST = "api-v2.soundcloud.com";
+
+/**
+ * The rest of what Chrome tells a site about itself: the client hints (Sec-CH-UA headers, navigator.userAgentData).
+ * Electron's say "Chromium" without "Google Chrome", which next to a Chrome user agent is what SoundCloud's bot
+ * protection (DataDome) flags as automation — "Access temporarily restricted" on sign-in. Set through the DevTools
+ * protocol's Emulation domain only (nothing a page can see being attached), before the page loads.
+ */
+export async function presentAsChrome(wc: Electron.WebContents) {
+  if (wc.isDestroyed()) return;
+  const full = process.versions.chrome;
+  const major = full.split(".")[0]!;
+  try {
+    if (!wc.debugger.isAttached()) wc.debugger.attach("1.3");
+    const override = wc.debugger.sendCommand("Emulation.setUserAgentOverride", {
+      userAgent: chromeUserAgent(),
+      platform: "Win32",
+      userAgentMetadata: {
+        brands: [
+          { brand: "Google Chrome", version: major },
+          { brand: "Chromium", version: major },
+          { brand: "Not?A_Brand", version: "24" },
+        ],
+        fullVersionList: [
+          { brand: "Google Chrome", version: full },
+          { brand: "Chromium", version: full },
+          { brand: "Not?A_Brand", version: "24.0.0.0" },
+        ],
+        platform: "Windows",
+        platformVersion: "10.0.0",
+        architecture: "x86",
+        bitness: "64",
+        model: "",
+        mobile: false,
+        wow64: false,
+      },
+    });
+    // never hold the sign-in up: without an answer in 2 s the page loads with the plain user agent
+    await Promise.race([override, new Promise((resolve) => setTimeout(resolve, 2000))]);
+  } catch {
+    /* already attached by DevTools, or the window went away: the plain user agent stays */
+  }
+}

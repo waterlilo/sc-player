@@ -61,6 +61,10 @@ export default function Login() {
               </p>
             )}
           </form>
+          <details className="mt-6 w-full font-type text-sm text-muted">
+            <summary className="cursor-pointer text-center hover:text-text">{t.loginTrouble}</summary>
+            <p className="mt-2 text-left leading-relaxed">{t.loginTroubleText}</p>
+          </details>
         </EmptyState>
       </div>
     </div>

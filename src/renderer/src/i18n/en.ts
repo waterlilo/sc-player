@@ -205,6 +205,9 @@ export const en = {
   loginTitle: "sign in",
   loginHint: "Your likes and playlists, without ads.",
   loginButton: "Sign in to SoundCloud",
+  loginTrouble: "Trouble signing in?",
+  loginTroubleText:
+    "\"Access temporarily restricted\" or \"Something unexpected happened\" come from SoundCloud's bot protection, which often blocks VPN addresses. Sign in with the VPN off (zapret keeps your own address) or on another VPN server, then press Sign in again. Once signed in, the VPN can go back on.",
   orPaste: "or open a public profile",
   open: "Open",
   logout: "Sign out",

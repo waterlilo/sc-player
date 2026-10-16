@@ -2,7 +2,7 @@ import { BrowserWindow, shell, type OnBeforeSendHeadersListenerDetails } from "e
 import { getSecret, setSecret } from "../store/secrets";
 import { log } from "../system/log";
 import type { ClientId } from "./client-id";
-import { scSession } from "./session";
+import { presentAsChrome, scSession } from "./session";
 
 const LOGIN_URL = "https://soundcloud.com/signin";
 /** popups that stay inside the sign-in window: SoundCloud and the sign-in providers */
@@ -94,6 +94,7 @@ export class SessionAuth {
     };
     popups(win.webContents);
     win.webContents.on("did-create-window", (child) => {
+      void presentAsChrome(child.webContents);
       popups(child.webContents);
       // inside a provider's window only the sign-in hosts load; anything else goes to the real browser
       child.webContents.on("will-navigate", (e, url) => {
@@ -165,7 +166,14 @@ export class SessionAuth {
         this.window = null;
         finish(null);
       });
-      void win.loadURL(LOGIN_URL);
+      // the override takes once something is loaded: a blank page first, then the sign-in
+      void win
+        .loadURL("about:blank")
+        .then(() => presentAsChrome(win.webContents))
+        .catch(() => undefined)
+        .finally(() => {
+          if (!win.isDestroyed()) void win.loadURL(LOGIN_URL);
+        });
     });
   }
 
