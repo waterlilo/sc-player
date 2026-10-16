@@ -34,7 +34,75 @@ interface PlayerStore {
 const HISTORY_LIMIT = 300;
 const FILL = 20; // tracks fetched from `pending` at a time
 const AHEAD = 3; // keep at least this many tracks queued after the current one
-const playable = (t: Track | undefined) => !!t && (t.playability === "ok" || t.playability === "preview") && !isHidden(t);
+/** Can this track be played (directly, or through another upload that may be found)? */
+export const canPlay = (t: Track | undefined) => playable(t);
+const playable = (t: Track | undefined): boolean =>
+  !!t && !isHidden(t) && (t.playability === "ok" || t.playability === "preview" || (needsSub(t) && useSubs.getState().byTrack[t.id]?.state !== "none"));
+
+// ---- substitutes: another playable upload of a track SoundCloud only streams with DRM (or as a preview) -----------
+
+interface Sub {
+  state: "searching" | "found" | "none";
+  candidates: Track[];
+  pick: number;
+}
+
+/** What was found for each protected track this session (main also remembers it on disk). */
+export const useSubs = create<{ byTrack: Record<number, Sub> }>(() => ({ byTrack: {} }));
+const setSub = (id: number, sub: Sub) => useSubs.setState((s) => ({ byTrack: { ...s.byTrack, [id]: sub } }));
+
+/** Should this track be played from another upload? (Settings → substitute, and not switched off for this track.) */
+export function needsSub(t: Track) {
+  const p = useSettings.getState().prefs;
+  return p.substitute && t.playability !== "ok" && !p.noSubstitute.includes(t.id);
+}
+
+/** The upload that plays instead of `t`, once found. */
+export function substituteFor(t: Track): Track | null {
+  const s = useSubs.getState().byTrack[t.id];
+  return s?.state === "found" ? (s.candidates[s.pick] ?? null) : null;
+}
+
+/** For the player bar and the waveform: the track whose sound actually plays. */
+export function useStreamTrack(track: Track | null): Track | null {
+  const sub = useSubs((s) => (track ? s.byTrack[track.id] : undefined));
+  const on = useSettings((s) => !!track && s.prefs.substitute && !s.prefs.noSubstitute.includes(track.id));
+  if (!track || track.playability === "ok" || !on || sub?.state !== "found") return track;
+  return sub.candidates[sub.pick] ?? track;
+}
+
+const pendingSubs = new Map<number, Promise<Track | null>>();
+
+/** Finds (once) the other upload for a protected track; null when there is none. */
+function resolveSub(t: Track): Promise<Track | null> {
+  const known = useSubs.getState().byTrack[t.id];
+  if (known?.state === "found") return Promise.resolve(known.candidates[known.pick] ?? null);
+  if (known?.state === "none") return Promise.resolve(null);
+  const pending = pendingSubs.get(t.id);
+  if (pending) return pending;
+  setSub(t.id, { state: "searching", candidates: [], pick: 0 });
+  const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timeout")), 10_000));
+  const run = Promise.race([call("data:alternatives", t.id), timeout])
+    .then((list) => {
+      const ok = list.filter((c) => !isHidden(c));
+      setSub(t.id, ok.length ? { state: "found", candidates: ok, pick: 0 } : { state: "none", candidates: [], pick: 0 });
+      return ok[0] ?? null;
+    })
+    .catch(() => {
+      setSub(t.id, { state: "none", candidates: [], pick: 0 });
+      return null;
+    })
+    .finally(() => pendingSubs.delete(t.id));
+  pendingSubs.set(t.id, run);
+  return run;
+}
+
+/** Look for the next track's substitute while this one plays, so the change (and the crossfade) is seamless. */
+function prefetchNextSub() {
+  const { index, repeat, queue } = get();
+  const next = queue[nextIndex(index, repeat === "all")];
+  if (next && needsSub(next)) void resolveSub(next);
+}
 
 export const usePlayer = create<PlayerStore>(() => ({
   queue: [],
@@ -81,14 +149,40 @@ function remember(track: Track) {
   save({ history: [track, ...history.filter((t) => t.id !== track.id)].slice(0, HISTORY_LIMIT) });
 }
 
+/** bumped on every start: a substitute found late for a track that is no longer current is not played */
+let starts = 0;
+
 function start(index: number, opts: { autoplay?: boolean; startAt?: number } = {}) {
   const track = get().queue[index];
   if (!track) return;
+  const gen = ++starts;
+  const autoplay = opts.autoplay ?? true;
   set({ index, error: null, duration: track.durationMs / 1000 });
   usePosition.setState({ position: opts.startAt ?? 0 });
-  void engine.load(track, { autoplay: opts.autoplay ?? true, startAt: opts.startAt });
-  if (opts.autoplay ?? true) remember(track);
+  if (autoplay) remember(track);
   void topUp();
+  if (!needsSub(track)) {
+    void engine.load(track, { autoplay, startAt: opts.startAt });
+    prefetchNextSub();
+    return;
+  }
+  // a protected track: play another upload of it; a preview plays as is if there is none; otherwise skip
+  set({ status: "loading" });
+  void resolveSub(track).then((alt) => {
+    if (gen !== starts) return;
+    if (alt) {
+      set({ duration: alt.durationMs / 1000 });
+      void engine.load(track, { autoplay, startAt: opts.startAt, streamId: alt.id });
+    } else if (track.playability === "preview") {
+      void engine.load(track, { autoplay, startAt: opts.startAt });
+    } else {
+      set({ status: "error", error: "unavailable" });
+      window.clearTimeout(skipTimer);
+      skipTimer = window.setTimeout(() => void advance(true), 600);
+      return;
+    }
+    prefetchNextSub();
+  });
 }
 
 // ---- whole lists --------------------------------------------------------------------------------------------------
@@ -252,17 +346,26 @@ engine.bindEngine({
   peekNext: () => {
     const { repeat, index, queue } = get();
     if (repeat === "one") return null;
-    return queue[nextIndex(index, repeat === "all")] ?? null;
+    const t = queue[nextIndex(index, repeat === "all")];
+    if (!t) return null;
+    if (!needsSub(t)) return { track: t, streamId: t.id };
+    const alt = substituteFor(t);
+    if (alt) return { track: t, streamId: alt.id };
+    // not found yet: no crossfade into it (the normal change will search and wait)
+    return t.playability === "preview" && useSubs.getState().byTrack[t.id]?.state === "none" ? { track: t, streamId: t.id } : null;
   },
   advanced: (track) => {
     const { queue, index } = get();
     let at = queue.indexOf(track, index + 1);
     if (at < 0) at = queue.findIndex((t, i) => i > index && t.id === track.id);
     if (at < 0) return;
-    set({ index: at, error: null, duration: track.durationMs / 1000 });
+    starts++;
+    const alt = needsSub(track) ? substituteFor(track) : null;
+    set({ index: at, error: null, duration: (alt ?? track).durationMs / 1000 });
     usePosition.setState({ position: 0 });
     remember(track);
     void topUp();
+    prefetchNextSub();
   },
   error: (code) => {
     set({ status: "error", error: code });
@@ -450,6 +553,22 @@ export const player = {
   retry() {
     const { index } = get();
     if (index >= 0) start(index, { startAt: usePosition.getState().position });
+  },
+  /** "Wrong version?": the next found upload for the current protected track, from the start. */
+  tryAnotherVersion() {
+    const { queue, index } = get();
+    const t = queue[index];
+    const s = t ? useSubs.getState().byTrack[t.id] : undefined;
+    if (!t || !s || s.state !== "found" || s.candidates.length < 2) return;
+    setSub(t.id, { ...s, pick: (s.pick + 1) % s.candidates.length });
+    start(index);
+  },
+  /** Substitute this track or not (the menu); the current track restarts with the new choice. */
+  setSubstitute(track: Track, on: boolean) {
+    const { prefs, setPref } = useSettings.getState();
+    setPref("noSubstitute", on ? prefs.noSubstitute.filter((id) => id !== track.id) : [...prefs.noSubstitute.filter((id) => id !== track.id), track.id]);
+    const { queue, index } = get();
+    if (queue[index]?.id === track.id) start(index);
   },
 };
 

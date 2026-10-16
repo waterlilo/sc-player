@@ -65,6 +65,9 @@ export const useTrackDetails = (id: number) => useQuery({ queryKey: ["track", id
 
 export const useRelated = (id: number) => useQuery({ queryKey: ["related", id], queryFn: () => call("data:related", id), staleTime: 10 * 60_000 });
 
+export const useAlternatives = (id: number, enabled: boolean) =>
+  useQuery({ queryKey: ["alternatives", id], queryFn: () => call("data:alternatives", id), enabled, staleTime: 30 * 60_000, retry: false });
+
 export const useWaveform = (url: string | null) =>
   useQuery({
     queryKey: ["waveform", url],

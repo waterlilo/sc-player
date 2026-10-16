@@ -31,6 +31,8 @@ export interface MusicProvider {
   /** every track id of a list (a whole playlist, all likes, all uploads), for a true shuffle; capped at MAX_SOURCE_IDS */
   getSourceIds(source: QueueSource): Promise<number[]>;
   getTrackDetails(trackId: number): Promise<TrackDetails>;
+  /** other uploads of the same recording that play in full, best first (for tracks only streamed with DRM) */
+  getAlternatives(trackId: number): Promise<Track[]>;
   /** tracks similar to this one (the queue autopilot) */
   getRelated(trackId: number): Promise<Track[]>;
   search(query: string, kind: SearchKind, cursor?: string | null): Promise<Page<Track> | Page<Playlist> | Page<User>>;

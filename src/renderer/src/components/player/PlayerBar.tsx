@@ -3,7 +3,8 @@ import { artwork } from "@shared/types";
 import { errorText, useT } from "@/i18n";
 import { duration } from "@/lib/format";
 import { useNav } from "@/state/nav";
-import { player, useCurrentTrack, usePlayer, usePosition } from "@/state/player";
+import { call } from "@/lib/sky";
+import { player, useCurrentTrack, usePlayer, usePosition, useStreamTrack } from "@/state/player";
 import { useUi } from "@/state/ui";
 import { IconButton } from "../ui/Buttons";
 import MarkerEdge from "../deco/MarkerEdge";
@@ -63,6 +64,9 @@ function Volume() {
 export default function PlayerBar() {
   const t = useT();
   const track = useCurrentTrack();
+  // a protected track plays from another upload: its waveform and link
+  const sound = useStreamTrack(track);
+  const substituted = !!track && !!sound && sound.id !== track.id;
   const go = useNav((s) => s.go);
   const repeat = usePlayer((s) => s.repeat);
   const shuffle = usePlayer((s) => s.shuffle);
@@ -89,6 +93,11 @@ export default function PlayerBar() {
               <button type="button" onClick={() => go({ name: "profile", userId: track.user.id })} className="mt-1 block max-w-full truncate text-sm text-muted hover:text-text hover:underline">
                 {track.artist}
               </button>
+              {substituted && sound && (
+                <button type="button" onClick={() => void call("shell:open", sound.permalinkUrl)} title={sound.title} className="block max-w-full truncate font-type text-[0.7rem] text-glow/80 hover:text-glow hover:underline">
+                  {t.viaUpload(sound.user.username)}
+                </button>
+              )}
             </>
           ) : (
             <span className="font-type text-sm text-muted">{t.nothingPlaying}</span>
@@ -108,7 +117,7 @@ export default function PlayerBar() {
         <div className="flex items-center gap-2">
           <Time />
           <div className="min-w-0 flex-1">
-            {track ? <Waveform key={track.id} track={track} height={34} /> : <div className="h-[34px]" />}
+            {sound ? <Waveform key={sound.id} track={sound} height={34} /> : <div className="h-[34px]" />}
           </div>
           <span className="w-12 shrink-0 font-type text-xs tabular-nums text-muted">{duration((durationS || 0) * 1000)}</span>
         </div>

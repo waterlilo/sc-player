@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { artwork } from "@shared/types";
-import { useRelated, useTrackDetails } from "@/api/queries";
+import { useAlternatives, useRelated, useTrackDetails } from "@/api/queries";
 import TrackList from "@/components/tracks/TrackList";
 import { MarkerButton, PaperButton } from "@/components/ui/Buttons";
 import Icon from "@/components/ui/Icon";
@@ -10,7 +10,7 @@ import { useT } from "@/i18n";
 import { compactNumber, duration } from "@/lib/format";
 import { call } from "@/lib/sky";
 import { useNav } from "@/state/nav";
-import { player, usePlayer } from "@/state/player";
+import { canPlay, player, usePlayer } from "@/state/player";
 import { useUi } from "@/state/ui";
 
 const STATIC = { kind: "static" } as const;
@@ -27,6 +27,8 @@ export default function Track({ id }: { id: number }) {
   const current = usePlayer((s) => s.queue[s.index]?.id === id);
   const playing = usePlayer((s) => s.queue[s.index]?.id === id && (s.status === "playing" || s.status === "loading"));
   const d = details.data;
+  const protectedTrack = !!d && d.track.playability !== "ok";
+  const others = useAlternatives(id, protectedTrack);
 
   if (details.isPending) return <Loading />;
   if (!d) return <ErrorState error={details.error} onRetry={() => void details.refetch()} />;
@@ -38,7 +40,7 @@ export default function Track({ id }: { id: number }) {
     d.comments !== null && t.commentsCount(compactNumber(d.comments)),
   ].filter(Boolean) as string[];
   const meta = [d.genre, year(d.releaseDate ?? d.createdAt), duration(tr.durationMs)].filter(Boolean).join(" · ");
-  const unplayable = tr.playability === "blocked" || tr.playability === "drm";
+  const unplayable = !canPlay(tr);
 
   return (
     <Screen label={tr.title}>
@@ -102,6 +104,20 @@ export default function Track({ id }: { id: number }) {
                 </span>
               ))}
             </div>
+          )}
+        </section>
+      )}
+
+      {protectedTrack && (
+        <section className="mb-8">
+          <h2 className="display-heading mb-1 -rotate-1 text-3xl text-text">{t.otherUploads}</h2>
+          <p className="mb-3 max-w-2xl text-sm text-muted">{t.otherUploadsHint}</p>
+          {others.isPending ? (
+            <Loading />
+          ) : others.data?.length ? (
+            <TrackList tracks={others.data} source={STATIC} label={t.otherUploads} />
+          ) : (
+            <p className="font-type text-sm text-muted">{t.noOtherUploads}</p>
           )}
         </section>
       )}

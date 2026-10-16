@@ -6,11 +6,14 @@ import type { MusicProvider, SearchKind } from "@shared/provider";
 import type { QueueSource } from "@shared/types";
 import { DemoProvider } from "./demo";
 import { auth, authStatus, chromeUserAgent, provider, ScError, scSession, toErrorInfo } from "./soundcloud";
+import { flushAlternatives } from "./soundcloud/alternatives";
 import { patchRenderer, prefs, store } from "./store";
+import { getSecret, setSecret } from "./store/secrets";
 import { applyAutostart, startedHidden } from "./system/autostart";
 import { applyHotkeys, initHotkeys, suspendHotkeys } from "./system/hotkeys";
 import { log, logsDir } from "./system/log";
 import { netCheck } from "./system/netcheck";
+import { applyProxy, initProxyAuth } from "./system/proxy";
 import { notifyTrack } from "./system/notify";
 import { createTray, showWindow, updateTray } from "./system/tray";
 import * as updater from "./system/updater";
@@ -118,6 +121,7 @@ function registerIpc() {
   handle("data:sourceIds", (_e, source) => data.getSourceIds(queueSource(source)));
   handle("data:related", (_e, t) => data.getRelated(id(t)));
   handle("data:trackDetails", (_e, t) => data.getTrackDetails(id(t)));
+  handle("data:alternatives", (_e, t) => data.getAlternatives(id(t)));
   handle("data:resolve", (_e, url) => data.resolve(str(url, "url")));
   handle("data:search", (_e, q, kind, c) => data.search(str(q, "query"), kinds.includes(kind) ? kind : bad("kind"), cursor(c)));
   handle("data:suggest", (_e, q) => data.searchSuggestions(str(q, "query")));
@@ -153,6 +157,12 @@ function registerIpc() {
     await shell.openPath(logsDir());
   });
   handle("diag:netcheck", () => netCheck());
+  handle("proxy:setPassword", (_e, password) => {
+    const p = str(password, "password");
+    setSecret("proxyPassword", p ? p : null);
+    return !!p;
+  });
+  handle("proxy:hasPassword", () => getSecret("proxyPassword") !== null);
   handle("diag:clearCache", async () => {
     provider.reset();
     await Promise.all([session.defaultSession.clearCache(), scSession().clearCache()]);
@@ -177,6 +187,7 @@ function applySystemPrefs(before: ReturnType<typeof prefs>) {
   const now = prefs();
   if (now.startWithWindows !== before.startWithWindows) applyAutostart(now.startWithWindows);
   if (JSON.stringify(now.hotkeys) !== JSON.stringify(before.hotkeys)) send(main, "hotkeys:failed", applyHotkeys(now.hotkeys));
+  if (JSON.stringify(now.proxy) !== JSON.stringify(before.proxy)) void applyProxy(now.proxy);
 }
 
 // ---- network --------------------------------------------------------------------------------------------------------
@@ -202,11 +213,14 @@ app.on("window-all-closed", () => app.quit());
 app.on("before-quit", () => {
   quitting = true;
   store().flush();
+  flushAlternatives();
 });
 process.on("uncaughtException", (err) => log("main", `uncaught: ${err.stack ?? err.message}`));
 
 void app.whenReady().then(async () => {
   scSession().setUserAgent(chromeUserAgent());
+  initProxyAuth(() => prefs().proxy.username);
+  await applyProxy(prefs().proxy);
   allowAudioCors();
   registerIpc();
   await auth.restore();

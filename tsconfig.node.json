@@ -23,7 +23,9 @@
       "@shared/*": [
         "./src/shared/*"
       ]
-    }
+    },
+    "allowImportingTsExtensions": true,
+    "noEmit": true
   },
   "include": [
     "electron.vite.config.ts",

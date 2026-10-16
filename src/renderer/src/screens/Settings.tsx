@@ -131,6 +131,85 @@ function Updates({ info }: { info: AppInfo | null }) {
   );
 }
 
+const ZAPRET_GUIDE = "https://github.com/Flowseal/zapret-discord-youtube/issues/7449";
+const REPO = "https://github.com/waterlilo/sky-player";
+const PROXY_RE = /^(?:(https?|socks[45]?):\/\/)?(?:[^@/\s]*@)?([\w.-]+|\[[0-9a-f:]+\]):(\d{1,5})\/?$/i;
+
+/** Proxy: Windows settings / none / an address; an HTTP proxy's username and password (kept encrypted by main). */
+function Proxy() {
+  const t = useT();
+  const proxy = useSettings((s) => s.prefs.proxy);
+  const setPref = useSettings((s) => s.setPref);
+  const toast = useUi((s) => s.showToast);
+  const [url, setUrl] = useState(proxy.url);
+  const [user, setUser] = useState(proxy.username);
+  const [password, setPassword] = useState("");
+  const [hasPassword, setHasPassword] = useState(false);
+  useEffect(() => {
+    void call("proxy:hasPassword").then(setHasPassword);
+  }, []);
+  const valid = PROXY_RE.test(url.trim());
+  const socks = /^socks/i.test(url.trim());
+
+  const save = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!valid) return;
+    if (password) setHasPassword(await call("proxy:setPassword", password));
+    setPassword("");
+    setPref("proxy", { mode: "custom", url: url.trim(), username: user.trim() });
+    toast(t.saved);
+  };
+
+  return (
+    <>
+      <Row label={t.proxy} hint={t.proxyHint}>
+        <Choice
+          label={t.proxy}
+          value={proxy.mode}
+          options={[
+            ["system", t.proxySystem],
+            ["direct", t.proxyDirect],
+            ["custom", t.proxyCustom],
+          ]}
+          onChange={(mode) => setPref("proxy", { ...proxy, mode })}
+        />
+      </Row>
+      {proxy.mode === "custom" && (
+        <form onSubmit={(e) => void save(e)} className="flex flex-col gap-2 rounded-md px-3 py-2.5">
+          <label className="text-sm text-muted" htmlFor="proxy-url">
+            {t.proxyAddress} <span className="font-type text-xs">({t.proxyAddressHint})</span>
+          </label>
+          <div className="field sketch sketch-thin paper-fill flex max-w-md rounded-md">
+            <input id="proxy-url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="socks5://127.0.0.1:1080" spellCheck={false} className="min-w-0 flex-1 px-3 py-1.5 font-type text-sm text-text placeholder:text-muted/60" />
+          </div>
+          {url.trim() && !valid && <p className="font-type text-xs text-blood">{t.proxyBad}</p>}
+          {!socks && (
+            <div className="flex max-w-md gap-2">
+              <div className="field sketch sketch-thin paper-fill flex flex-1 rounded-md">
+                <input value={user} onChange={(e) => setUser(e.target.value)} placeholder={t.proxyUser} aria-label={t.proxyUser} spellCheck={false} className="min-w-0 flex-1 px-3 py-1.5 text-sm text-text placeholder:text-muted/60" />
+              </div>
+              <div className="field sketch sketch-thin paper-fill flex flex-1 rounded-md">
+                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={hasPassword ? t.proxyPasswordSaved : t.proxyPassword} aria-label={t.proxyPassword} className="min-w-0 flex-1 px-3 py-1.5 text-sm text-text placeholder:text-muted/60" />
+              </div>
+            </div>
+          )}
+          {socks && <p className="text-xs text-muted">{t.proxyNoSocksAuth}</p>}
+          <div>
+            <MarkerButton type="submit" disabled={!valid}>
+              {t.save}
+            </MarkerButton>
+          </div>
+        </form>
+      )}
+      <div className="px-3 py-1">
+        <button type="button" onClick={() => void call("shell:open", ZAPRET_GUIDE)} className="inline-flex items-center gap-1.5 font-type text-xs text-muted underline-offset-2 hover:text-text hover:underline">
+          <Icon name="external" size={13} /> {t.zapretGuide}
+        </button>
+      </div>
+    </>
+  );
+}
+
 function Diagnostics() {
   const t = useT();
   const toast = useUi((s) => s.showToast);
@@ -205,6 +284,23 @@ export default function Settings() {
       <ScreenTitle meta={`${t.version} ${__APP_VERSION__}`}>{t.settings.toLowerCase()}</ScreenTitle>
 
       <Section title={t.secPlayback}>
+        <Row label={t.substitute} hint={t.substituteHint}>
+          <Toggle on={prefs.substitute} onChange={(v) => setPref("substitute", v)} label={t.substitute} />
+        </Row>
+        {prefs.substitute && (
+          <Row label={t.substituteTolerance}>
+            <Choice
+              label={t.substituteTolerance}
+              value={String(prefs.substituteTolerance)}
+              options={[
+                ["2", t.strict(2)],
+                ["3", t.strict(3)],
+                ["5", t.strict(5)],
+              ]}
+              onChange={(v) => setPref("substituteTolerance", Number(v))}
+            />
+          </Row>
+        )}
         <Row label={t.autopilot} hint={t.autopilotHint}>
           <Toggle on={prefs.autopilot} onChange={(v) => setPref("autopilot", v)} label={t.autopilot} />
         </Row>
@@ -300,6 +396,19 @@ export default function Settings() {
 
       <Section title={t.secDiagnostics}>
         <Diagnostics />
+      </Section>
+
+      <Section title={t.secNetwork}>
+        <Proxy />
+      </Section>
+
+      <Section title={t.secAbout}>
+        <p className="px-3 text-sm text-muted">{t.unofficial}</p>
+        <div className="px-3 pt-2">
+          <button type="button" onClick={() => void call("shell:open", REPO)} className="inline-flex items-center gap-1.5 font-type text-xs text-muted underline-offset-2 hover:text-text hover:underline">
+            <Icon name="external" size={13} /> {t.sourceCode}
+          </button>
+        </div>
       </Section>
 
       <Section title={t.secAccount}>

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import type { QueueSource, Track } from "@shared/types";
 import { useT } from "@/i18n";
 import { useVisibleTracks } from "@/lib/hidden";
-import { player, usePlayer } from "@/state/player";
+import { canPlay, player, usePlayer } from "@/state/player";
 import { useScrollElement } from "../ui/Screen";
 import TrackRow, { ROW_HEIGHT } from "./TrackRow";
 
@@ -63,7 +63,7 @@ export default function TrackList({ tracks: all, source, hasMore = false, loadin
   const onPlay = useCallback(
     (index: number) => {
       const target = tracks[index];
-      if (!target || target.playability === "blocked" || target.playability === "drm") return;
+      if (!target || !canPlay(target)) return;
       if (target.id === usePlayer.getState().queue[usePlayer.getState().index]?.id) return player.toggle();
       player.playFrom(tracks, index, source);
     },

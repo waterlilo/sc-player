@@ -6,6 +6,8 @@ import { collection, mapPlaylist, mapTrack, mapTrackDetails, mapUser, type RawCo
 import { scSession } from "./session";
 import { prefs } from "../store";
 import { pickTranscoding } from "./stream";
+import { cachedAlternatives, rememberAlternatives } from "./alternatives";
+import { rankCandidates, searchQueries, type Candidate, type MatchInput } from "./match";
 
 const PAGE = 50;
 const TRACK_META_LIMIT = 4000;
@@ -128,6 +130,39 @@ export class WebSessionProvider implements MusicProvider {
     const track = this.track(raw);
     if (!track) throw new ScError("not_found", "track not found");
     return mapTrackDetails(raw, track);
+  }
+
+  /**
+   * Other uploads of the same recording that play in full (not DRM, not a preview), best first: searched by
+   * "artist title" and by title, kept only if the length matches and no version words (slowed, remix…) were added.
+   */
+  async getAlternatives(trackId: number): Promise<Track[]> {
+    const tolerance = prefs().substituteTolerance;
+    const remembered = cachedAlternatives(trackId, tolerance);
+    if (remembered) return (await this.tracksById(remembered)).filter((t) => t.playability === "ok");
+    const raw = await this.http.json<RawTrack>(`/tracks/${trackId}`, {}, { ttl: ITEM_TTL });
+    if (!raw.title || !raw.user) return [];
+    const original: MatchInput = {
+      title: raw.title,
+      artist: raw.publisher_metadata?.artist?.trim() || raw.user.username || "",
+      uploader: raw.user.username ?? "",
+      durationMs: raw.full_duration ?? raw.duration ?? 0,
+    };
+    const seen = new Map<number, Candidate>();
+    let ranked: Candidate[] = [];
+    for (const q of searchQueries(original).slice(0, 2)) {
+      const res = await this.http.json<RawCollection<RawTrack>>("/search/tracks", { q, limit: 50 }, { ttl: LIST_TTL });
+      for (const r of collection(res, "alternatives")) {
+        const t = this.track(r);
+        if (!t || t.id === trackId || t.playability !== "ok" || seen.has(t.id)) continue;
+        seen.set(t.id, { id: t.id, title: t.title, artist: r.publisher_metadata?.artist ?? "", uploader: t.user.username, durationMs: t.durationMs, plays: r.playback_count ?? 0 });
+      }
+      ranked = rankCandidates(original, [...seen.values()], tolerance);
+      if (ranked.length >= 3) break;
+    }
+    const ids = ranked.slice(0, 5).map((c) => c.id);
+    rememberAlternatives(trackId, tolerance, ids);
+    return this.tracksById(ids);
   }
 
   async getRelated(trackId: number): Promise<Track[]> {

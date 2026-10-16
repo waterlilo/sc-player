@@ -1,7 +1,7 @@
 {
   "name": "sky-player",
   "productName": "sc player",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "private": true,
   "description": "sc player — a SoundCloud desktop client for Windows",
   "author": "sky (@skythemontage)",
@@ -16,7 +16,8 @@
     "postinstall": "node node_modules/electron/install.js",
     "dev:debug": "electron-vite dev --remoteDebuggingPort 9223",
     "icon": "node scripts/make-icon.mjs",
-    "dist": "node scripts/dist.mjs"
+    "dist": "node scripts/dist.mjs",
+    "test": "node --test \"src/**/*.test.ts\""
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

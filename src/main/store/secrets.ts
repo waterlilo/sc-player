@@ -6,7 +6,7 @@ import { app, safeStorage } from "electron";
  * Tokens and secrets, encrypted with the OS (DPAPI on Windows) through safeStorage. If encryption is unavailable they
  * stay in memory for this run only — never written as plain text.
  */
-type Key = "sessionToken" | "officialClientSecret" | "officialRefreshToken";
+type Key = "sessionToken" | "officialClientSecret" | "officialRefreshToken" | "proxyPassword";
 
 const memory = new Map<Key, string>();
 const path = () => join(app.getPath("userData"), "secrets.bin");

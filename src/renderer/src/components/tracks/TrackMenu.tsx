@@ -3,7 +3,8 @@ import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from
 import { useT } from "@/i18n";
 import { call } from "@/lib/sky";
 import { useNav } from "@/state/nav";
-import { player } from "@/state/player";
+import type { Track } from "@shared/types";
+import { currentTrack, player, substituteFor, useSubs } from "@/state/player";
 import { useSettings } from "@/state/settings";
 import { useUi } from "@/state/ui";
 import Icon, { type IconName } from "../ui/Icon";
@@ -46,6 +47,22 @@ export default function TrackMenu() {
   }, [menu, close]);
 
   const track = menu?.track;
+
+  /** For a protected track: try another found upload, open the one that plays, or switch substitution for it. */
+  const substituteItems = (tr: Track): { icon: IconName; label: string; run: () => void }[] => {
+    if (tr.playability === "ok") return [];
+    const { prefs } = useSettings.getState();
+    if (!prefs.substitute) return [];
+    if (prefs.noSubstitute.includes(tr.id)) return [{ icon: "shuffle", label: t.doSubstitute, run: () => player.setSubstitute(tr, true) }];
+    const s = useSubs.getState().byTrack[tr.id];
+    const alt = substituteFor(tr);
+    const isCurrent = currentTrack()?.id === tr.id;
+    return [
+      ...(isCurrent && s?.state === "found" && s.candidates.length > 1 ? [{ icon: "shuffle" as IconName, label: t.tryAnother, run: () => player.tryAnotherVersion() }] : []),
+      ...(alt ? [{ icon: "link" as IconName, label: t.openSubstitute, run: () => void call("shell:open", alt.permalinkUrl) }] : []),
+      { icon: "block", label: t.dontSubstitute, run: () => player.setSubstitute(tr, false) },
+    ];
+  };
   const items: { icon: IconName; label: string; run: () => void; danger?: boolean }[] = track
     ? [
         { icon: "playNext", label: t.playNext, run: () => player.playNext(track) },
@@ -60,6 +77,7 @@ export default function TrackMenu() {
           },
         },
         { icon: "external", label: t.openOnSoundCloud, run: () => void call("shell:open", track.permalinkUrl) },
+        ...substituteItems(track),
         {
           icon: "block",
           label: t.blockArtist(track.user.username),

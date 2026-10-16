@@ -21,8 +21,8 @@ export interface EngineEvents {
   duration(seconds: number): void;
   time(seconds: number): void;
   error(code: ErrorCode): void;
-  /** the next track to crossfade into, or null (no crossfade) */
-  peekNext(): Track | null;
+  /** the next track to crossfade into (and whose stream to play: a substitute upload's id), or null */
+  peekNext(): { track: Track; streamId: number } | null;
   /** a crossfade moved playback on to `track` */
   advanced(track: Track): void;
 }
@@ -81,6 +81,8 @@ class Deck {
   readonly audio = new Audio();
   hls: HlsType | null = null;
   track: Track | null = null;
+  /** the track whose stream plays: the track itself, or the other upload substituted for it */
+  streamId = 0;
   /** bumped on every load: answers for an older track are ignored */
   gen = 0;
   refreshed = false;
@@ -186,7 +188,7 @@ class Deck {
     const wasPlaying = !this.audio.paused;
     const gen = this.gen;
     try {
-      const info = await call("data:stream", track.id);
+      const info = await call("data:stream", this.streamId);
       if (info.protocol === "hls") await loadHls();
       if (gen !== this.gen) return;
       this.attach(info, at, wasPlaying);
@@ -196,15 +198,16 @@ class Deck {
   }
 
   /** Resolves true once the stream is attached (and playing, with autoplay). */
-  async load(track: Track, opts: { autoplay: boolean; startAt?: number }): Promise<boolean> {
+  async load(track: Track, opts: { autoplay: boolean; startAt?: number; streamId?: number }): Promise<boolean> {
     const gen = ++this.gen;
     this.track = track;
+    this.streamId = opts.streamId ?? track.id;
     this.refreshed = false;
     this.mediaRecovered = false;
     this.starting = opts.autoplay;
     this.teardown();
     try {
-      const info = await call("data:stream", track.id);
+      const info = await call("data:stream", this.streamId);
       if (info.protocol === "hls") await loadHls();
       if (gen !== this.gen) return false;
       this.attach(info, opts.startAt ?? 0, opts.autoplay);
@@ -258,7 +261,7 @@ function maybeCrossfade() {
   const length = Math.max(0.5, left);
   to.level = 0;
   to.applyLevel();
-  void to.load(next, { autoplay: true }).then((ok) => {
+  void to.load(next.track, { autoplay: true, streamId: next.streamId }).then((ok) => {
     preparing = false;
     if (!ok || from !== active || from.audio.paused) {
       if (to !== active) to.stop();
@@ -266,7 +269,7 @@ function maybeCrossfade() {
     }
     // the next track is now the current one; the old deck fades out underneath
     active = to;
-    events?.advanced(next);
+    events?.advanced(next.track);
     if (Number.isFinite(to.audio.duration)) events?.duration(to.audio.duration);
     const startedAt = performance.now();
     fade = {
@@ -294,7 +297,7 @@ export function bindEngine(handlers: EngineEvents) {
   events = handlers;
 }
 
-export async function load(track: Track, opts: { autoplay: boolean; startAt?: number }) {
+export async function load(track: Track, opts: { autoplay: boolean; startAt?: number; streamId?: number }) {
   endFade();
   preparing = false;
   other().stop();

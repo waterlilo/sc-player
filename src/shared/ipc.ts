@@ -85,6 +85,14 @@ export interface Prefs {
   hiddenKeywords: string[];
   /** check GitHub for a new version at start and every few hours */
   checkUpdates: boolean;
+  /** play another SoundCloud upload of a track that is only streamed with DRM (or as a 30 s preview) */
+  substitute: boolean;
+  /** how close the other upload's length must be, seconds */
+  substituteTolerance: number;
+  /** tracks the user told not to substitute */
+  noSubstitute: number[];
+  /** proxy for SoundCloud and everything else: system settings, none, or an address */
+  proxy: { mode: "system" | "direct" | "custom"; url: string; username: string };
 }
 
 export const EQ_BANDS = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000] as const;
@@ -103,12 +111,16 @@ export const PREFS_DEFAULTS: Prefs = {
   blockedArtists: [],
   hiddenKeywords: [],
   checkUpdates: true,
+  substitute: true,
+  substituteTolerance: 3,
+  noSubstitute: [],
+  proxy: { mode: "system", url: "", username: "" },
 };
 
 /** Fills in anything missing from stored prefs (new options in a newer version). */
 export function withPrefDefaults(stored: Partial<Prefs> | undefined): Prefs {
   const p = { ...PREFS_DEFAULTS, ...stored };
-  return { ...p, hotkeys: { ...PREFS_DEFAULTS.hotkeys, ...stored?.hotkeys }, eq: { ...PREFS_DEFAULTS.eq, ...stored?.eq } };
+  return { ...p, hotkeys: { ...PREFS_DEFAULTS.hotkeys, ...stored?.hotkeys }, eq: { ...PREFS_DEFAULTS.eq, ...stored?.eq }, proxy: { ...PREFS_DEFAULTS.proxy, ...stored?.proxy } };
 }
 
 /** State the renderer keeps in main's store (settings.json in userData). */
@@ -154,6 +166,7 @@ export interface InvokeMap {
   "data:sourceIds": (source: QueueSource) => number[];
   "data:related": (trackId: number) => Track[];
   "data:trackDetails": (trackId: number) => TrackDetails;
+  "data:alternatives": (trackId: number) => Track[];
   "data:search": (query: string, kind: SearchKind, cursor: string | null) => Page<Track> | Page<Playlist> | Page<User>;
   "data:suggest": (query: string) => string[];
   "data:stream": (trackId: number) => StreamInfo;
@@ -176,6 +189,9 @@ export interface InvokeMap {
   "diag:openLogs": () => void;
   "diag:netcheck": () => NetCheck[];
   "diag:clearCache": () => void;
+  /** the proxy password, kept encrypted; "" removes it. Returns whether one is set. */
+  "proxy:setPassword": (password: string) => boolean;
+  "proxy:hasPassword": () => boolean;
   "update:check": () => UpdateStatus;
   "update:download": () => void;
   "update:install": () => void;
@@ -214,6 +230,7 @@ export const INVOKE_CHANNELS = [
   "data:sourceIds",
   "data:related",
   "data:trackDetails",
+  "data:alternatives",
   "data:search",
   "data:suggest",
   "data:stream",
@@ -232,6 +249,8 @@ export const INVOKE_CHANNELS = [
   "diag:openLogs",
   "diag:netcheck",
   "diag:clearCache",
+  "proxy:setPassword",
+  "proxy:hasPassword",
   "update:check",
   "update:download",
   "update:install",

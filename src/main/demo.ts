@@ -59,6 +59,14 @@ const PLAYLISTS: Playlist[] = Array.from({ length: 9 }, (_, i) => ({
   genre: null,
 }));
 
+/** demo protected tracks have one playable re-upload, id + REUPLOAD */
+const REUPLOAD = 100_000;
+function reupload(id: number): Track | null {
+  const t = LIKES.find((x) => x.id === id - REUPLOAD);
+  if (!t) return null;
+  return { ...t, id, user: { id: 99, username: "reupload fan", permalinkUrl: "https://soundcloud.com/demo" }, playability: "ok", durationMs: t.durationMs + 800 };
+}
+
 function page<T>(list: T[], cursor: string | null | undefined, size = 50): Page<T> {
   const offset = cursor ? Number(cursor) : 0;
   const next = offset + size < list.length ? String(offset + size) : null;
@@ -100,7 +108,12 @@ export class DemoProvider implements MusicProvider {
   };
   getUser = async (id: number) => ({ ...me, id, username: artists[id % artists.length] ?? "demo" });
   getUserLikes = (_id: number, cursor?: string | null) => delay(page(LIKES.slice(40), cursor));
-  getTracks = async (ids: number[]) => ids.map((id) => LIKES.find((t) => t.id === id)).filter((t): t is Track => !!t);
+  getTracks = async (ids: number[]) => ids.map((id) => LIKES.find((t) => t.id === id) ?? reupload(id)).filter((t): t is Track => !!t);
+  getAlternatives = async (id: number) => {
+    const t = LIKES.find((x) => x.id === id);
+    const alt = t && t.playability !== "ok" ? reupload(id + REUPLOAD) : null;
+    return alt ? [alt] : [];
+  };
   getSourceIds = async (source: QueueSource) => {
     if (source.kind === "playlist") {
       const p = PLAYLISTS.find((x) => x.id === source.playlistId);

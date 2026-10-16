@@ -3,7 +3,8 @@ import { artwork, type Track } from "@shared/types";
 import { useT } from "@/i18n";
 import { duration } from "@/lib/format";
 import { useNav } from "@/state/nav";
-import { player } from "@/state/player";
+import { player, useSubs } from "@/state/player";
+import { useSettings } from "@/state/settings";
 import { useUi } from "@/state/ui";
 import Icon from "../ui/Icon";
 
@@ -34,8 +35,13 @@ function TrackRow({ track, index, current, playing, onPlay }: Props) {
   const t = useT();
   const go = useNav((s) => s.go);
   const openMenu = useUi((s) => s.openMenu);
-  const unplayable = track.playability === "blocked" || track.playability === "drm";
-  const badge = track.playability === "ok" ? null : t[track.playability];
+  // a protected track plays through another upload when substitution is on (and one exists)
+  const subOn = useSettings((s) => track.playability !== "ok" && s.prefs.substitute && !s.prefs.noSubstitute.includes(track.id));
+  const sub = useSubs((s) => (track.playability === "ok" ? undefined : s.byTrack[track.id]));
+  const alt = subOn && sub?.state === "found" ? sub.candidates[sub.pick] : undefined;
+  const unplayable = (track.playability === "blocked" || track.playability === "drm") && (!subOn || sub?.state === "none");
+  const badge = track.playability === "ok" ? null : alt ? t.alt : t[track.playability];
+  const hint = unplayable ? t.unplayable : alt ? t.altHint(alt.user.username) : subOn ? t.willSubstitute : undefined;
 
   const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
     if (e.target !== e.currentTarget) return;
@@ -58,7 +64,7 @@ function TrackRow({ track, index, current, playing, onPlay }: Props) {
       tabIndex={0}
       aria-current={current || undefined}
       aria-disabled={unplayable || undefined}
-      title={unplayable ? t.unplayable : undefined}
+      title={hint}
       onDoubleClick={() => onPlay(index)}
       onContextMenu={(e) => {
         e.preventDefault();
@@ -97,7 +103,7 @@ function TrackRow({ track, index, current, playing, onPlay }: Props) {
           <button type="button" tabIndex={-1} className="truncate hover:text-text hover:underline" onClick={() => go({ name: "profile", userId: track.user.id })}>
             {track.artist}
           </button>
-          {badge && <span className="shrink-0 rounded-sm border border-current px-1 font-type text-[0.65rem] uppercase leading-4">{badge}</span>}
+          {badge && <span className={`shrink-0 rounded-sm border border-current px-1 font-type text-[0.65rem] uppercase leading-4 ${alt ? "text-glow" : ""}`}>{badge}</span>}
         </div>
       </div>
       <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
