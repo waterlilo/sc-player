@@ -153,6 +153,14 @@ function remember(track: Track) {
   save({ history: [track, ...history.filter((t) => t.id !== track.id)].slice(0, HISTORY_LIMIT) });
 }
 
+/** the sleep timer's "stop at the end of this track": no crossfade, no next track */
+let stopAtEnd = false;
+let onStopAtEnd: (() => void) | null = null;
+export function stopAfterTrack(on: boolean, done?: () => void) {
+  stopAtEnd = on;
+  onStopAtEnd = on ? (done ?? null) : null;
+}
+
 /** bumped on every start: a substitute found late for a track that is no longer current is not played */
 let starts = 0;
 
@@ -249,6 +257,8 @@ async function fetchPage(source: QueueSource): Promise<Page<Track> | null> {
       return source.cursor ? call("data:playlistTracks", source.playlistId, source.cursor) : null;
     case "search":
       return source.cursor ? ((await call("data:search", source.query, "tracks", source.cursor)) as Page<Track>) : null;
+    case "feed":
+      return source.cursor ? call("data:feed", source.cursor) : null;
     default:
       return null;
   }
@@ -340,6 +350,14 @@ engine.bindEngine({
     if (getActivity() !== "hidden") usePosition.setState({ position: t });
   },
   ended: () => {
+    if (stopAtEnd) {
+      // the sleep timer's "end of track"
+      stopAtEnd = false;
+      onStopAtEnd?.();
+      engine.seek(0);
+      set({ status: "paused" });
+      return;
+    }
     if (get().repeat === "one") {
       engine.seek(0);
       engine.play();
@@ -349,7 +367,7 @@ engine.bindEngine({
   },
   peekNext: () => {
     const { repeat, index, queue } = get();
-    if (repeat === "one") return null;
+    if (repeat === "one" || stopAtEnd) return null;
     const t = queue[nextIndex(index, repeat === "all")];
     if (!t) return null;
     if (!needsSub(t)) return { track: t, streamId: t.id };

@@ -10,7 +10,7 @@ function wobble(seed: number) {
 const toPath = (pts: [number, number][], vertical: boolean) =>
   pts.map(([along, across], i) => `${i ? "L" : "M"} ${(vertical ? across : along).toFixed(2)} ${(vertical ? along : across).toFixed(2)}`).join(" ");
 
-const SEEDS = { a: wobble(7), b: wobble(29), c: wobble(113) };
+const SEEDS = { a: wobble(7), b: wobble(29), c: wobble(113), d: wobble(61) };
 
 const POS = {
   // explicit sizes: an absolutely positioned <svg> does not stretch between left/right, it takes its viewBox ratio

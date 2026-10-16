@@ -4,6 +4,8 @@ import { useT } from "@/i18n";
 import { call } from "@/lib/sky";
 import { useNav } from "@/state/nav";
 import type { Track } from "@shared/types";
+import { useAuth } from "@/state/auth";
+import { toggleLike, useLikes } from "@/state/likes";
 import { player, substituteFor, useSubs } from "@/state/player";
 import { useSettings } from "@/state/settings";
 import { useUi } from "@/state/ui";
@@ -47,6 +49,9 @@ export default function TrackMenu() {
   }, [menu, close]);
 
   const track = menu?.track;
+  const signedIn = useAuth((s) => s.status?.mode === "session");
+  const likes = useLikes((s) => s.ids);
+  const openPicker = useUi((s) => s.openPicker);
 
   /** For a protected track: try another found upload, open the one that plays, or switch substitution for it. */
   const substituteItems = (tr: Track): { icon: IconName; label: string; run: () => void }[] => {
@@ -68,6 +73,12 @@ export default function TrackMenu() {
     ? [
         { icon: "playNext", label: t.playNext, run: () => player.playNext(track) },
         { icon: "queue", label: t.addToQueue, run: () => player.addToQueue(track) },
+        ...(signedIn
+          ? [
+              { icon: "heart" as IconName, label: likes.has(track.id) ? t.unlike : t.like, run: () => void toggleLike(track) },
+              { icon: "plus" as IconName, label: t.addToPlaylist, run: () => openPicker(track) },
+            ]
+          : []),
         { icon: "play", label: t.goToTrack, run: () => go({ name: "track", id: track.id }) },
         { icon: "user", label: t.goToArtist, run: () => go({ name: "profile", userId: track.user.id }) },
         {

@@ -24,6 +24,8 @@ export interface MusicProvider {
   getUserLikes(userId: number, cursor?: string | null): Promise<Page<Track>>;
   /** tracks the user uploaded, newest first */
   getUserTracks(userId: number, cursor?: string | null): Promise<Page<Track>>;
+  /** new tracks and reposts from the people the signed-in user follows */
+  getFeed(cursor?: string | null): Promise<Page<Track>>;
   getUserPlaylists(userId: number, cursor?: string | null): Promise<Page<Playlist>>;
   resolve(url: string): Promise<Resolved>;
   /** full tracks by id, in the given order (unavailable ones left out); up to 200 ids */
@@ -39,6 +41,10 @@ export interface MusicProvider {
   searchSuggestions(query: string): Promise<string[]>;
   getStreamUrl(trackId: number): Promise<StreamInfo>;
   getWaveform(url: string): Promise<number[]>;
+  /** ids of every track the signed-in user liked (for the ♥ buttons) */
+  getLikedIds(): Promise<number[]>;
+  /** the signed-in user's own playlists (to add a track to) */
+  getMyPlaylists(): Promise<Playlist[]>;
   like(trackId: number): Promise<void>;
   unlike(trackId: number): Promise<void>;
   addToPlaylist(playlistId: string, trackId: number): Promise<void>;

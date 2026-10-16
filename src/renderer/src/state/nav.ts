@@ -2,6 +2,7 @@ import { create } from "zustand";
 
 export type Route =
   | { name: "likes" }
+  | { name: "feed" }
   | { name: "playlists" }
   | { name: "playlist"; id: string }
   | { name: "track"; id: number }
@@ -11,7 +12,7 @@ export type Route =
   | { name: "settings" };
 
 /** A sidebar entry: Likes, Playlists, History, Search, or a saved profile ("profile:<id>"). */
-export type Section = "likes" | "playlists" | "history" | "search" | "settings" | `profile:${number}`;
+export type Section = "likes" | "feed" | "playlists" | "history" | "search" | "settings" | `profile:${number}`;
 
 interface Entry {
   route: Route;

@@ -90,6 +90,9 @@ export default function Sidebar() {
         <NavItem icon="heart" active={section === "likes"} onClick={() => open("likes", { name: "likes" })}>
           {t.likes}
         </NavItem>
+        <NavItem icon="feed" active={section === "feed"} onClick={() => open("feed", { name: "feed" })}>
+          {t.feed}
+        </NavItem>
         <NavItem icon="playlists" active={section === "playlists"} onClick={() => open("playlists", { name: "playlists" })}>
           {t.playlists}
         </NavItem>

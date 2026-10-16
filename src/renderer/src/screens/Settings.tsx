@@ -347,6 +347,25 @@ export default function Settings() {
         <Row label={t.notifications} hint={t.notificationsHint}>
           <Toggle on={prefs.notifications} onChange={(v) => setPref("notifications", v)} label={t.notifications} />
         </Row>
+        <Row label={t.trackPopup} hint={t.trackPopupHint}>
+          <Toggle on={prefs.trackPopup} onChange={(v) => setPref("trackPopup", v)} label={t.trackPopup} />
+        </Row>
+        <Row label={t.popupCorner}>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <Choice
+              value={prefs.popupCorner}
+              label={t.popupCorner}
+              onChange={(v) => setPref("popupCorner", v)}
+              options={[
+                ["bottom-right", t.cornerBottomRight],
+                ["top-right", t.cornerTopRight],
+                ["bottom-left", t.cornerBottomLeft],
+                ["top-left", t.cornerTopLeft],
+              ]}
+            />
+            <PaperButton onClick={() => void call("popup:preview")}>{t.showPopup}</PaperButton>
+          </div>
+        </Row>
       </Section>
 
       <Section title={t.secHotkeys}>

@@ -131,6 +131,7 @@ export class DemoProvider implements MusicProvider {
   };
   getRelated = async (id: number) => LIKES.filter((t) => t.id !== id).slice(200, 220);
   getUserTracks = (_id: number, cursor?: string | null) => delay(page(LIKES.slice(100, 160), cursor));
+  getFeed = (cursor?: string | null) => delay(page(LIKES.slice(40, 140), cursor));
   getUserPlaylists = (_id: number, cursor?: string | null) => delay(page(PLAYLISTS.slice(2), cursor));
   resolve = async (): Promise<Resolved> => ({ kind: "user", user: { ...me, id: 12, username: "Paper Moon" } });
   search = (query: string, _kind: SearchKind, cursor?: string | null) => delay(page(LIKES.filter((t) => t.title.toLowerCase().includes(query.toLowerCase()) || t.artist.toLowerCase().includes(query.toLowerCase())), cursor, 30));
@@ -143,6 +144,8 @@ export class DemoProvider implements MusicProvider {
     const r = rand(Number(url.match(/demo-(\d+)/)?.[1] ?? 1) + 5);
     return Array.from({ length: 1800 }, (_, i) => Math.min(1, 0.25 + 0.45 * Math.abs(Math.sin(i / 60)) * (0.6 + r() * 0.4) + (i > 900 && i < 1300 ? 0.2 : 0)));
   };
+  getLikedIds = async () => LIKES.map((t) => t.id);
+  getMyPlaylists = async () => PLAYLISTS.filter((p) => p.relation === "own");
   like = async () => undefined;
   unlike = async () => undefined;
   addToPlaylist = async () => undefined;

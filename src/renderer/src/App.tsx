@@ -5,8 +5,10 @@ import Backdrop from "@/components/deco/Backdrop";
 import SvgDefs from "@/components/deco/SvgDefs";
 import PlayerBar from "@/components/player/PlayerBar";
 import QueuePanel from "@/components/player/QueuePanel";
+import LyricsPanel from "@/components/player/LyricsPanel";
 import ScreenBoundary from "@/components/ui/ScreenBoundary";
 import History from "@/screens/History";
+import Feed from "@/screens/Feed";
 import Likes from "@/screens/Likes";
 import Playlist from "@/screens/Playlist";
 import Playlists from "@/screens/Playlists";
@@ -16,12 +18,15 @@ import Settings from "@/screens/Settings";
 import Track from "@/screens/Track";
 import TrackMenu from "@/components/tracks/TrackMenu";
 import Toast from "@/components/ui/Toast";
+import PlaylistPicker from "@/components/tracks/PlaylistPicker";
 import { useNav, type Route } from "@/state/nav";
 
 function ScreenFor({ route }: { route: Route }) {
   switch (route.name) {
     case "likes":
       return <Likes />;
+    case "feed":
+      return <Feed />;
     case "playlists":
       return <Playlists />;
     case "playlist":
@@ -50,6 +55,7 @@ export default function App() {
       <SvgDefs />
       <Backdrop />
       <TrackMenu />
+      <PlaylistPicker />
       <div className="relative z-10 grid h-full grid-cols-[232px_minmax(0,1fr)] grid-rows-[40px_minmax(0,1fr)_88px]">
         <div className="col-span-2">
           <TitleBar />
@@ -63,6 +69,7 @@ export default function App() {
             </ScreenBoundary>
           </motion.div>
           <QueuePanel />
+          <LyricsPanel />
           <Toast />
         </main>
         <div className="col-span-2">

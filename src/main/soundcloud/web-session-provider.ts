@@ -54,6 +54,7 @@ export class WebSessionProvider implements MusicProvider {
   /** Session changed: forget everything that belonged to it. */
   reset() {
     this.meId = null;
+    this.liked = null;
     this.playlists.clear();
     this.http.clearCache();
   }
@@ -199,6 +200,16 @@ export class WebSessionProvider implements MusicProvider {
       if (!me) throw new ScError("unauthorized", "not signed in");
     }
     return this.meId!;
+  }
+
+  async getFeed(cursor?: string | null): Promise<Page<Track>> {
+    const res = await this.http.json<RawCollection<{ type?: string; track?: RawTrack }>>(cursor ?? "/stream", cursor ? {} : { limit: PAGE, linked_partitioning: 1 }, { auth: "required", ttl: LIST_TTL });
+    // tracks and track reposts; a track reposted by several people shows once per page
+    const seen = new Set<number>();
+    const raws = collection(res, "stream")
+      .filter((i) => (i.type === "track" || i.type === "track-repost") && i.track && !seen.has(i.track.id) && seen.add(i.track.id))
+      .map((i) => i.track);
+    return { items: this.tracks(raws), next: res.next_href ?? null };
   }
 
   async getLikes(cursor?: string | null): Promise<Page<Track>> {
@@ -386,12 +397,38 @@ export class WebSessionProvider implements MusicProvider {
 
   // ---- library changes --------------------------------------------------------------------------------------------
 
+  /** what the user liked, read once per session and kept up to date by like / unlike */
+  private liked: Set<number> | null = null;
+
+  async getLikedIds(): Promise<number[]> {
+    this.liked ??= new Set(await this.getSourceIds({ kind: "likes", userId: "me", cursor: null }));
+    return [...this.liked];
+  }
+
+  async getMyPlaylists(): Promise<Playlist[]> {
+    const mine: Playlist[] = [];
+    let cursor: string | null = null;
+    // the library lists own playlists and liked ones together; a few pages are plenty
+    for (let page = 0; page < 4; page++) {
+      const res: Page<Playlist> = await this.getPlaylists(cursor);
+      mine.push(...res.items.filter((p) => p.relation === "own" && !p.id.startsWith("soundcloud:")));
+      cursor = res.next;
+      if (!cursor) break;
+    }
+    return mine;
+  }
+
   async like(trackId: number): Promise<void> {
     await this.http.json(`/users/${await this.myId()}/track_likes/${trackId}`, {}, { method: "PUT", auth: "required" });
+    this.liked?.add(trackId);
+    // the likes list was cached for a minute: show the new like right away
+    this.http.clearCache();
   }
 
   async unlike(trackId: number): Promise<void> {
     await this.http.json(`/users/${await this.myId()}/track_likes/${trackId}`, {}, { method: "DELETE", auth: "required" });
+    this.liked?.delete(trackId);
+    this.http.clearCache();
   }
 
   async addToPlaylist(playlistId: string, trackId: number): Promise<void> {

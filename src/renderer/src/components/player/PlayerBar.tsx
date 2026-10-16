@@ -6,11 +6,14 @@ import { useNav } from "@/state/nav";
 import { call } from "@/lib/sky";
 import { player, useCurrentTrack, usePlayer, usePosition, useStreamTrack } from "@/state/player";
 import { useUi } from "@/state/ui";
+import { useAuth } from "@/state/auth";
+import { toggleLike, useLiked } from "@/state/likes";
 import { IconButton } from "../ui/Buttons";
 import MarkerEdge from "../deco/MarkerEdge";
 import ExpandingTitle from "./ExpandingTitle";
 import Icon from "../ui/Icon";
 import Waveform from "./Waveform";
+import SleepTimer from "./SleepTimer";
 
 function Time() {
   const position = usePosition((s) => s.position);
@@ -40,6 +43,15 @@ function SubstituteLine({ sound }: { sound: Track }) {
       </button>
     </div>
   );
+}
+
+/** ♥ for the current track (signed in only). */
+function LikeButton({ track }: { track: Track }) {
+  const t = useT();
+  const signedIn = useAuth((s) => s.status?.mode === "session");
+  const liked = useLiked(track.id);
+  if (!signedIn) return null;
+  return <IconButton icon="heart" label={liked ? t.unlike : t.like} on={liked} filled={liked} aria-pressed={liked} onClick={() => void toggleLike(track)} />;
 }
 
 function PlayButton() {
@@ -99,11 +111,13 @@ export default function PlayerBar() {
   const durationS = usePlayer((s) => s.duration);
   const queueOpen = useUi((s) => s.queueOpen);
   const toggleQueue = useUi((s) => s.toggleQueue);
+  const lyricsOpen = useUi((s) => s.lyricsOpen);
+  const toggleLyrics = useUi((s) => s.toggleLyrics);
 
   const repeatLabel = repeat === "off" ? t.repeatOff : repeat === "all" ? t.repeatAll : t.repeatOne;
 
   return (
-    <footer className="panel relative z-30 grid h-[88px] grid-cols-[minmax(220px,300px)_minmax(0,1fr)_minmax(200px,260px)] items-center gap-6 px-4">
+    <footer className="panel relative z-30 grid h-[88px] grid-cols-[minmax(220px,300px)_minmax(0,1fr)_minmax(280px,320px)] items-center gap-6 px-4">
       <MarkerEdge side="top" seed="c" />
       {/* now playing */}
       <div className="flex min-w-0 items-center gap-3">
@@ -124,6 +138,7 @@ export default function PlayerBar() {
             <span className="font-type text-sm text-muted">{t.nothingPlaying}</span>
           )}
         </div>
+        {track && <LikeButton track={track} />}
       </div>
 
       {/* transport + waveform */}
@@ -152,7 +167,9 @@ export default function PlayerBar() {
             {t.retry}
           </button>
         )}
+        <SleepTimer />
         <Volume />
+        <IconButton icon="lyrics" label={t.lyrics} on={lyricsOpen} aria-pressed={lyricsOpen} onClick={toggleLyrics} />
         <IconButton icon="queue" label={t.queue} on={queueOpen} aria-pressed={queueOpen} onClick={toggleQueue} />
       </div>
     </footer>

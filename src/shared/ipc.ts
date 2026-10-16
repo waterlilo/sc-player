@@ -1,5 +1,5 @@
 import type { SearchKind } from "./provider";
-import type { AppErrorInfo, Page, Playlist, QueueSource, Resolved, SavedProfile, StreamInfo, Track, TrackDetails, User } from "./types";
+import type { AppErrorInfo, Lyrics, LyricsHit, Page, Playlist, QueueSource, Resolved, SavedProfile, StreamInfo, Track, TrackDetails, User } from "./types";
 
 /**
  * The one contract between main and renderer. main registers a handler for every InvokeMap channel, preload exposes
@@ -60,6 +60,7 @@ export interface AppInfo {
   logsDir: string;
 }
 export type StreamQuality = "high" | "low";
+export type PopupCorner = "bottom-right" | "top-right" | "bottom-left" | "top-left";
 
 /** Everything on the Settings screen. main reads the parts it acts on (tray, autostart, hotkeys, notifications). */
 export interface Prefs {
@@ -72,6 +73,9 @@ export interface Prefs {
   startMinimized: boolean;
   /** a toast when the track changes while the window isn't in front */
   notifications: boolean;
+  /** a small card with the cover, title and artist in a corner of the screen for a few seconds on a track change */
+  trackPopup: boolean;
+  popupCorner: PopupCorner;
   /** global shortcuts, Electron accelerator strings; "" = off */
   hotkeys: Record<HotkeyAction, string>;
   streamQuality: StreamQuality;
@@ -103,6 +107,8 @@ export const PREFS_DEFAULTS: Prefs = {
   startWithWindows: false,
   startMinimized: true,
   notifications: false,
+  trackPopup: false,
+  popupCorner: "bottom-right",
   hotkeys: { playPause: "Control+Alt+Space", next: "Control+Alt+Right", previous: "Control+Alt+Left", showWindow: "Control+Alt+S" },
   streamQuality: "high",
   crossfade: 0,
@@ -153,6 +159,8 @@ export interface InvokeMap {
   "auth:logout": () => AuthStatus;
   /** sign in through the user's own browser: opens the helper page and waits for its link (15 min) */
   "auth:browser": () => void;
+  /** Settings: show the track popup now, with the current track */
+  "popup:preview": () => void;
   "auth:browserCancel": () => void;
 
   "data:me": () => User | null;
@@ -171,6 +179,16 @@ export interface InvokeMap {
   "data:trackDetails": (trackId: number) => TrackDetails;
   /** `deep`: read more search pages (the user asked for another upload and the first search found too few) */
   "data:alternatives": (trackId: number, deep?: boolean) => Track[];
+  /** the words of a track (LRCLIB), null when none were found */
+  "lyrics:get": (q: { trackId: number; artist: string; title: string; durationMs: number }) => Lyrics | null;
+  "lyrics:search": (text: string) => LyricsHit[];
+  /** use this LRCLIB record for the track from now on */
+  "lyrics:pick": (trackId: number, lyricsId: number) => Lyrics | null;
+  "data:feed": (cursor: string | null) => Page<Track>;
+  "data:likedIds": () => number[];
+  "data:setLiked": (trackId: number, liked: boolean) => void;
+  "data:myPlaylists": () => Playlist[];
+  "data:addToPlaylist": (playlistId: string, trackId: number) => void;
   "data:search": (query: string, kind: SearchKind, cursor: string | null) => Page<Track> | Page<Playlist> | Page<User>;
   "data:suggest": (query: string) => string[];
   "data:stream": (trackId: number) => StreamInfo;
@@ -185,6 +203,7 @@ export interface InvokeMap {
 
   "shell:open": (url: string) => void;
   "clipboard:write": (text: string) => void;
+  "clipboard:read": () => string;
 
   "player:state": (info: PlayerInfo) => void;
   "hotkeys:suspend": (suspended: boolean) => void;
@@ -223,6 +242,7 @@ export const INVOKE_CHANNELS = [
   "auth:login",
   "auth:logout",
   "auth:browser",
+  "popup:preview",
   "auth:browserCancel",
   "data:me",
   "data:likes",
@@ -239,6 +259,14 @@ export const INVOKE_CHANNELS = [
   "data:related",
   "data:trackDetails",
   "data:alternatives",
+  "lyrics:get",
+  "lyrics:search",
+  "lyrics:pick",
+  "data:feed",
+  "data:likedIds",
+  "data:setLiked",
+  "data:myPlaylists",
+  "data:addToPlaylist",
   "data:search",
   "data:suggest",
   "data:stream",
@@ -250,6 +278,7 @@ export const INVOKE_CHANNELS = [
   "store:set",
   "shell:open",
   "clipboard:write",
+  "clipboard:read",
   "player:state",
   "hotkeys:suspend",
   "app:info",

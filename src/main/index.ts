@@ -1,10 +1,11 @@
 import { existsSync, renameSync } from "node:fs";
 import { join } from "node:path";
 import { app, BrowserWindow, clipboard, ipcMain, session, shell, type IpcMainInvokeEvent } from "electron";
-import { RENDERER_DEFAULTS, type AuthStatus, type InvokeChannel, type InvokeMap, type RendererState, type Result } from "@shared/ipc";
+import { RENDERER_DEFAULTS, type AuthStatus, type InvokeChannel, type InvokeMap, type PlayerCommand, type PlayerInfo, type RendererState, type Result } from "@shared/ipc";
 import type { MusicProvider, SearchKind } from "@shared/provider";
 import type { QueueSource } from "@shared/types";
 import { DemoProvider } from "./demo";
+import { flushLyrics, lyricsFor, pickLyrics, searchLyrics } from "./lyrics";
 import { auth, authStatus, chromeUserAgent, provider, ScError, scSession, startBrowserSignIn, stopBrowserSignIn, toErrorInfo, tokenFromArgs, waitingForBrowser } from "./soundcloud";
 import { flushAlternatives } from "./soundcloud/alternatives";
 import { patchRenderer, prefs, store } from "./store";
@@ -16,11 +17,16 @@ import { netCheck } from "./system/netcheck";
 import { applyProxy, initProxyAuth } from "./system/proxy";
 import { notifyTrack } from "./system/notify";
 import { createTray, showWindow, updateTray } from "./system/tray";
+import { updateThumbar } from "./system/thumbar";
+import { previewTrackPopup, trackPopup } from "./system/track-popup";
 import * as updater from "./system/updater";
 import { createMainWindow, isAppUrl, send } from "./windows/main-window";
 
 let main: BrowserWindow | null = null;
 let quitting = false;
+/** the last playback state the page reported (tray, taskbar buttons, popup preview) */
+let playerInfo: PlayerInfo = { track: null, playing: false };
+const command = (c: PlayerCommand) => send(main, "player:command", c);
 
 // The app was called "sky player" before: move its data (settings, sign-in) to the new folder once. If the new folder
 // already exists without settings (a first start that couldn't move the old one), it is set aside, not deleted.
@@ -88,6 +94,8 @@ function queueSource(v: unknown): QueueSource {
       return { kind: "playlist", playlistId: str(s.playlistId, "playlist id"), cursor: null };
     case "search":
       return { kind: "search", query: str(s.query, "query"), cursor: null };
+    case "feed":
+      return { kind: "feed", cursor: null };
     default:
       return { kind: "static" };
   }
@@ -126,6 +134,17 @@ function registerIpc() {
   handle("data:related", (_e, t) => data.getRelated(id(t)));
   handle("data:trackDetails", (_e, t) => data.getTrackDetails(id(t)));
   handle("data:alternatives", (_e, t, deep) => data.getAlternatives(id(t), deep === true));
+  handle("lyrics:get", (_e, q) => {
+    const o = (q ?? {}) as Record<string, unknown>;
+    return lyricsFor({ trackId: id(o.trackId), artist: str(o.artist, "artist"), title: str(o.title, "title"), durationMs: typeof o.durationMs === "number" ? o.durationMs : 0 });
+  });
+  handle("lyrics:search", (_e, text) => searchLyrics(str(text, "text")));
+  handle("lyrics:pick", (_e, t, l) => pickLyrics(id(t), id(l)));
+  handle("data:feed", (_e, c) => data.getFeed(cursor(c)));
+  handle("data:likedIds", () => data.getLikedIds());
+  handle("data:setLiked", (_e, t, on) => (on === true ? data.like(id(t)) : data.unlike(id(t))));
+  handle("data:myPlaylists", () => data.getMyPlaylists());
+  handle("data:addToPlaylist", (_e, p, t) => data.addToPlaylist(str(p, "playlist id"), id(t)));
   handle("data:resolve", (_e, url) => data.resolve(str(url, "url")));
   handle("data:search", (_e, q, kind, c) => data.search(str(q, "query"), kinds.includes(kind) ? kind : bad("kind"), cursor(c)));
   handle("data:suggest", (_e, q) => data.searchSuggestions(str(q, "query")));
@@ -149,8 +168,16 @@ function registerIpc() {
   });
 
   handle("player:state", (_e, info) => {
+    playerInfo = info;
+    const inFront = !!main?.isVisible() && !!main?.isFocused();
     updateTray(info);
-    void notifyTrack(info, prefs().notifications, !!main?.isVisible() && !!main?.isFocused());
+    updateThumbar(main, info, command);
+    void notifyTrack(info, prefs().notifications, inFront);
+    trackPopup(info, { enabled: prefs().trackPopup, corner: prefs().popupCorner, windowInFront: inFront });
+  });
+  handle("popup:preview", () => {
+    const sample: PlayerInfo = { track: { id: -1, title: "Track title", artist: "Artist", artworkUrl: null }, playing: true };
+    previewTrackPopup(playerInfo.track ? playerInfo : sample, prefs().popupCorner);
   });
   handle("hotkeys:suspend", (_e, on) => {
     send(main, "hotkeys:failed", suspendHotkeys(on === true));
@@ -180,6 +207,7 @@ function registerIpc() {
   });
 
   handle("clipboard:write", (_e, text) => clipboard.writeText(str(text, "text")));
+  handle("clipboard:read", async () => (await clipboard.readText()).slice(0, 2000));
   handle("shell:open", (_e, url) => {
     const target = new URL(str(url, "url"));
     if (target.protocol === "https:") void shell.openExternal(target.href);
@@ -244,6 +272,7 @@ app.on("before-quit", () => {
   quitting = true;
   store().flush();
   flushAlternatives();
+  flushLyrics();
 });
 process.on("uncaughtException", (err) => log("main", `uncaught: ${err.stack ?? err.message}`));
 
@@ -257,9 +286,11 @@ void app.whenReady().then(async () => {
   const p = prefs();
   main = createMainWindow({ startHidden: startedHidden() && p.startMinimized, closeToTray: () => prefs().closeToTray, quitting: () => quitting });
   main.on("closed", () => (main = null));
+  // Windows forgets the taskbar buttons while the window is hidden
+  main.on("show", () => updateThumbar(main, playerInfo, command, true));
   createTray({
     window: () => main,
-    command: (c) => send(main, "player:command", c),
+    command,
     quit: () => {
       quitting = true;
       app.quit();

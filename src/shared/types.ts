@@ -97,6 +97,7 @@ export type QueueSource =
   | { kind: "userTracks"; userId: number; cursor: string | null }
   | { kind: "playlist"; playlistId: string; cursor: string | null }
   | { kind: "search"; query: string; cursor: string | null }
+  | { kind: "feed"; cursor: string | null }
   | { kind: "static" };
 
 export interface SavedProfile {
@@ -110,4 +111,26 @@ export interface SavedProfile {
 export function artwork(url: string | null, size: "t500x500" | "t300x300" | "large" | "t67x67"): string | null {
   if (!url) return null;
   return url.replace(/-(large|t\d+x\d+|crop|original|small|badge|tiny|mini)\.(jpg|png|webp)/, `-${size}.$2`);
+}
+
+/** Words of a song from LRCLIB: time-synced lines when there are some, otherwise plain text. */
+export interface Lyrics {
+  /** LRCLIB's id of the record */
+  id: number;
+  artist: string;
+  title: string;
+  /** lines with their start time in seconds, in order */
+  synced: { t: number; text: string }[] | null;
+  plain: string | null;
+  instrumental: boolean;
+}
+
+/** A search result when looking for the words by hand. */
+export interface LyricsHit {
+  id: number;
+  artist: string;
+  title: string;
+  album: string;
+  durationMs: number;
+  synced: boolean;
 }

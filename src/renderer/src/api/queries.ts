@@ -27,6 +27,14 @@ export const useLikes = (userId: number | "me", enabled = true) =>
     ...pages,
   });
 
+export const useFeed = (enabled: boolean) =>
+  useInfiniteQuery({
+    queryKey: ["feed"],
+    enabled,
+    queryFn: ({ pageParam }) => call("data:feed", pageParam),
+    ...pages,
+  });
+
 export const useUserTracks = (userId: number) =>
   useInfiniteQuery({
     queryKey: ["userTracks", userId],

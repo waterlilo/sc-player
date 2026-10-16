@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { artwork, type QueueSource } from "@shared/types";
 import { usePlaylist, usePlaylistTracks } from "@/api/queries";
+import ListFilter, { useListFilter } from "@/components/tracks/ListFilter";
 import TrackList from "@/components/tracks/TrackList";
 import { MarkerButton, PaperButton } from "@/components/ui/Buttons";
 import Icon from "@/components/ui/Icon";
@@ -20,8 +21,9 @@ export default function Playlist({ id }: { id: string }) {
   const tracks = useMemo(() => q.data?.pages.flatMap((p) => p.items) ?? [], [q.data]);
   const cursor = q.data?.pages[q.data.pages.length - 1]?.next ?? null;
   const source = useMemo<QueueSource>(() => ({ kind: "playlist", playlistId: id, cursor }), [id, cursor]);
+  const f = useListFilter(`playlist:${id}`, tracks, source, { hasMore: !!q.hasNextPage, loadingMore: q.isFetchingNextPage, loadMore: () => void q.fetchNextPage() });
   const p = meta.data;
-  const firstPlayable = Math.max(0, tracks.findIndex((x) => x.playability === "ok" || x.playability === "preview"));
+  const firstPlayable = Math.max(0, f.tracks.findIndex((x) => x.playability === "ok" || x.playability === "preview"));
 
   return (
     <Screen label={p?.title ?? t.playlist}>
@@ -58,10 +60,10 @@ export default function Playlist({ id }: { id: string }) {
               </div>
             )}
             <div className="mt-4 flex gap-3">
-              <MarkerButton disabled={!tracks.length} onClick={() => player.playFrom(tracks, firstPlayable, source)}>
+              <MarkerButton disabled={!f.tracks.length} onClick={() => player.playFrom(f.tracks, firstPlayable, f.source)}>
                 <Icon name="play" size={18} /> {t.playAll}
               </MarkerButton>
-              <PaperButton disabled={!tracks.length} onClick={() => player.shuffleFrom(tracks, source)}>
+              <PaperButton disabled={!f.tracks.length} onClick={() => player.shuffleFrom(f.tracks, f.source)}>
                 <Icon name="shuffle" size={18} /> {t.shuffleAll}
               </PaperButton>
               {p?.permalinkUrl && (
@@ -80,7 +82,14 @@ export default function Playlist({ id }: { id: string }) {
       ) : !tracks.length ? (
         <EmptyState caption={t.emptyPlaylists} />
       ) : (
-        <TrackList tracks={tracks} source={source} hasMore={q.hasNextPage} loadingMore={q.isFetchingNextPage} onLoadMore={() => void q.fetchNextPage()} label={p?.title ?? t.playlist} />
+        <>
+      <ListFilter f={f} count={f.tracks.length} playlist />
+      {f.tracks.length ? (
+        <TrackList tracks={f.tracks} source={f.source} hasMore={!f.active && q.hasNextPage} loadingMore={q.isFetchingNextPage} onLoadMore={() => void q.fetchNextPage()} label={p?.title ?? t.playlist} />
+      ) : (
+        <EmptyState caption={f.loadingAll ? t.loadingAll : t.nothingFound} />
+      )}
+        </>
       )}
     </Screen>
   );

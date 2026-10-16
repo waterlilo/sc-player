@@ -22,7 +22,7 @@ export function PaperButton({ className = "", children, ...rest }: Base) {
 }
 
 /** Bare icon button; `label` is its accessible name and tooltip. `on` lights it in the glow colour. */
-export function IconButton({ icon, label, on = false, size = 20, className = "", ...rest }: Base & { icon: IconName; label: string; on?: boolean; size?: number }) {
+export function IconButton({ icon, label, on = false, filled = false, size = 20, className = "", ...rest }: Base & { icon: IconName; label: string; on?: boolean; filled?: boolean; size?: number }) {
   return (
     <button
       type="button"
@@ -33,7 +33,7 @@ export function IconButton({ icon, label, on = false, size = 20, className = "",
       style={on ? { filter: "drop-shadow(0 0 4px color-mix(in srgb, var(--glow) 60%, transparent))" } : undefined}
       {...rest}
     >
-      <Icon name={icon} size={size} />
+      <Icon name={icon} size={size} filled={filled} />
     </button>
   );
 }

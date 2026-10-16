@@ -11,6 +11,9 @@ import { call } from "@/lib/sky";
 import { useAuth } from "@/state/auth";
 import { initAudioPrefs } from "@/audio/prefs";
 import { initSystemBridge } from "@/lib/system";
+import { initMediaSession } from "@/lib/media-session";
+import { initKeys } from "@/lib/keys";
+import { initLikes } from "@/state/likes";
 import { initVolume } from "@/state/player";
 import { useSettings } from "@/state/settings";
 import App from "./App";
@@ -26,7 +29,10 @@ async function boot() {
   initVolume();
   initAudioPrefs();
   initSystemBridge();
+  initMediaSession();
+  initKeys();
   void useAuth.getState().init();
+  initLikes();
 
   createRoot(document.getElementById("root")!).render(
     <StrictMode>

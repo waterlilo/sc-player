@@ -1,6 +1,7 @@
 import { Menu, nativeImage, Tray, type BrowserWindow } from "electron";
 import type { PlayerCommand, PlayerInfo } from "@shared/ipc";
 import iconPath from "../../../resources/icon.png?asset";
+import { log } from "./log";
 
 /**
  * The tray icon: a click shows or hides the window, the menu has the current track and the transport. Music keeps
@@ -42,7 +43,10 @@ function rebuild() {
 
 export function createTray(d: NonNullable<typeof deps>) {
   deps = d;
-  tray = new Tray(appIcon().resize({ width: 16, height: 16 }));
+  const icon = appIcon();
+  // the picture ships in app.asar/resources (package.json build.files); an empty one means it was left out
+  if (icon.isEmpty()) log("main", `tray: icon missing at ${iconPath}`);
+  tray = new Tray(icon.resize({ width: 16, height: 16 }));
   tray.on("click", () => {
     const win = d.window();
     if (!win) return;
