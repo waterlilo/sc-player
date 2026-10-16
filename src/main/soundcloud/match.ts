@@ -108,10 +108,13 @@ const VERSION_WORDS = [
   "instrumentals",
   "instrumetal",
   "slowedreverb",
+  "dub",
+  "dubedit",
+  "dubmix",
 ];
 
 /** Bump when the rules change: answers remembered under older rules are not reused. */
-export const MATCH_VERSION = 3;
+export const MATCH_VERSION = 4;
 
 /** The main credited artist: "Drake, Don Toliver" → "Drake", "A x B feat. C" → "A". */
 export function primaryArtist(artist: string): string {
@@ -126,6 +129,8 @@ export function normalize(s: string): string {
     .replace(/[̀-ͯ]/g, "")
     .replace(/[([{]\s*(official( music)? (audio|video)|audio|lyrics?( video)?|explicit|clean|hq|hd|free download|out now)\s*[)\]}]/g, " ")
     .replace(/\b(feat|ft|featuring|prod|prod by)\b\.?[^()[\]]*/g, " ")
+    // "CAN'T" and "Cant" are the same word
+    .replace(/['’‘`´]/g, "")
     .replace(/[^\p{L}\p{N}]+/gu, " ")
     .replace(/\s+/g, " ")
     .trim();
@@ -133,10 +138,14 @@ export function normalize(s: string): string {
 
 const words = (s: string) => new Set(normalize(s).split(" ").filter(Boolean));
 
+// a version word is whole when no Latin / Cyrillic letter or digit touches it: "社畜remix" still has "remix"
+const LETTER = "[\\p{Script=Latin}\\p{Script=Cyrillic}\\p{N}]";
+const VERSION_RES = VERSION_WORDS.map((w) => [w, new RegExp(`(?<!${LETTER})${w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?!${LETTER})`, "u")] as const);
+
 /** Version words found in a text (as whole words or phrases). */
 export function versionMarks(s: string): Set<string> {
-  const text = ` ${normalize(s)} `;
-  return new Set(VERSION_WORDS.filter((w) => text.includes(` ${w} `)));
+  const text = normalize(s);
+  return new Set(VERSION_RES.filter(([, re]) => re.test(text)).map(([w]) => w));
 }
 
 /** Share of the original title's words found in the candidate's title (0..1). */
@@ -179,12 +188,11 @@ export function matchScore(original: MatchInput, c: Candidate, toleranceSec: num
   return Math.min(1, 0.45 * titleFit + 0.2 * lengthFit + (byArtist ? 0.25 : inTitle ? 0.15 : 0) + Math.min(0.1, Math.log10(c.plays + 1) / 60));
 }
 
-/** Search queries for the original, most specific first. */
+/** Search queries for the original, most specific first: all credited artists, the main one, then the title alone. */
 export function searchQueries(original: MatchInput): string[] {
   const title = normalize(original.title);
-  const artist = normalize(original.artist);
-  const both = title.includes(artist) ? title : `${artist} ${title}`;
-  return [...new Set([both, title].filter((q) => q.length > 1))];
+  const withArtist = (a: string) => (!a || title.includes(a) ? title : `${a} ${title}`);
+  return [...new Set([withArtist(normalize(original.artist)), withArtist(normalize(primaryArtist(original.artist))), title].filter((q) => q.length > 1))];
 }
 
 /** The candidates that pass, best first. */

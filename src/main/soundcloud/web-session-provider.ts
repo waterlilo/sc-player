@@ -15,6 +15,14 @@ const LIST_TTL = 60_000;
 const ITEM_TTL = 5 * 60_000;
 const KNOWN_LIMIT = 20_000;
 
+const hostOf = (url: string) => {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return "";
+  }
+};
+
 type LibraryItem = { type?: string; playlist?: RawPlaylist; system_playlist?: RawPlaylist };
 type LikeItem = { track?: RawTrack; playlist?: RawPlaylist };
 
@@ -150,15 +158,20 @@ export class WebSessionProvider implements MusicProvider {
     };
     const seen = new Map<number, Candidate>();
     let ranked: Candidate[] = [];
-    for (const q of searchQueries(original).slice(0, 2)) {
-      const res = await this.http.json<RawCollection<RawTrack>>("/search/tracks", { q, limit: 50 }, { ttl: LIST_TTL });
-      for (const r of collection(res, "alternatives")) {
-        const t = this.track(r);
-        if (!t || t.id === trackId || t.playability !== "ok" || seen.has(t.id)) continue;
-        seen.set(t.id, { id: t.id, title: t.title, artist: r.publisher_metadata?.artist ?? "", uploader: t.user.username, durationMs: t.durationMs, plays: r.playback_count ?? 0 });
+    // fans' re-uploads often rank below the original, its remixes and covers: up to two pages of each query
+    search: for (const q of searchQueries(original)) {
+      let href: string | null = "/search/tracks";
+      for (let page = 0; page < 2 && href; page++) {
+        const res: RawCollection<RawTrack> = await this.http.json<RawCollection<RawTrack>>(href, page ? {} : { q, limit: 50, linked_partitioning: 1 }, { ttl: LIST_TTL });
+        for (const r of collection(res, "alternatives")) {
+          const t = this.track(r);
+          if (!t || t.id === trackId || t.playability !== "ok" || seen.has(t.id)) continue;
+          seen.set(t.id, { id: t.id, title: t.title, artist: r.publisher_metadata?.artist ?? "", uploader: t.user.username, durationMs: t.durationMs, plays: r.playback_count ?? 0 });
+        }
+        ranked = rankCandidates(original, [...seen.values()], tolerance);
+        if (ranked.length >= 3) break search;
+        href = res.next_href ?? null;
       }
-      ranked = rankCandidates(original, [...seen.values()], tolerance);
-      if (ranked.length >= 3) break;
     }
     const ids = ranked.slice(0, 5).map((c) => c.id);
     rememberAlternatives(trackId, tolerance, ids);
@@ -335,7 +348,9 @@ export class WebSessionProvider implements MusicProvider {
       try {
         const res = await this.http.json<{ url?: string }>(t.url, { track_authorization: meta.auth });
         if (typeof res?.url !== "string") apiChanged("stream without url");
-        return { url: res.url, protocol: t.format?.protocol === "hls" ? "hls" : "progressive", mime: t.format?.mime_type ?? "", snipped: !!t.snipped };
+        // a 30 s preview is served from its own host even when the track's list entry promised the full stream
+        const preview = /preview/i.test(hostOf(res.url));
+        return { url: res.url, protocol: t.format?.protocol === "hls" ? "hls" : "progressive", mime: t.format?.mime_type ?? "", snipped: !!t.snipped || preview };
       } catch (err) {
         // track_authorization expires; a fresh copy of the track carries a new one
         if (attempt === 0 && err instanceof ScError && ["unauthorized", "unavailable", "not_found"].includes(err.code)) {

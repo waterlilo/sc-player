@@ -45,6 +45,8 @@ interface Sub {
   state: "searching" | "found" | "none";
   candidates: Track[];
   pick: number;
+  /** "none" because the search failed (timeout, network), not because nothing exists: searched again next time */
+  failed?: boolean;
 }
 
 /** What was found for each protected track this session (main also remembers it on disk). */
@@ -77,11 +79,11 @@ const pendingSubs = new Map<number, Promise<Track | null>>();
 function resolveSub(t: Track): Promise<Track | null> {
   const known = useSubs.getState().byTrack[t.id];
   if (known?.state === "found") return Promise.resolve(known.candidates[known.pick] ?? null);
-  if (known?.state === "none") return Promise.resolve(null);
+  if (known?.state === "none" && !known.failed) return Promise.resolve(null);
   const pending = pendingSubs.get(t.id);
   if (pending) return pending;
   setSub(t.id, { state: "searching", candidates: [], pick: 0 });
-  const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timeout")), 10_000));
+  const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timeout")), 25_000));
   const run = Promise.race([call("data:alternatives", t.id), timeout])
     .then((list) => {
       const ok = list.filter((c) => !isHidden(c));
@@ -89,7 +91,7 @@ function resolveSub(t: Track): Promise<Track | null> {
       return ok[0] ?? null;
     })
     .catch(() => {
-      setSub(t.id, { state: "none", candidates: [], pick: 0 });
+      setSub(t.id, { state: "none", candidates: [], pick: 0, failed: true });
       return null;
     })
     .finally(() => pendingSubs.delete(t.id));
@@ -354,6 +356,17 @@ engine.bindEngine({
     // not found yet: no crossfade into it (the normal change will search and wait)
     return t.playability === "preview" && useSubs.getState().byTrack[t.id]?.state === "none" ? { track: t, streamId: t.id } : null;
   },
+  // SoundCloud sent a 30 s preview for a track its list entry called full (the subscription or region changed since
+  // the list was read, or it came from history): from now on it's a preview, and another upload is looked for
+  snippet: (track) => {
+    track.playability = "preview";
+    if (!needsSub(track)) return;
+    void resolveSub(track).then((alt) => {
+      if (!alt || currentTrack() !== track || engine.activeStreamId() !== track.id) return;
+      set({ duration: alt.durationMs / 1000 });
+      void engine.load(track, { autoplay: get().status !== "paused", streamId: alt.id });
+    });
+  },
   advanced: (track) => {
     const { queue, index } = get();
     let at = queue.indexOf(track, index + 1);
@@ -606,5 +619,5 @@ export function initVolume() {
   engine.setVolume(get().volume, get().muted);
 }
 
-// dev only: inspect the queue from DevTools (window.__player.getState())
-if (import.meta.env.DEV) (window as unknown as { __player: typeof usePlayer }).__player = usePlayer;
+// dev only: inspect the queue from DevTools (window.__player.getState()) and drive it (window.__actions.playFrom(…))
+if (import.meta.env.DEV) Object.assign(window, { __player: usePlayer, __actions: player });

@@ -23,6 +23,8 @@ export interface EngineEvents {
   error(code: ErrorCode): void;
   /** the next track to crossfade into (and whose stream to play: a substitute upload's id), or null */
   peekNext(): { track: Track; streamId: number } | null;
+  /** the track's own stream turned out to be a 30 s preview */
+  snippet(track: Track): void;
   /** a crossfade moved playback on to `track` */
   advanced(track: Track): void;
 }
@@ -211,6 +213,7 @@ class Deck {
       if (info.protocol === "hls") await loadHls();
       if (gen !== this.gen) return false;
       this.attach(info, opts.startAt ?? 0, opts.autoplay);
+      if (info.snipped && this.streamId === track.id && track.playability === "ok") events?.snippet(track);
       return true;
     } catch (err) {
       if (gen === this.gen) {
@@ -292,6 +295,8 @@ function maybeCrossfade() {
 // ---- public -------------------------------------------------------------------------------------------------------
 
 export const currentTime = () => active.audio.currentTime;
+/** whose stream the current deck plays (the track's own id, or a substitute upload's) */
+export const activeStreamId = () => active.streamId;
 
 export function bindEngine(handlers: EngineEvents) {
   events = handlers;

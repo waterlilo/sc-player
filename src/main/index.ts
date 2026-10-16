@@ -42,6 +42,8 @@ let quitting = false;
 const DEMO = !app.isPackaged && process.env.SKY_DEMO === "1";
 // the demo keeps its own settings, history and sign-in, apart from the real ones
 if (DEMO) app.setPath("userData", join(app.getPath("appData"), "sc player demo"));
+// SKY_PROFILE=<name> in development: real SoundCloud with a data folder of its own (signed out, fresh settings)
+else if (!app.isPackaged && process.env.SKY_PROFILE) app.setPath("userData", join(app.getPath("appData"), `sc player ${process.env.SKY_PROFILE.replace(/[^\w-]/g, "")}`));
 const data: MusicProvider = DEMO ? new DemoProvider() : provider;
 const status = async (): Promise<AuthStatus> => (DEMO ? { mode: "session", user: await data.getMe() } : authStatus());
 

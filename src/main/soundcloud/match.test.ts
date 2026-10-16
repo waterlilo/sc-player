@@ -68,6 +68,27 @@ test("real-world good matches still pass", () => {
   assert.ok(matchScore(o("CHIHIRO", "Billie Eilish", 303), c("CHIHIRO", "Billie Eilish Netherlands", 305), 3) > 0);
 });
 
+// v1.3.1: previews (Go+ tracks for listeners without a subscription) that found nothing
+test("apostrophes don't split words", () => {
+  assert.equal(normalize("CAN'T SAY"), "cant say");
+  const o: MatchInput = { title: "CAN'T SAY", artist: "Travis Scott", uploader: "Travis Scott", durationMs: 198_000 };
+  assert.ok(matchScore(o, { id: 9, title: "CANT SAY by travis scott", artist: "", uploader: "robert14", durationMs: 197_000, plays: 100 }, 3) > 0);
+  assert.ok(matchScore(o, { id: 9, title: "CAN’T SAY (With Travis Scott & Don Toliver)", artist: "", uploader: "Global Rub", durationMs: 196_000, plays: 100 }, 3) > 0);
+});
+
+test("a version word glued to other scripts still counts", () => {
+  const o: MatchInput = { title: "HUMBLE.", artist: "Kendrick Lamar", uploader: "Kendrick Lamar", durationMs: 177_000 };
+  assert.equal(matchScore({ ...o, title: "DNA." }, { id: 9, title: "DNA(DubEdit) - KENDRICK LAMAR", artist: "", uploader: "Playlist Dr.", durationMs: 177_000, plays: 100 }, 3), 0);
+  assert.equal(matchScore(o, { id: 9, title: "Kendrick Lamar - HUMBLE.(福岡の社畜Remix)", artist: "", uploader: "福岡の社畜", durationMs: 177_000, plays: 100 }, 3), 0);
+  assert.ok(matchScore(o, { id: 9, title: "Kendrick Lamar - HUMBLE.", artist: "", uploader: "-Mz", durationMs: 177_000, plays: 100 }, 3) > 0);
+  // a word that only contains a version word is not one
+  assert.equal(versionMarks("Livewire").size, 0);
+});
+
+test("queries also try the main artist alone", () => {
+  assert.deepEqual(searchQueries({ title: "Type Shit", artist: "Future, Metro Boomin", uploader: "", durationMs: 0 }), ["future metro boomin type shit", "future type shit", "type shit"]);
+});
+
 test("main artist of a credit list", () => {
   assert.equal(primaryArtist("Drake, Don Toliver, Yebba"), "Drake");
   assert.equal(primaryArtist("Future x Metro Boomin"), "Future");

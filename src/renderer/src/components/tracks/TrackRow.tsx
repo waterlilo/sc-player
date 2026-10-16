@@ -41,7 +41,18 @@ function TrackRow({ track, index, current, playing, onPlay }: Props) {
   const alt = subOn && sub?.state === "found" ? sub.candidates[sub.pick] : undefined;
   const unplayable = (track.playability === "blocked" || track.playability === "drm") && (!subOn || sub?.state === "none");
   const badge = track.playability === "ok" ? null : alt ? t.alt : t[track.playability];
-  const hint = unplayable ? t.unplayable : alt ? t.altHint(alt.user.username) : subOn ? t.willSubstitute : undefined;
+  const preview = track.playability === "preview";
+  const hint = unplayable
+    ? t.unplayable
+    : alt
+      ? t.altHint(alt.user.username)
+      : preview && (!subOn || (sub?.state === "none" && !sub.failed))
+        ? t.previewOnly
+        : subOn
+          ? preview
+            ? t.willSubstitutePreview
+            : t.willSubstitute
+          : undefined;
 
   const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
     if (e.target !== e.currentTarget) return;
