@@ -124,6 +124,8 @@ export class SessionAuth {
         done = true;
         ses.cookies.removeListener("changed", onCookie);
         ses.webRequest.onBeforeSendHeaders(null);
+        ses.webRequest.onCompleted(null);
+        ses.webRequest.onErrorOccurred(null);
         if (token) setSecret("sessionToken", token);
         log("main", token ? "login: signed in" : "login: window closed without signing in");
         // let the site finish its redirect before the window goes away
@@ -142,6 +144,22 @@ export class SessionAuth {
         const auth = details.requestHeaders.Authorization ?? details.requestHeaders.authorization;
         callback({ requestHeaders: details.requestHeaders });
         if (auth?.startsWith("OAuth ") && auth.length > 12) finish(auth.slice(6));
+      });
+      // what went wrong, for the log: refused or failed requests of the sign-in (host and path only — no query, no bodies)
+      const where = (url: string) => {
+        try {
+          const u = new URL(url);
+          return `${u.hostname}${u.pathname.slice(0, 60)}`;
+        } catch {
+          return "?";
+        }
+      };
+      const SIGN_IN_TRAFFIC = ["https://*.soundcloud.com/*", "https://*.google.com/*", "https://*.captcha-delivery.com/*", "https://*.datadome.co/*"];
+      ses.webRequest.onCompleted({ urls: SIGN_IN_TRAFFIC }, (d) => {
+        if (d.statusCode >= 400) log("main", `login: ${d.method} ${where(d.url)} → ${d.statusCode}`);
+      });
+      ses.webRequest.onErrorOccurred({ urls: SIGN_IN_TRAFFIC }, (d) => {
+        if (d.error !== "net::ERR_ABORTED") log("main", `login: ${d.method} ${where(d.url)} failed: ${d.error}`);
       });
       win.on("closed", () => {
         this.window = null;
