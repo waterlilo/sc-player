@@ -166,7 +166,8 @@ export interface InvokeMap {
   "data:sourceIds": (source: QueueSource) => number[];
   "data:related": (trackId: number) => Track[];
   "data:trackDetails": (trackId: number) => TrackDetails;
-  "data:alternatives": (trackId: number) => Track[];
+  /** `deep`: read more search pages (the user asked for another upload and the first search found too few) */
+  "data:alternatives": (trackId: number, deep?: boolean) => Track[];
   "data:search": (query: string, kind: SearchKind, cursor: string | null) => Page<Track> | Page<Playlist> | Page<User>;
   "data:suggest": (query: string) => string[];
   "data:stream": (trackId: number) => StreamInfo;

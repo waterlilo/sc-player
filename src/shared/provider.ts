@@ -32,7 +32,7 @@ export interface MusicProvider {
   getSourceIds(source: QueueSource): Promise<number[]>;
   getTrackDetails(trackId: number): Promise<TrackDetails>;
   /** other uploads of the same recording that play in full, best first (for tracks only streamed with DRM) */
-  getAlternatives(trackId: number): Promise<Track[]>;
+  getAlternatives(trackId: number, deep?: boolean): Promise<Track[]>;
   /** tracks similar to this one (the queue autopilot) */
   getRelated(trackId: number): Promise<Track[]>;
   search(query: string, kind: SearchKind, cursor?: string | null): Promise<Page<Track> | Page<Playlist> | Page<User>>;

@@ -78,6 +78,7 @@ test("apostrophes don't split words", () => {
 
 test("a version word glued to other scripts still counts", () => {
   const o: MatchInput = { title: "HUMBLE.", artist: "Kendrick Lamar", uploader: "Kendrick Lamar", durationMs: 177_000 };
+  assert.equal(matchScore({ title: "Stressed Out", artist: "twenty one pilots", uploader: "twentyonepilots", durationMs: 202_000 }, { id: 9, title: "Twenty One Pilots - Stressed Out V 2Pac - Pain", artist: "", uploader: "Jamie Gos", durationMs: 201_000, plays: 100 }, 3), 0);
   assert.equal(matchScore({ ...o, title: "DNA." }, { id: 9, title: "DNA(DubEdit) - KENDRICK LAMAR", artist: "", uploader: "Playlist Dr.", durationMs: 177_000, plays: 100 }, 3), 0);
   assert.equal(matchScore(o, { id: 9, title: "Kendrick Lamar - HUMBLE.(福岡の社畜Remix)", artist: "", uploader: "福岡の社畜", durationMs: 177_000, plays: 100 }, 3), 0);
   assert.ok(matchScore(o, { id: 9, title: "Kendrick Lamar - HUMBLE.", artist: "", uploader: "-Mz", durationMs: 177_000, plays: 100 }, 3) > 0);

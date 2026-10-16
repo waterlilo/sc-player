@@ -47,6 +47,8 @@ interface Sub {
   pick: number;
   /** "none" because the search failed (timeout, network), not because nothing exists: searched again next time */
   failed?: boolean;
+  /** the deep search ("try another upload" ran out of candidates) was done */
+  deep?: boolean;
 }
 
 /** What was found for each protected track this session (main also remembers it on disk). */
@@ -568,13 +570,28 @@ export const player = {
     if (index >= 0) start(index, { startAt: usePosition.getState().position });
   },
   /** "Wrong version?": the next found upload for the current protected track, from the start. */
-  tryAnotherVersion() {
+  /**
+   * The next found upload of a substituted track (the current one when none is given). At the end of the list the
+   * search runs once more, deeper; null when there is no other upload. The current track restarts with the new one.
+   */
+  async tryAnotherVersion(track?: Track): Promise<{ upload: Track; at: number; of: number } | null> {
+    const t = track ?? currentTrack();
+    let s = t ? useSubs.getState().byTrack[t.id] : undefined;
+    if (!t || !s || s.state !== "found") return null;
+    if (s.pick + 1 >= s.candidates.length && !s.deep) {
+      const more = await call("data:alternatives", t.id, true).catch(() => [] as Track[]);
+      const now = useSubs.getState().byTrack[t.id];
+      if (!now || now.state !== "found") return null;
+      const fresh = more.filter((c) => !isHidden(c) && !now.candidates.some((x) => x.id === c.id));
+      s = { ...now, candidates: [...now.candidates, ...fresh], deep: true };
+      setSub(t.id, s);
+    }
+    if (s.candidates.length < 2) return null;
+    const pick = (s.pick + 1) % s.candidates.length;
+    setSub(t.id, { ...s, pick });
     const { queue, index } = get();
-    const t = queue[index];
-    const s = t ? useSubs.getState().byTrack[t.id] : undefined;
-    if (!t || !s || s.state !== "found" || s.candidates.length < 2) return;
-    setSub(t.id, { ...s, pick: (s.pick + 1) % s.candidates.length });
-    start(index);
+    if (queue[index]?.id === t.id) start(index);
+    return { upload: s.candidates[pick]!, at: pick + 1, of: s.candidates.length };
   },
   /** Substitute this track or not (the menu); the current track restarts with the new choice. */
   setSubstitute(track: Track, on: boolean) {

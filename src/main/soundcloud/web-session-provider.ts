@@ -144,9 +144,9 @@ export class WebSessionProvider implements MusicProvider {
    * Other uploads of the same recording that play in full (not DRM, not a preview), best first: searched by
    * "artist title" and by title, kept only if the length matches and no version words (slowed, remix…) were added.
    */
-  async getAlternatives(trackId: number): Promise<Track[]> {
+  async getAlternatives(trackId: number, deep = false): Promise<Track[]> {
     const tolerance = prefs().substituteTolerance;
-    const remembered = cachedAlternatives(trackId, tolerance);
+    const remembered = deep ? null : cachedAlternatives(trackId, tolerance);
     if (remembered) return (await this.tracksById(remembered)).filter((t) => t.playability === "ok");
     const raw = await this.http.json<RawTrack>(`/tracks/${trackId}`, {}, { ttl: ITEM_TTL });
     if (!raw.title || !raw.user) return [];
@@ -159,9 +159,10 @@ export class WebSessionProvider implements MusicProvider {
     const seen = new Map<number, Candidate>();
     let ranked: Candidate[] = [];
     // fans' re-uploads often rank below the original, its remixes and covers: up to two pages of each query
+    // (a deep search, when the user wants another upload: five pages of every query, no early stop)
     search: for (const q of searchQueries(original)) {
       let href: string | null = "/search/tracks";
-      for (let page = 0; page < 2 && href; page++) {
+      for (let page = 0; page < (deep ? 5 : 2) && href; page++) {
         const res: RawCollection<RawTrack> = await this.http.json<RawCollection<RawTrack>>(href, page ? {} : { q, limit: 50, linked_partitioning: 1 }, { ttl: LIST_TTL });
         for (const r of collection(res, "alternatives")) {
           const t = this.track(r);
@@ -169,11 +170,11 @@ export class WebSessionProvider implements MusicProvider {
           seen.set(t.id, { id: t.id, title: t.title, artist: r.publisher_metadata?.artist ?? "", uploader: t.user.username, durationMs: t.durationMs, plays: r.playback_count ?? 0 });
         }
         ranked = rankCandidates(original, [...seen.values()], tolerance);
-        if (ranked.length >= 3) break search;
+        if (!deep && ranked.length >= 3) break search;
         href = res.next_href ?? null;
       }
     }
-    const ids = ranked.slice(0, 5).map((c) => c.id);
+    const ids = ranked.slice(0, deep ? 10 : 5).map((c) => c.id);
     rememberAlternatives(trackId, tolerance, ids);
     return this.tracksById(ids);
   }

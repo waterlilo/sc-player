@@ -123,7 +123,7 @@ function registerIpc() {
   handle("data:sourceIds", (_e, source) => data.getSourceIds(queueSource(source)));
   handle("data:related", (_e, t) => data.getRelated(id(t)));
   handle("data:trackDetails", (_e, t) => data.getTrackDetails(id(t)));
-  handle("data:alternatives", (_e, t) => data.getAlternatives(id(t)));
+  handle("data:alternatives", (_e, t, deep) => data.getAlternatives(id(t), deep === true));
   handle("data:resolve", (_e, url) => data.resolve(str(url, "url")));
   handle("data:search", (_e, q, kind, c) => data.search(str(q, "query"), kinds.includes(kind) ? kind : bad("kind"), cursor(c)));
   handle("data:suggest", (_e, q) => data.searchSuggestions(str(q, "query")));

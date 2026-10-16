@@ -4,7 +4,7 @@ import { useT } from "@/i18n";
 import { call } from "@/lib/sky";
 import { useNav } from "@/state/nav";
 import type { Track } from "@shared/types";
-import { currentTrack, player, substituteFor, useSubs } from "@/state/player";
+import { player, substituteFor, useSubs } from "@/state/player";
 import { useSettings } from "@/state/settings";
 import { useUi } from "@/state/ui";
 import Icon, { type IconName } from "../ui/Icon";
@@ -56,9 +56,10 @@ export default function TrackMenu() {
     if (prefs.noSubstitute.includes(tr.id)) return [{ icon: "shuffle", label: t.doSubstitute, run: () => player.setSubstitute(tr, true) }];
     const s = useSubs.getState().byTrack[tr.id];
     const alt = substituteFor(tr);
-    const isCurrent = currentTrack()?.id === tr.id;
     return [
-      ...(isCurrent && s?.state === "found" && s.candidates.length > 1 ? [{ icon: "shuffle" as IconName, label: t.tryAnother, run: () => player.tryAnotherVersion() }] : []),
+      ...(s?.state === "found"
+        ? [{ icon: "shuffle" as IconName, label: t.tryAnother, run: () => void player.tryAnotherVersion(tr).then((r) => toast(r ? t.nowFromUpload(r.upload.user.username, r.at, r.of) : t.noOtherUpload)) }]
+        : []),
       ...(alt ? [{ icon: "link" as IconName, label: t.openSubstitute, run: () => void call("shell:open", alt.permalinkUrl) }] : []),
       { icon: "block", label: t.dontSubstitute, run: () => player.setSubstitute(tr, false) },
     ];

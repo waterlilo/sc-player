@@ -111,10 +111,17 @@ const VERSION_WORDS = [
   "dub",
   "dubedit",
   "dubmix",
+  // mashups: "Stressed Out V 2Pac - Pain"
+  "vs",
+  "v",
+  "versus",
 ];
 
+/** Words an upload's title may add without being another version. */
+const FILLER = ["official", "audio", "video", "music", "lyrics", "lyric", "hq", "hd", "full", "song", "by", "with", "and", "the", "original", "mp3", "m4a", "wav", "x", "feat", "ft", "prod", "new", "single", "album", "track", "high", "quality", "explicit", "clean"];
+
 /** Bump when the rules change: answers remembered under older rules are not reused. */
-export const MATCH_VERSION = 4;
+export const MATCH_VERSION = 5;
 
 /** The main credited artist: "Drake, Don Toliver" → "Drake", "A x B feat. C" → "A". */
 export function primaryArtist(artist: string): string {
@@ -183,6 +190,11 @@ export function matchScore(original: MatchInput, c: Candidate, toleranceSec: num
   const uploader = normalize(c.uploader);
   const prodTail = prodAt >= 0 ? c.title.slice(prodAt).toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ") : "";
   if (!byArtist && uploader.length >= 3 && prodTail.includes(uploader)) return 0;
+
+  // many words neither in the original's title nor in the credits: another song mixed in, or someone else's track
+  const known = new Set([...words(original.title), ...words(original.artist), ...words(original.uploader), ...words(c.uploader), ...FILLER]);
+  const extra = [...words(c.title)].filter((w) => !known.has(w));
+  if (extra.length > 3) return 0;
 
   const lengthFit = 1 - Math.abs(original.durationMs - c.durationMs) / (toleranceSec * 1000 + 1);
   return Math.min(1, 0.45 * titleFit + 0.2 * lengthFit + (byArtist ? 0.25 : inTitle ? 0.15 : 0) + Math.min(0.1, Math.log10(c.plays + 1) / 60));

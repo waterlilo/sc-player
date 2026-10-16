@@ -1,5 +1,5 @@
-import type { CSSProperties } from "react";
-import { artwork } from "@shared/types";
+import { useState, type CSSProperties } from "react";
+import { artwork, type Track } from "@shared/types";
 import { errorText, useT } from "@/i18n";
 import { duration } from "@/lib/format";
 import { useNav } from "@/state/nav";
@@ -15,6 +15,31 @@ import Waveform from "./Waveform";
 function Time() {
   const position = usePosition((s) => s.position);
   return <span className="w-12 shrink-0 text-right font-type text-xs tabular-nums text-muted">{duration(position * 1000)}</span>;
+}
+
+/** "via an upload by …" under a substituted track, and the button that switches to another upload of it. */
+function SubstituteLine({ sound }: { sound: Track }) {
+  const t = useT();
+  const toast = useUi((s) => s.showToast);
+  const [busy, setBusy] = useState(false);
+  const another = () => {
+    setBusy(true);
+    void player
+      .tryAnotherVersion()
+      .then((r) => toast(r ? t.nowFromUpload(r.upload.user.username, r.at, r.of) : t.noOtherUpload))
+      .finally(() => setBusy(false));
+  };
+  return (
+    <div className="flex min-w-0 items-center gap-2 font-type text-[0.7rem]">
+      <button type="button" onClick={() => void call("shell:open", sound.permalinkUrl)} title={sound.title} className="min-w-0 truncate text-glow/80 hover:text-glow hover:underline">
+        {t.viaUpload(sound.user.username)}
+      </button>
+      <button type="button" onClick={another} disabled={busy} title={t.tryAnother} className="flex shrink-0 items-center gap-1 rounded-sm border border-glow/40 px-1.5 py-px text-glow/90 hover:border-glow hover:text-glow disabled:opacity-60">
+        <Icon name="shuffle" size={12} />
+        {busy ? t.findingUpload : t.anotherUpload}
+      </button>
+    </div>
+  );
 }
 
 function PlayButton() {
@@ -93,11 +118,7 @@ export default function PlayerBar() {
               <button type="button" onClick={() => go({ name: "profile", userId: track.user.id })} className="mt-1 block max-w-full truncate text-sm text-muted hover:text-text hover:underline">
                 {track.artist}
               </button>
-              {substituted && sound && (
-                <button type="button" onClick={() => void call("shell:open", sound.permalinkUrl)} title={sound.title} className="block max-w-full truncate font-type text-[0.7rem] text-glow/80 hover:text-glow hover:underline">
-                  {t.viaUpload(sound.user.username)}
-                </button>
-              )}
+              {substituted && sound && <SubstituteLine sound={sound} />}
             </>
           ) : (
             <span className="font-type text-sm text-muted">{t.nothingPlaying}</span>
