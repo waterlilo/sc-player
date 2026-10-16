@@ -151,6 +151,9 @@ export interface InvokeMap {
   "auth:status": () => AuthStatus;
   "auth:login": () => AuthStatus;
   "auth:logout": () => AuthStatus;
+  /** sign in through the user's own browser: opens the helper page and waits for its link (15 min) */
+  "auth:browser": () => void;
+  "auth:browserCancel": () => void;
 
   "data:me": () => User | null;
   "data:likes": (cursor: string | null) => Page<Track>;
@@ -202,6 +205,8 @@ export interface EventMap {
   "win:activity": WindowActivity;
   "win:maximized": boolean;
   "auth:changed": AuthStatus;
+  /** the browser sign-in: its link arrived and SoundCloud refused the token */
+  "auth:browserRefused": null;
   /** tray menu, global hotkeys */
   "player:command": PlayerCommand;
   /** global hotkeys that could not be registered (taken by another app) */
@@ -217,6 +222,8 @@ export const INVOKE_CHANNELS = [
   "auth:status",
   "auth:login",
   "auth:logout",
+  "auth:browser",
+  "auth:browserCancel",
   "data:me",
   "data:likes",
   "data:playlists",
@@ -256,7 +263,7 @@ export const INVOKE_CHANNELS = [
   "update:download",
   "update:install",
 ] as const satisfies readonly InvokeChannel[];
-export const EVENT_CHANNELS = ["win:activity", "win:maximized", "auth:changed", "player:command", "hotkeys:failed", "update:status"] as const satisfies readonly (keyof EventMap)[];
+export const EVENT_CHANNELS = ["win:activity", "win:maximized", "auth:changed", "auth:browserRefused", "player:command", "hotkeys:failed", "update:status"] as const satisfies readonly (keyof EventMap)[];
 
 type MissingInvoke = Exclude<InvokeChannel, (typeof INVOKE_CHANNELS)[number]>;
 type MissingEvent = Exclude<keyof EventMap, (typeof EVENT_CHANNELS)[number]>;

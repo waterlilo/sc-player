@@ -177,6 +177,11 @@ export class SessionAuth {
     });
   }
 
+  /** A token from the browser sign-in (checked by the caller). */
+  useToken(token: string) {
+    setSecret("sessionToken", token);
+  }
+
   /** The token was refused: drop our copy (the site data stays; signing in again replaces it). */
   forget() {
     setSecret("sessionToken", null);

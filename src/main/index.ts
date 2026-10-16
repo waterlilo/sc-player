@@ -5,7 +5,7 @@ import { RENDERER_DEFAULTS, type AuthStatus, type InvokeChannel, type InvokeMap,
 import type { MusicProvider, SearchKind } from "@shared/provider";
 import type { QueueSource } from "@shared/types";
 import { DemoProvider } from "./demo";
-import { auth, authStatus, chromeUserAgent, provider, ScError, scSession, toErrorInfo } from "./soundcloud";
+import { auth, authStatus, chromeUserAgent, provider, ScError, scSession, startBrowserSignIn, stopBrowserSignIn, toErrorInfo, tokenFromArgs, waitingForBrowser } from "./soundcloud";
 import { flushAlternatives } from "./soundcloud/alternatives";
 import { patchRenderer, prefs, store } from "./store";
 import { getSecret, setSecret } from "./store/secrets";
@@ -102,6 +102,8 @@ function registerIpc() {
     main?.focus();
     return status;
   });
+  handle("auth:browser", () => startBrowserSignIn());
+  handle("auth:browserCancel", () => stopBrowserSignIn());
   handle("auth:logout", async () => {
     await auth.logout();
     provider.reset();
@@ -173,6 +175,7 @@ function registerIpc() {
   handle("update:download", () => updater.download());
   handle("update:install", () => {
     quitting = true;
+  if (waitingForBrowser()) stopBrowserSignIn();
     updater.install();
   });
 
@@ -209,7 +212,32 @@ function allowAudioCors() {
 
 // ---- lifecycle ------------------------------------------------------------------------------------------------------
 
-app.on("second-instance", () => showWindow(main));
+/** The browser sign-in's link (scplayer://signin?token=…) arrives as a second instance's arguments. */
+async function signInFromBrowser(argv: string[]) {
+  const token = tokenFromArgs(argv);
+  if (!token) return;
+  if (!waitingForBrowser()) {
+    log("main", "login: browser link ignored (not waiting for one)");
+    return;
+  }
+  auth.useToken(token);
+  provider.reset();
+  const status = await authStatus();
+  // a refused token is forgotten by authStatus: the app stays signed out and keeps waiting for another try
+  if (status.mode === "session") {
+    stopBrowserSignIn();
+    log("main", "login: signed in through the browser");
+  } else {
+    log("main", "login: browser token refused");
+    send(main, "auth:browserRefused", null);
+  }
+  send(main, "auth:changed", status);
+}
+
+app.on("second-instance", (_e, argv) => {
+  showWindow(main);
+  void signInFromBrowser(argv);
+});
 
 app.on("window-all-closed", () => app.quit());
 app.on("before-quit", () => {

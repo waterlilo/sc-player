@@ -5,7 +5,11 @@ import { call, on } from "@/lib/sky";
 interface AuthStore {
   status: AuthStatus | null;
   busy: boolean;
+  /** the browser sign-in: waiting for its link, or SoundCloud refused what came */
+  browser: "idle" | "waiting" | "refused";
   init(): Promise<void>;
+  loginWithBrowser(): Promise<void>;
+  cancelBrowser(): Promise<void>;
   login(): Promise<void>;
   logout(): Promise<void>;
 }
@@ -13,8 +17,10 @@ interface AuthStore {
 export const useAuth = create<AuthStore>((set) => ({
   status: null,
   busy: false,
+  browser: "idle",
   init: async () => {
-    on("auth:changed", (status) => set({ status }));
+    on("auth:changed", (status) => set((s) => ({ status, browser: status.mode === "session" ? "idle" : s.browser })));
+    on("auth:browserRefused", () => set({ browser: "refused" }));
     try {
       set({ status: await call("auth:status") });
     } catch {
@@ -28,6 +34,14 @@ export const useAuth = create<AuthStore>((set) => ({
     } finally {
       set({ busy: false });
     }
+  },
+  loginWithBrowser: async () => {
+    await call("auth:browser");
+    set({ browser: "waiting" });
+  },
+  cancelBrowser: async () => {
+    await call("auth:browserCancel");
+    set({ browser: "idle" });
   },
   logout: async () => {
     set({ status: await call("auth:logout") });

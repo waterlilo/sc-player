@@ -9,7 +9,7 @@ import { useAuth } from "@/state/auth";
 /** Not signed in: "sign in", and a way to open any public profile without an account. */
 export default function Login() {
   const t = useT();
-  const { login, busy } = useAuth();
+  const { login, busy, browser, loginWithBrowser, cancelBrowser } = useAuth();
   const [link, setLink] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [opening, setOpening] = useState(false);
@@ -36,6 +36,19 @@ export default function Login() {
           <MarkerButton onClick={() => void login()} disabled={busy} className="text-lg">
             {t.loginButton}
           </MarkerButton>
+          {browser === "idle" ? (
+            <PaperButton onClick={() => void loginWithBrowser()} className="mt-3">
+              {t.loginWithBrowser}
+            </PaperButton>
+          ) : (
+            <div role="status" className="mt-4 w-full rounded-md border border-glow/40 p-4 text-center font-type text-sm leading-relaxed text-text">
+              <p>{browser === "refused" ? t.browserRefused : t.browserWaiting}</p>
+              <div className="mt-3 flex justify-center gap-2">
+                <PaperButton onClick={() => void loginWithBrowser()}>{t.browserAgain}</PaperButton>
+                <PaperButton onClick={() => void cancelBrowser()}>{t.cancel}</PaperButton>
+              </div>
+            </div>
+          )}
           <form onSubmit={submit} className="mt-6 flex w-full flex-col items-center gap-2">
             <label htmlFor="public-link" className="font-type text-sm text-muted">
               {t.orPaste}
