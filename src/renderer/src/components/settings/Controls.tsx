@@ -1,11 +1,14 @@
 import type { CSSProperties, ReactNode } from "react";
 
-/** A settings group: a typewriter heading and its rows. */
+/**
+ * A settings group: a heading and its rows on a dark card, so they stay readable over the stipple and the drifting
+ * clouds. The card is plain (no blur behind it: that would be redrawn under every moving cloud).
+ */
 export function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section aria-label={title} className="mb-9 max-w-3xl">
       <h2 className="display-heading mb-3 -rotate-1 text-3xl text-text">{title.toLowerCase()}</h2>
-      <div className="flex flex-col gap-1">{children}</div>
+      <div className="flex flex-col gap-1 rounded-lg border border-[var(--card-edge)] bg-[var(--card)] p-2 shadow-[4px_6px_0_rgba(0,0,0,0.35)]">{children}</div>
     </section>
   );
 }

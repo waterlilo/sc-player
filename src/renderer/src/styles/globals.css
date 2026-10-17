@@ -28,6 +28,10 @@
   --panel: #0b0816;
   --edge: #6b55c8;
   --row-hover: rgba(236, 231, 255, 0.06);
+  /* drifting background clouds; the backing card under settings sections */
+  --cloud: #8a72e6;
+  --card: rgba(18, 12, 36, 0.82);
+  --card-edge: rgba(107, 85, 200, 0.45);
   color-scheme: dark;
 }
 
@@ -110,6 +114,39 @@ body {
 .stipple-night {
   background-image: url("../../../../assets/textures/stipple-night.webp");
 }
+/* Drifting clouds (components/deco/SkyClouds.tsx): feathered masks in the fog colour, moved by transform only */
+.sky-cloud {
+  position: absolute;
+  left: 0;
+  aspect-ratio: 900 / 560;
+  /* stepped at 12 fps on the grain's clock (whole-second durations and delays keep them in phase): a smooth
+     60 fps drift made the window recomposite every frame (~60% of a core) for clouds that move ~1 px a step */
+  animation: cloud-drift var(--drift-dur) steps(var(--drift-steps)) var(--drift-delay) infinite;
+  will-change: transform;
+}
+.sky-cloud-tex {
+  width: 100%;
+  height: 100%;
+  background-color: var(--cloud);
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+}
+.tex-cloud-a {
+  -webkit-mask-image: url("../../../../assets/textures/cloud-a-feather.webp");
+  mask-image: url("../../../../assets/textures/cloud-a-feather.webp");
+}
+.tex-cloud-b {
+  -webkit-mask-image: url("../../../../assets/textures/cloud-b-feather.webp");
+  mask-image: url("../../../../assets/textures/cloud-b-feather.webp");
+}
+@keyframes cloud-drift {
+  from { transform: translate3d(-65vw, 0, 0); }
+  to { transform: translate3d(105vw, 0, 0); }
+}
+html[data-quality="2"] .sky-clouds {
+  display: none;
+}
+
 /* ------------------------------------------------------------------ */
 /* Film grain — monochrome, jumped around ~12 fps, under the panels     */
 /* ------------------------------------------------------------------ */
