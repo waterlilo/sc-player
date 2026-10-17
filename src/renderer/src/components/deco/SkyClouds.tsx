@@ -1,26 +1,114 @@
-import type { CSSProperties } from "react";
+import { useEffect, useRef, type CSSProperties } from "react";
 
 /**
- * Clouds drifting slowly across the window behind everything, as on the site's night sky: feathered cloud masks
- * tinted with the theme's fog colour. Each one only moves (transform), so the mask is drawn once and the
- * compositor slides it. They stop with the other decorative loops (window in the background, adaptive quality) and
- * are left out at the lowest quality.
+ * The night sky behind the window: feathered clouds (the site's cloud masks, tinted with the theme's --cloud) in
+ * three layers of depth, as on the site.
+ *
+ *  far  — many small, faint clouds, slow drift, barely move with scrolling
+ *  mid  — medium clouds
+ *  near — a few big ones, the fastest drift, follow scrolling the most
+ *
+ * Sideways drift is a CSS animation stepped at 12 fps on the grain's clock (moving them every frame made the window
+ * recomposite 60 times a second). Scrolling a screen moves each layer up by its own share of the scroll (parallax);
+ * only the scroll *movement* counts, so switching screens doesn't make the sky jump. Clouds wrap around top ↔ bottom
+ * out of sight. Everything stops with the other decorative loops (window in the background, adaptive quality); the
+ * lowest quality leaves the clouds out.
  */
-const CLOUDS = [
-  { tex: "a", top: 4, w: 46, o: 0.22, dur: 210, delay: -40, flip: false },
-  { tex: "b", top: 26, w: 58, o: 0.16, dur: 260, delay: -170, flip: true },
-  { tex: "a", top: 46, w: 36, o: 0.2, dur: 180, delay: -110, flip: true },
-  { tex: "b", top: 62, w: 52, o: 0.17, dur: 240, delay: -20, flip: false },
-  { tex: "a", top: 80, w: 44, o: 0.15, dur: 300, delay: -230, flip: false },
-  { tex: "b", top: 14, w: 30, o: 0.13, dur: 340, delay: -290, flip: true },
-] as const;
+type Cloud = { tex: "a" | "b"; x: number; y: number; w: number; o: number; dur: number; flip: boolean };
+type Layer = { name: "far" | "mid" | "near"; factor: number; clouds: Cloud[] };
+
+function rng(seed: number) {
+  let s = seed;
+  return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
+}
+
+/** y spreads over SPAN (in viewport heights) so a cloud can leave the screen and come back from the other side */
+const SPAN = 2;
+const TOP = -0.5;
+
+function layer(seed: number, name: Layer["name"], factor: number, count: number, w: [number, number], o: [number, number], dur: [number, number]): Layer {
+  const r = rng(seed);
+  const clouds = Array.from({ length: count }, (_, i): Cloud => ({
+    tex: i % 2 ? "b" : "a",
+    // evenly down the span with some jitter, so the sky has no empty stretches
+    y: ((i + 0.2 + r() * 0.6) / count) * SPAN + TOP,
+    x: r(),
+    w: Math.round(w[0] + r() * (w[1] - w[0])),
+    o: +(o[0] + r() * (o[1] - o[0])).toFixed(3),
+    dur: Math.round(dur[0] + r() * (dur[1] - dur[0])),
+    flip: r() > 0.5,
+  }));
+  return { name, factor, clouds };
+}
+
+const LAYERS: Layer[] = [
+  layer(11, "far", 0.04, 9, [16, 26], [0.08, 0.13], [380, 520]),
+  layer(23, "mid", 0.12, 6, [32, 46], [0.13, 0.19], [230, 320]),
+  layer(37, "near", 0.26, 4, [58, 76], [0.1, 0.15], [150, 200]),
+];
+
+const wrapY = (y: number) => ((((y - TOP) % SPAN) + SPAN) % SPAN) + TOP;
 
 export default function SkyClouds() {
+  const rows = useRef<(HTMLDivElement | null)[][]>(LAYERS.map(() => []));
+
+  useEffect(() => {
+    const scrolled = [0, 0, 0];
+    const last = new WeakMap<Element, number>();
+    let frame = 0;
+    const place = () => {
+      frame = 0;
+      const vh = window.innerHeight;
+      LAYERS.forEach((l, li) => {
+        l.clouds.forEach((c, ci) => {
+          const el = rows.current[li]?.[ci];
+          if (el) el.style.transform = `translate3d(0, ${(wrapY(c.y - scrolled[li]! / vh) * vh).toFixed(1)}px, 0)`;
+        });
+      });
+    };
+    const onScroll = (e: Event) => {
+      const el = e.target;
+      // the screens' own scrolling only (not the queue, lyrics or a menu)
+      if (!(el instanceof Element) || !el.closest("main") || el.closest("aside, [role=menu], [role=dialog]")) return;
+      const top = el.scrollTop;
+      const before = last.get(el);
+      last.set(el, top);
+      if (before === undefined) return;
+      const delta = top - before;
+      if (!delta) return;
+      LAYERS.forEach((l, i) => (scrolled[i]! += delta * l.factor));
+      if (!frame) frame = requestAnimationFrame(place);
+    };
+    place();
+    document.addEventListener("scroll", onScroll, { capture: true, passive: true });
+    window.addEventListener("resize", place);
+    return () => {
+      document.removeEventListener("scroll", onScroll, { capture: true });
+      window.removeEventListener("resize", place);
+      cancelAnimationFrame(frame);
+    };
+  }, []);
+
   return (
     <div className="sky-clouds deco absolute inset-0">
-      {CLOUDS.map((c, i) => (
-        <div key={i} className="sky-cloud" style={{ top: `${c.top}%`, width: `${c.w}vw`, "--drift-dur": `${c.dur}s`, "--drift-delay": `${c.delay}s`, "--drift-steps": c.dur * 12 } as CSSProperties}>
-          <div className={`sky-cloud-tex tex-cloud-${c.tex}`} style={{ opacity: c.o, transform: c.flip ? "scaleX(-1)" : undefined }} />
+      {LAYERS.map((l, li) => (
+        <div key={l.name} className={`sky-layer sky-layer-${l.name} absolute inset-0`}>
+          {l.clouds.map((c, ci) => (
+            <div
+              key={ci}
+              ref={(el) => {
+                rows.current[li]![ci] = el;
+              }}
+              className="sky-cloud-row"
+            >
+              <div
+                className="sky-cloud"
+                style={{ width: `${c.w}vw`, "--drift-dur": `${c.dur}s`, "--drift-steps": c.dur * 12, "--drift-delay": `${-Math.round(c.x * c.dur)}s` } as CSSProperties}
+              >
+                <div className={`sky-cloud-tex tex-cloud-${c.tex}`} style={{ opacity: c.o, transform: c.flip ? "scaleX(-1)" : undefined }} />
+              </div>
+            </div>
+          ))}
         </div>
       ))}
     </div>

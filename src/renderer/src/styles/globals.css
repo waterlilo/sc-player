@@ -115,6 +115,14 @@ body {
   background-image: url("../../../../assets/textures/stipple-night.webp");
 }
 /* Drifting clouds (components/deco/SkyClouds.tsx): feathered masks in the fog colour, moved by transform only */
+/* a row holds one cloud at its height; the parallax (SkyClouds) moves rows up and down, the drift moves the cloud */
+.sky-cloud-row {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  will-change: transform;
+}
 .sky-cloud {
   position: absolute;
   left: 0;
@@ -140,9 +148,11 @@ body {
   mask-image: url("../../../../assets/textures/cloud-b-feather.webp");
 }
 @keyframes cloud-drift {
-  from { transform: translate3d(-65vw, 0, 0); }
-  to { transform: translate3d(105vw, 0, 0); }
+  /* from just off the left edge (its own width) to just off the right one */
+  from { transform: translate3d(-100%, 0, 0); }
+  to { transform: translate3d(100vw, 0, 0); }
 }
+html[data-quality="1"] .sky-layer-far,
 html[data-quality="2"] .sky-clouds {
   display: none;
 }
