@@ -136,8 +136,9 @@ body {
   width: 100%;
   height: 100%;
   background-color: var(--cloud);
-  /* a new cover colour (lib/cover-tint.ts) fades in */
-  transition: background-color 1.6s ease;
+  /* a new cover colour (lib/cover-tint.ts) drifts in slowly, in small steps (~7 a second): a smooth transition
+     would repaint every cloud on every frame for the whole fade */
+  transition: background-color 6s steps(42);
   -webkit-mask-size: 100% 100%;
   mask-size: 100% 100%;
 }
@@ -189,7 +190,8 @@ body {
 }
 .edge-glow {
   box-shadow: inset 0 0 44px 0 color-mix(in srgb, var(--tint, var(--glow)) 32%, transparent);
-  opacity: calc(var(--rx-beat, 0) * 0.45);
+  /* follows the energy of the middle (slow swell, slower fade), not the kick: hits made it flicker */
+  opacity: calc(var(--rx-energy, 0) * 0.5);
   will-change: opacity;
 }
 html[data-quality="1"] .sky-layer-far,

@@ -4,8 +4,9 @@ import { usePlayer } from "@/state/player";
 import { getActivity, subscribeActivity } from "./activity";
 
 /**
- * Sound → sky. While music plays and the window is in front, the output is measured ~30 times a second: the bass,
- * the top end, and the kick drum's hits (a jump in the bass over its recent average). The numbers go to the few
+ * Sound → sky. While music plays and the window is in front, the output is measured 25 times a second: the bass,
+ * the top end, the energy of the middle (voice, guitars, synths — slow to swell and slower to fade), and the kick
+ * drum's hits (a jump in the bass over its recent average). The numbers go to the few
  * decorative elements that listen (stars, the edge glow) as CSS variables on those elements only — never on the
  * root, which would restyle the whole page each frame. Nothing runs in the background, when paused, or when the
  * "Sound-reactive sky" setting is off; the listeners then fall back to their resting look.
@@ -16,12 +17,14 @@ export interface Levels {
   treble: number;
   /** 1 on a hit, fading to 0 within ~0.4 s */
   beat: number;
+  /** how loud the middle is against the track's loudest part of the last ~20 s, swelling in ~0.25 s, fading in ~0.9 s */
+  energy: number;
 }
 
 const listeners = new Set<HTMLElement>();
-const REST: Levels = { bass: 0, treble: 0, beat: 0 };
+const REST: Levels = { bass: 0, treble: 0, beat: 0, energy: 0 };
 
-/** An element whose --rx-bass / --rx-treble / --rx-beat follow the music. */
+/** An element whose --rx-bass / --rx-treble / --rx-beat / --rx-energy follow the music. */
 export function listen(el: HTMLElement | null): () => void {
   if (!el) return () => undefined;
   listeners.add(el);
@@ -37,11 +40,12 @@ function write(el: HTMLElement, l: Levels) {
   el.style.setProperty("--rx-bass", l.bass.toFixed(3));
   el.style.setProperty("--rx-treble", l.treble.toFixed(3));
   el.style.setProperty("--rx-beat", l.beat.toFixed(3));
+  el.style.setProperty("--rx-energy", l.energy.toFixed(3));
 }
 
 function publish(l: Levels) {
   // skip invisible changes: each write restyles the listener's subtree
-  if (Math.abs(l.bass - current.bass) < 0.01 && Math.abs(l.treble - current.treble) < 0.01 && Math.abs(l.beat - current.beat) < 0.01) return;
+  if (Math.abs(l.bass - current.bass) < 0.01 && Math.abs(l.treble - current.treble) < 0.01 && Math.abs(l.beat - current.beat) < 0.01 && Math.abs(l.energy - current.energy) < 0.01) return;
   current = l;
   for (const el of listeners) write(el, l);
 }
@@ -56,6 +60,9 @@ let lastTick = 0;
 // loudness differs a lot between tracks: levels are taken against the track's own recent peak
 let bassPeak = 0.2;
 let treblePeak = 0.05;
+let energy = 0;
+// the middle's peak falls back slowly, so a quiet verse after a loud chorus stays quiet
+let midPeak = 0.1;
 // the kick: how much the low bins rose since the last look (spectral flux), against its own running average
 let prevLow: Float32Array | null = null;
 let fluxAvg = 0;
@@ -111,7 +118,13 @@ function tick() {
     beat = 1;
   } else beat = Math.max(0, beat - dt * 3.2);
 
-  publish({ bass: Math.min(1, bass), treble: Math.min(1, treble), beat });
+  // energy: the middle against its loudest part of the last ~20 s; only the louder part of the song lights up
+  const m = level(data, bins(node, 250, 4000));
+  midPeak = Math.max(m, midPeak - dt * midPeak * 0.05, 0.05);
+  const target = Math.max(0, Math.min(1, (m / midPeak - 0.65) / 0.35));
+  energy += (target - energy) * Math.min(1, dt / (target > energy ? 0.25 : 0.9));
+
+  publish({ bass: Math.min(1, bass), treble: Math.min(1, treble), beat, energy });
 }
 
 function update() {
@@ -124,7 +137,7 @@ function update() {
   } else if (!run && frame) {
     window.clearInterval(frame);
     frame = 0;
-    bass = treble = beat = 0;
+    bass = treble = beat = energy = 0;
     prevLow = null;
     publish(REST);
   }

@@ -3,7 +3,7 @@ import { listen } from "@/lib/reactive";
 import { useSettings } from "@/state/settings";
 
 /**
- * A soft glow along the edges of the content area that flashes on the kick drum ("Sound-reactive sky"), in the
+ * A soft glow along the edges of the content area that swells with the loud parts of a song ("Sound-reactive sky"), in the
  * cover's colour when the sky takes it, otherwise the theme's yellow. Painted once; only its opacity follows the
  * music. Clicks pass through.
  */
