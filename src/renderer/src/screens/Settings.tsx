@@ -326,6 +326,12 @@ export default function Settings() {
         <OutputDevice />
       </Section>
 
+      <Section title={t.secAppearance}>
+        <Row label={t.skyClouds} hint={t.skyCloudsHint}>
+          <Toggle on={prefs.skyClouds} onChange={(v) => setPref("skyClouds", v)} label={t.skyClouds} />
+        </Row>
+      </Section>
+
       <Section title={t.secWindow}>
         <Row label={t.closeButton} hint={t.closeHint}>
           <Choice

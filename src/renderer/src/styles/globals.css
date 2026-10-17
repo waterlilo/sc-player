@@ -147,6 +147,30 @@ body {
   -webkit-mask-image: url("../../../../assets/textures/cloud-b-feather.webp");
   mask-image: url("../../../../assets/textures/cloud-b-feather.webp");
 }
+.tex-cloud-c {
+  -webkit-mask-image: url("../../../../assets/textures/cloud-c.webp");
+  mask-image: url("../../../../assets/textures/cloud-c.webp");
+}
+.tex-cloud-d {
+  -webkit-mask-image: url("../../../../assets/textures/cloud-d.webp");
+  mask-image: url("../../../../assets/textures/cloud-d.webp");
+}
+.tex-cloud-e {
+  -webkit-mask-image: url("../../../../assets/textures/cloud-e.webp");
+  mask-image: url("../../../../assets/textures/cloud-e.webp");
+}
+.tex-cloud-f {
+  -webkit-mask-image: url("../../../../assets/textures/cloud-f.webp");
+  mask-image: url("../../../../assets/textures/cloud-f.webp");
+}
+.tex-cloud-g {
+  -webkit-mask-image: url("../../../../assets/textures/cloud-g.webp");
+  mask-image: url("../../../../assets/textures/cloud-g.webp");
+}
+.tex-cloud-h {
+  -webkit-mask-image: url("../../../../assets/textures/cloud-h.webp");
+  mask-image: url("../../../../assets/textures/cloud-h.webp");
+}
 @keyframes cloud-drift {
   /* from just off the left edge (its own width) to just off the right one */
   from { transform: translate3d(-100%, 0, 0); }

@@ -1,3 +1,4 @@
+import { useSettings } from "@/state/settings";
 import SkyClouds from "./SkyClouds";
 
 /**
@@ -6,11 +7,12 @@ import SkyClouds from "./SkyClouds";
  * or artwork.
  */
 export default function Backdrop() {
+  const clouds = useSettings((s) => s.prefs.skyClouds);
   return (
     <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
       <div className="sky-night absolute inset-0" />
       <div className="stipple-night absolute inset-0" />
-      <SkyClouds />
+      {clouds && <SkyClouds />}
       <div className="grain" />
     </div>
   );

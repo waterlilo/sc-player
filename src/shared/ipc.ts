@@ -75,6 +75,8 @@ export interface Prefs {
   notifications: boolean;
   /** a small card with the cover, title and artist in a corner of the screen for a few seconds on a track change */
   trackPopup: boolean;
+  /** the night design's clouds drifting behind the window */
+  skyClouds: boolean;
   popupCorner: PopupCorner;
   /** global shortcuts, Electron accelerator strings; "" = off */
   hotkeys: Record<HotkeyAction, string>;
@@ -108,6 +110,7 @@ export const PREFS_DEFAULTS: Prefs = {
   startMinimized: true,
   notifications: false,
   trackPopup: false,
+  skyClouds: true,
   popupCorner: "bottom-right",
   hotkeys: { playPause: "Control+Alt+Space", next: "Control+Alt+Right", previous: "Control+Alt+Left", showWindow: "Control+Alt+S" },
   streamQuality: "high",

@@ -14,7 +14,9 @@ import { useEffect, useRef, type CSSProperties } from "react";
  * out of sight. Everything stops with the other decorative loops (window in the background, adaptive quality); the
  * lowest quality leaves the clouds out.
  */
-type Cloud = { tex: "a" | "b"; x: number; y: number; w: number; o: number; dur: number; flip: boolean };
+/** the cloud masks: a, b from the site; c–h drawn by scripts/make-clouds.mjs */
+type Tex = "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h";
+type Cloud = { tex: Tex; x: number; y: number; w: number; o: number; dur: number; flip: boolean; squash: number };
 type Layer = { name: "far" | "mid" | "near"; factor: number; clouds: Cloud[] };
 
 function rng(seed: number) {
@@ -26,10 +28,10 @@ function rng(seed: number) {
 const SPAN = 2;
 const TOP = -0.5;
 
-function layer(seed: number, name: Layer["name"], factor: number, count: number, w: [number, number], o: [number, number], dur: [number, number]): Layer {
+function layer(seed: number, name: Layer["name"], factor: number, count: number, texs: Tex[], w: [number, number], o: [number, number], dur: [number, number]): Layer {
   const r = rng(seed);
   const clouds = Array.from({ length: count }, (_, i): Cloud => ({
-    tex: i % 2 ? "b" : "a",
+    tex: texs[i % texs.length]!,
     // evenly down the span with some jitter, so the sky has no empty stretches
     y: ((i + 0.2 + r() * 0.6) / count) * SPAN + TOP,
     x: r(),
@@ -37,14 +39,16 @@ function layer(seed: number, name: Layer["name"], factor: number, count: number,
     o: +(o[0] + r() * (o[1] - o[0])).toFixed(3),
     dur: Math.round(dur[0] + r() * (dur[1] - dur[0])),
     flip: r() > 0.5,
+    // a little taller or flatter than drawn, so the same shape never looks the same twice
+    squash: +(0.75 + r() * 0.45).toFixed(2),
   }));
   return { name, factor, clouds };
 }
 
 const LAYERS: Layer[] = [
-  layer(11, "far", 0.04, 9, [16, 26], [0.08, 0.13], [380, 520]),
-  layer(23, "mid", 0.12, 6, [32, 46], [0.13, 0.19], [230, 320]),
-  layer(37, "near", 0.26, 4, [58, 76], [0.1, 0.15], [150, 200]),
+  layer(11, "far", 0.04, 9, ["f", "e", "h", "a", "f", "e", "b", "h", "f"], [16, 26], [0.08, 0.13], [380, 520]),
+  layer(23, "mid", 0.12, 6, ["d", "c", "b", "h", "g", "a"], [32, 46], [0.13, 0.19], [230, 320]),
+  layer(37, "near", 0.26, 4, ["c", "g", "a", "d"], [58, 76], [0.1, 0.15], [150, 200]),
 ];
 
 const wrapY = (y: number) => ((((y - TOP) % SPAN) + SPAN) % SPAN) + TOP;
@@ -105,7 +109,7 @@ export default function SkyClouds() {
                 className="sky-cloud"
                 style={{ width: `${c.w}vw`, "--drift-dur": `${c.dur}s`, "--drift-steps": c.dur * 12, "--drift-delay": `${-Math.round(c.x * c.dur)}s` } as CSSProperties}
               >
-                <div className={`sky-cloud-tex tex-cloud-${c.tex}`} style={{ opacity: c.o, transform: c.flip ? "scaleX(-1)" : undefined }} />
+                <div className={`sky-cloud-tex tex-cloud-${c.tex}`} style={{ opacity: c.o, transform: `scale(${c.flip ? -1 : 1}, ${c.squash})` }} />
               </div>
             </div>
           ))}
