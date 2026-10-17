@@ -113,6 +113,10 @@ body {
 }
 .stipple-night {
   background-image: url("../../../../assets/textures/stipple-night.webp");
+  /* the far haze leans a little toward the cover's colour (lib/cover-tint.ts sets the shift), slowly and in steps
+     like the clouds; it stays violet at heart */
+  filter: hue-rotate(var(--haze-shift, 0deg));
+  transition: filter 6s steps(42);
 }
 /* Drifting clouds (components/deco/SkyClouds.tsx): feathered masks in the fog colour, moved by transform only */
 /* a row holds one cloud at its height; the parallax (SkyClouds) moves rows up and down, the drift moves the cloud */

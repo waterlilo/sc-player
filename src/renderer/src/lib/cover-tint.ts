@@ -6,9 +6,12 @@ import { useSettings } from "@/state/settings";
  * The sky takes its colour from the cover of what's playing: the most colourful tone of a small copy of the cover,
  * brought to a fixed lightness so clouds stay soft (never neon, never lost in the dark). It goes to --cloud (the
  * clouds) and --tint (the edge glow) on the root, once per track; grey covers and "off" fall back to the theme's own
- * colours. The covers come from SoundCloud's CDN, which main serves with CORS, so the pixels can be read.
+ * colours. The far stippled haze only leans a little toward that colour (--haze-shift). The covers come from
+ * SoundCloud's CDN, which main serves with CORS, so the pixels can be read.
  */
 const SIZE = 24;
+/** the hue of the stippled haze in the backdrop (assets/textures/stipple-night.webp) */
+const HAZE_HUE = 250;
 let lastUrl: string | null = null;
 let job = 0;
 
@@ -61,12 +64,16 @@ function apply(tone: [number, number] | null) {
   if (!tone) {
     root.removeProperty("--cloud");
     root.removeProperty("--tint");
+    root.removeProperty("--haze-shift");
     return;
   }
   const [h, s] = tone;
   const sat = Math.round(Math.min(75, Math.max(35, s * 100)));
   root.setProperty("--cloud", `hsl(${Math.round(h)} ${sat}% 64%)`);
   root.setProperty("--tint", `hsl(${Math.round(h)} ${Math.min(90, sat + 15)}% 62%)`);
+  // the stippled far haze only leans toward the cover: a third of the way from its own violet, at most 45°
+  const toward = ((h - HAZE_HUE + 540) % 360) - 180;
+  root.setProperty("--haze-shift", `${Math.round(Math.max(-45, Math.min(45, toward / 3)))}deg`);
 }
 
 async function update() {
