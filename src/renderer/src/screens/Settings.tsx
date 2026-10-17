@@ -330,6 +330,12 @@ export default function Settings() {
         <Row label={t.skyClouds} hint={t.skyCloudsHint}>
           <Toggle on={prefs.skyClouds} onChange={(v) => setPref("skyClouds", v)} label={t.skyClouds} />
         </Row>
+        <Row label={t.reactiveSky} hint={t.reactiveSkyHint}>
+          <Toggle on={prefs.reactiveSky} onChange={(v) => setPref("reactiveSky", v)} label={t.reactiveSky} />
+        </Row>
+        <Row label={t.coverTint} hint={t.coverTintHint}>
+          <Toggle on={prefs.coverTint} onChange={(v) => setPref("coverTint", v)} label={t.coverTint} />
+        </Row>
       </Section>
 
       <Section title={t.secWindow}>

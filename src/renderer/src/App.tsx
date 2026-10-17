@@ -5,6 +5,7 @@ import Backdrop from "@/components/deco/Backdrop";
 import SvgDefs from "@/components/deco/SvgDefs";
 import PlayerBar from "@/components/player/PlayerBar";
 import QueuePanel from "@/components/player/QueuePanel";
+import EdgeGlow from "@/components/deco/EdgeGlow";
 import LyricsPanel from "@/components/player/LyricsPanel";
 import ScreenBoundary from "@/components/ui/ScreenBoundary";
 import History from "@/screens/History";
@@ -68,6 +69,7 @@ export default function App() {
               <ScreenFor route={route} />
             </ScreenBoundary>
           </motion.div>
+          <EdgeGlow />
           <QueuePanel />
           <LyricsPanel />
           <Toast />

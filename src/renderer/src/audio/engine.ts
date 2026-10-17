@@ -353,6 +353,24 @@ export function setEq(next: { enabled: boolean; gains: number[] }) {
   applyEq();
 }
 
+let analyserNode: AnalyserNode | null = null;
+
+/**
+ * The sound-reactive sky's ear: an analyser listening to the output, after the equalizer. Asking for it builds the
+ * Web Audio chain if it isn't there yet (as switching the equalizer on does).
+ */
+export function analyser(): AnalyserNode {
+  const c = graph();
+  if (!analyserNode) {
+    analyserNode = c.createAnalyser();
+    analyserNode.fftSize = 1024;
+    analyserNode.smoothingTimeConstant = 0.3;
+    filters[filters.length - 1]!.connect(analyserNode);
+  }
+  if (c.state === "suspended" && decks.some((d) => !d.audio.paused)) void c.resume();
+  return analyserNode;
+}
+
 /** Audio output device ("" = the system default). */
 export async function setOutput(id: string) {
   sinkId = id;

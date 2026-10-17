@@ -25,6 +25,14 @@ export function initActivity() {
     update();
   });
   document.addEventListener("visibilitychange", update);
+  // dev only: pretend the window is in front (window.__activity("active")), for driving the page from DevTools
+  if (import.meta.env.DEV)
+    Object.assign(window, {
+      __activity: (a: WindowActivity) => {
+        fromMain = a;
+        update();
+      },
+    });
 }
 
 export const getActivity = () => current;

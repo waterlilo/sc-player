@@ -13,6 +13,8 @@ import { initAudioPrefs } from "@/audio/prefs";
 import { initSystemBridge } from "@/lib/system";
 import { initMediaSession } from "@/lib/media-session";
 import { initKeys } from "@/lib/keys";
+import { initReactive } from "@/lib/reactive";
+import { initCoverTint } from "@/lib/cover-tint";
 import { initLikes } from "@/state/likes";
 import { initVolume } from "@/state/player";
 import { useSettings } from "@/state/settings";
@@ -31,6 +33,8 @@ async function boot() {
   initSystemBridge();
   initMediaSession();
   initKeys();
+  initReactive();
+  initCoverTint();
   void useAuth.getState().init();
   initLikes();
 

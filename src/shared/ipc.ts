@@ -77,6 +77,10 @@ export interface Prefs {
   trackPopup: boolean;
   /** the night design's clouds drifting behind the window */
   skyClouds: boolean;
+  /** stars twinkle with the top end, the edges flash on the kick (an analyser on the output) */
+  reactiveSky: boolean;
+  /** clouds and the glow take the colour of the cover */
+  coverTint: boolean;
   popupCorner: PopupCorner;
   /** global shortcuts, Electron accelerator strings; "" = off */
   hotkeys: Record<HotkeyAction, string>;
@@ -111,6 +115,8 @@ export const PREFS_DEFAULTS: Prefs = {
   notifications: false,
   trackPopup: false,
   skyClouds: true,
+  reactiveSky: true,
+  coverTint: true,
   popupCorner: "bottom-right",
   hotkeys: { playPause: "Control+Alt+Space", next: "Control+Alt+Right", previous: "Control+Alt+Left", showWindow: "Control+Alt+S" },
   streamQuality: "high",
