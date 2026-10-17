@@ -84,7 +84,8 @@ export interface StreamInfo {
 
 export type Resolved = { kind: "user"; user: User } | { kind: "track"; track: Track } | { kind: "playlist"; playlist: Playlist };
 
-export type ErrorCode = "offline" | "unauthorized" | "rate_limited" | "api_changed" | "not_found" | "unavailable" | "unknown";
+/** verify: SoundCloud's bot protection (DataDome) wants the person checked before an action (like, add to playlist) */
+export type ErrorCode = "offline" | "unauthorized" | "rate_limited" | "api_changed" | "not_found" | "unavailable" | "verify" | "unknown";
 
 export interface AppErrorInfo {
   code: ErrorCode;

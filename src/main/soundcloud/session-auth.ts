@@ -182,6 +182,59 @@ export class SessionAuth {
     setSecret("sessionToken", token);
   }
 
+  private checkWindow: BrowserWindow | null = null;
+
+  /**
+   * SoundCloud's bot protection (DataDome) stopped an action: the page (a track's) opens on soundcloud.com in a window
+   * of the app's own session, signed in with the user's session cookie, so the person can do the action on the site
+   * itself and pass the site's own check (a captcha, if it shows one). The protection's cookie then sits in the
+   * session and the app's next actions carry it. Resolves when the window is closed.
+   */
+  async check(url: string, parent: BrowserWindow | null): Promise<void> {
+    if (this.checkWindow) {
+      this.checkWindow.focus();
+      return;
+    }
+    const ses = scSession();
+    const token = this.token();
+    // signed in through the browser: the app's session has no site cookie yet
+    if (token) {
+      const [cookie] = await ses.cookies.get({ name: "oauth_token" });
+      if (cookie?.value !== token) {
+        await ses.cookies.set({ url: "https://soundcloud.com", domain: ".soundcloud.com", path: "/", name: "oauth_token", value: token, secure: true, sameSite: "no_restriction", expirationDate: Date.now() / 1000 + 30 * 24 * 3600 });
+      }
+    }
+    const win = new BrowserWindow({
+      parent: parent ?? undefined,
+      width: 1040,
+      height: 800,
+      minWidth: 760,
+      minHeight: 600,
+      center: true,
+      title: "SoundCloud — check",
+      autoHideMenuBar: true,
+      backgroundColor: "#07050d",
+      webPreferences: { partition: "persist:soundcloud", sandbox: true, contextIsolation: true, nodeIntegration: false },
+    });
+    this.checkWindow = win;
+    log("main", "check: window opened");
+    // links away from SoundCloud open in the real browser
+    win.webContents.setWindowOpenHandler(({ url: to }) => {
+      if (/^https:\/\//.test(to)) void shell.openExternal(to);
+      return { action: "deny" };
+    });
+    await win.loadURL("about:blank");
+    await presentAsChrome(win.webContents);
+    void win.loadURL(url);
+    await new Promise<void>((resolve) =>
+      win.on("closed", () => {
+        this.checkWindow = null;
+        log("main", "check: window closed");
+        resolve();
+      }),
+    );
+  }
+
   /** The token was refused: drop our copy (the site data stays; signing in again replaces it). */
   forget() {
     setSecret("sessionToken", null);

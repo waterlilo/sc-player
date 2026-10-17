@@ -20,6 +20,7 @@ import Track from "@/screens/Track";
 import TrackMenu from "@/components/tracks/TrackMenu";
 import Toast from "@/components/ui/Toast";
 import PlaylistPicker from "@/components/tracks/PlaylistPicker";
+import CheckDialog from "@/components/CheckDialog";
 import { useNav, type Route } from "@/state/nav";
 
 function ScreenFor({ route }: { route: Route }) {
@@ -57,6 +58,7 @@ export default function App() {
       <Backdrop />
       <TrackMenu />
       <PlaylistPicker />
+      <CheckDialog />
       <div className="relative z-10 grid h-full grid-cols-[232px_minmax(0,1fr)] grid-rows-[40px_minmax(0,1fr)_88px]">
         <div className="col-span-2">
           <TitleBar />

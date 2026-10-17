@@ -2,7 +2,8 @@ import { create } from "zustand";
 import type { Track } from "@shared/types";
 import { queryClient } from "@/api/queries";
 import { en as t } from "@/i18n/en";
-import { call } from "@/lib/sky";
+import { call, errorCode } from "@/lib/sky";
+import { askCheck } from "./check";
 import { useAuth } from "./auth";
 import { useUi } from "./ui";
 
@@ -42,12 +43,36 @@ export async function toggleLike(track: Track) {
   try {
     await call("data:setLiked", track.id, liked);
     void queryClient.invalidateQueries({ queryKey: ["likes", "me"] });
-  } catch {
+  } catch (err) {
     // put it back as it was
     const back = new Set(useLikes.getState().ids);
     if (liked) back.delete(track.id);
     else back.add(track.id);
     useLikes.setState({ ids: back });
-    useUi.getState().showToast(liked ? t.likeFailed : t.unlikeFailed);
+    if (errorCode(err) === "verify") askCheck({ action: liked ? t.like : t.unlike, url: track.permalinkUrl, retry: () => retryLike(track, liked) });
+    else useUi.getState().showToast(liked ? t.likeFailed : t.unlikeFailed);
   }
+}
+
+/** After the check: try again; if it's still refused, maybe it was done on the site — read the likes again. */
+async function retryLike(track: Track, liked: boolean): Promise<boolean> {
+  let done = false;
+  try {
+    await call("data:setLiked", track.id, liked);
+    done = true;
+  } catch {
+    const ids = await call("data:likedIds", true).catch(() => null);
+    if (ids) {
+      useLikes.setState({ ids: new Set(ids) });
+      done = ids.includes(track.id) === liked;
+    }
+  }
+  if (done) {
+    const ids = new Set(useLikes.getState().ids);
+    if (liked) ids.add(track.id);
+    else ids.delete(track.id);
+    useLikes.setState({ ids });
+    void queryClient.invalidateQueries({ queryKey: ["likes", "me"] });
+  }
+  return done;
 }

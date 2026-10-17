@@ -103,7 +103,8 @@ export class ScHttp {
 
       let res: Response;
       try {
-        res = await scSession().fetch(url.href, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
+        // actions carry the session's cookies, so a check passed on soundcloud.com in the app counts (DataDome)
+        res = await scSession().fetch(url.href, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), ...(method === "GET" ? {} : { credentials: "include" as const }) });
       } catch (err) {
         if (!networkRetried) {
           networkRetried = true;
@@ -121,15 +122,17 @@ export class ScHttp {
         throw new ScError("rate_limited", `SoundCloud asks to slow down (retry in ${Math.round(wait / 1000)} s)`);
       }
       if (res.status === 401 || res.status === 403) {
+        // what refused it, for the log: SoundCloud itself or its bot protection (DataDome); no tokens, no query
+        const text = (await res.text().catch(() => "")).replace(/[A-Za-z0-9_-]{20,}/g, "…").slice(0, 240);
+        const datadome = res.headers.has("x-datadome") || /datadome|captcha-delivery/i.test(text);
+        log("main", `http: ${method} ${url.pathname} → ${res.status}${datadome ? " [DataDome]" : ""} ${res.headers.get("content-type") ?? ""} ${text}`);
+        // the bot protection wants a person checked (actions: likes, playlists); not the token's fault
+        if (datadome) throw new ScError("verify", "SoundCloud's bot protection asks for a check");
         // an outdated client_id is rejected the same way as a bad token: look the id up again once first
         if (!clientIdRetried) {
           clientIdRetried = true;
           if (await this.clientId.recheck()) continue;
         }
-        // what refused it, for the log: SoundCloud itself or its bot protection (DataDome); no tokens, no query
-        const text = (await res.text().catch(() => "")).replace(/[A-Za-z0-9_-]{20,}/g, "…").slice(0, 240);
-        const dd = res.headers.has("x-datadome") || /datadome|captcha-delivery/i.test(text) ? " [DataDome]" : "";
-        log("main", `http: ${method} ${url.pathname} → ${res.status}${dd} ${res.headers.get("content-type") ?? ""} ${text}`);
         throw new ScError(token ? "unauthorized" : "unavailable", `SoundCloud answered ${res.status}`);
       }
       if (res.status === 404) throw new ScError("not_found", `not found: ${url.pathname}`);

@@ -112,6 +112,10 @@ function registerIpc() {
   });
   handle("auth:browser", () => startBrowserSignIn());
   handle("auth:browserCancel", () => stopBrowserSignIn());
+  handle("auth:check", (_e, url) => {
+    const to = str(url, "url");
+    return auth.check(/^https:\/\/(www\.|m\.)?soundcloud\.com\//.test(to) ? to : "https://soundcloud.com/", main);
+  });
   handle("auth:logout", async () => {
     await auth.logout();
     provider.reset();
@@ -141,7 +145,7 @@ function registerIpc() {
   handle("lyrics:search", (_e, text) => searchLyrics(str(text, "text")));
   handle("lyrics:pick", (_e, t, l) => pickLyrics(id(t), id(l)));
   handle("data:feed", (_e, c) => data.getFeed(cursor(c)));
-  handle("data:likedIds", () => data.getLikedIds());
+  handle("data:likedIds", (_e, refresh) => data.getLikedIds(refresh === true));
   handle("data:setLiked", (_e, t, on) => (on === true ? data.like(id(t)) : data.unlike(id(t))));
   handle("data:myPlaylists", () => data.getMyPlaylists());
   handle("data:addToPlaylist", (_e, p, t) => data.addToPlaylist(str(p, "playlist id"), id(t)));

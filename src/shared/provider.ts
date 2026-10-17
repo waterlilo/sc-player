@@ -42,7 +42,7 @@ export interface MusicProvider {
   getStreamUrl(trackId: number): Promise<StreamInfo>;
   getWaveform(url: string): Promise<number[]>;
   /** ids of every track the signed-in user liked (for the ♥ buttons) */
-  getLikedIds(): Promise<number[]>;
+  getLikedIds(refresh?: boolean): Promise<number[]>;
   /** the signed-in user's own playlists (to add a track to) */
   getMyPlaylists(): Promise<Playlist[]>;
   like(trackId: number): Promise<void>;

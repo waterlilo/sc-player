@@ -14,6 +14,7 @@ export function errorText(t: Dict, code: ErrorCode) {
     api_changed: t.errApiChanged,
     not_found: t.errNotFound,
     unavailable: t.errUnavailable,
+    verify: t.errVerify,
     unknown: t.errUnknown,
   };
   return map[code];

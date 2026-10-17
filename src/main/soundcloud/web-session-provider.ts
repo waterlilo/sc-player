@@ -400,7 +400,11 @@ export class WebSessionProvider implements MusicProvider {
   /** what the user liked, read once per session and kept up to date by like / unlike */
   private liked: Set<number> | null = null;
 
-  async getLikedIds(): Promise<number[]> {
+  async getLikedIds(refresh = false): Promise<number[]> {
+    if (refresh) {
+      this.liked = null;
+      this.http.clearCache();
+    }
     this.liked ??= new Set(await this.getSourceIds({ kind: "likes", userId: "me", cursor: null }));
     return [...this.liked];
   }

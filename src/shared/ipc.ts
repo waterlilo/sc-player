@@ -171,6 +171,8 @@ export interface InvokeMap {
   /** Settings: show the track popup now, with the current track */
   "popup:preview": () => void;
   "auth:browserCancel": () => void;
+  /** the bot protection stopped an action: open this soundcloud.com page in the app's session; resolves on close */
+  "auth:check": (url: string) => void;
 
   "data:me": () => User | null;
   "data:likes": (cursor: string | null) => Page<Track>;
@@ -194,7 +196,8 @@ export interface InvokeMap {
   /** use this LRCLIB record for the track from now on */
   "lyrics:pick": (trackId: number, lyricsId: number) => Lyrics | null;
   "data:feed": (cursor: string | null) => Page<Track>;
-  "data:likedIds": () => number[];
+  /** `refresh`: read them again from SoundCloud (after liking on the site) */
+  "data:likedIds": (refresh?: boolean) => number[];
   "data:setLiked": (trackId: number, liked: boolean) => void;
   "data:myPlaylists": () => Playlist[];
   "data:addToPlaylist": (playlistId: string, trackId: number) => void;
@@ -251,6 +254,7 @@ export const INVOKE_CHANNELS = [
   "auth:login",
   "auth:logout",
   "auth:browser",
+  "auth:check",
   "popup:preview",
   "auth:browserCancel",
   "data:me",

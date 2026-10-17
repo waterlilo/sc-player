@@ -3,7 +3,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { artwork, type Playlist } from "@shared/types";
 import { useT } from "@/i18n";
-import { call } from "@/lib/sky";
+import { call, errorCode } from "@/lib/sky";
+import { askCheck } from "@/state/check";
 import { useUi } from "@/state/ui";
 import Icon from "../ui/Icon";
 
@@ -33,8 +34,20 @@ export default function PlaylistPicker() {
       await call("data:addToPlaylist", p.id, track.id);
       toast(t.addedTo(p.title));
       close();
-    } catch {
-      toast(t.addFailed);
+    } catch (err) {
+      if (errorCode(err) === "verify") {
+        close();
+        const id = track.id;
+        askCheck({
+          action: t.addToPlaylist,
+          url: track.permalinkUrl,
+          retry: () =>
+            call("data:addToPlaylist", p.id, id).then(
+              () => true,
+              () => false,
+            ),
+        });
+      } else toast(t.addFailed);
     } finally {
       setBusy(null);
     }
