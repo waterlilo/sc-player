@@ -41,14 +41,13 @@ export default function SkyStars() {
   return (
     <div ref={box} className="sky-stars absolute inset-0">
       {STARS.map((s, i) => (
-        <svg
-          key={i}
-          viewBox="0 0 24 24"
-          className="sky-star absolute"
-          style={{ left: `${s.x}%`, top: `${s.y}%`, width: s.size, height: s.size, "--rest": s.rest, "--k": s.k } as CSSProperties}
-        >
-          <path d={s.d} fill="none" stroke="currentColor" strokeWidth={s.stroke} strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
+        <span key={i} className="absolute" style={{ left: `${s.x}%`, top: `${s.y}%`, width: s.size, height: s.size, "--rest": s.rest, "--k": s.k } as CSSProperties}>
+          {/* the halo: a soft round glow around the star that swells with it */}
+          <span className="sky-star-halo" />
+          <svg viewBox="0 0 24 24" className="sky-star absolute inset-0 h-full w-full">
+            <path d={s.d} fill="none" stroke="currentColor" strokeWidth={s.stroke} strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </span>
       ))}
     </div>
   );

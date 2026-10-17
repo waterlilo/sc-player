@@ -45,7 +45,7 @@ function write(el: HTMLElement, l: Levels) {
 
 function publish(l: Levels) {
   // skip invisible changes: each write restyles the listener's subtree
-  if (Math.abs(l.bass - current.bass) < 0.01 && Math.abs(l.treble - current.treble) < 0.01 && Math.abs(l.beat - current.beat) < 0.01 && Math.abs(l.energy - current.energy) < 0.01) return;
+  if (Math.abs(l.bass - current.bass) < 0.03 && Math.abs(l.treble - current.treble) < 0.03 && Math.abs(l.beat - current.beat) < 0.03 && Math.abs(l.energy - current.energy) < 0.03) return;
   current = l;
   for (const el of listeners) write(el, l);
 }
@@ -80,7 +80,7 @@ function level(buf: Uint8Array, [a, b]: [number, number]) {
   return sum / ((b - a + 1) * 255);
 }
 
-/** 25 times a second on a timer: a requestAnimationFrame loop woke the page on every screen frame */
+/** 20 times a second on a timer: a requestAnimationFrame loop woke the page on every screen frame */
 function tick() {
   const now = performance.now();
   const dt = Math.min(0.1, (now - lastTick) / 1000);
@@ -133,7 +133,7 @@ function update() {
   const run = on && s === "playing" && getActivity() === "active";
   if (run && !frame) {
     lastTick = performance.now();
-    frame = window.setInterval(tick, 40);
+    frame = window.setInterval(tick, 50);
   } else if (!run && frame) {
     window.clearInterval(frame);
     frame = 0;

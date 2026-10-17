@@ -183,9 +183,19 @@ body {
 .sky-star {
   color: var(--glow);
   opacity: calc(var(--rest) + var(--rx-treble, 0) * var(--k));
-  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--glow) 70%, transparent));
+  /* a bright core and a wider soft one: the scratch itself glows (painted once, only opacity changes) */
+  filter: drop-shadow(0 0 2px color-mix(in srgb, var(--glow) 90%, transparent)) drop-shadow(0 0 7px color-mix(in srgb, var(--glow) 55%, transparent));
   /* no transition: lib/reactive.ts already smooths, and a transition restarted 25 times a second kept the window
      animating at the screen's full frame rate */
+  will-change: opacity;
+}
+/* the halo around a star: three times its size, brightest when the top end lights the star up */
+.sky-star-halo {
+  position: absolute;
+  inset: -100%;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--glow) 45%, transparent) 0%, color-mix(in srgb, var(--glow) 14%, transparent) 30%, transparent 65%);
+  opacity: calc(var(--rest) * 0.35 + var(--rx-treble, 0) * var(--k) * 0.9);
   will-change: opacity;
 }
 .edge-glow {
