@@ -1,4 +1,5 @@
 import type { ClientId } from "./client-id";
+import { log } from "../system/log";
 import { ScError } from "./errors";
 import { API_HOST, API_V2, chromeUserAgent, scSession } from "./session";
 
@@ -125,6 +126,10 @@ export class ScHttp {
           clientIdRetried = true;
           if (await this.clientId.recheck()) continue;
         }
+        // what refused it, for the log: SoundCloud itself or its bot protection (DataDome); no tokens, no query
+        const text = (await res.text().catch(() => "")).replace(/[A-Za-z0-9_-]{20,}/g, "…").slice(0, 240);
+        const dd = res.headers.has("x-datadome") || /datadome|captcha-delivery/i.test(text) ? " [DataDome]" : "";
+        log("main", `http: ${method} ${url.pathname} → ${res.status}${dd} ${res.headers.get("content-type") ?? ""} ${text}`);
         throw new ScError(token ? "unauthorized" : "unavailable", `SoundCloud answered ${res.status}`);
       }
       if (res.status === 404) throw new ScError("not_found", `not found: ${url.pathname}`);
