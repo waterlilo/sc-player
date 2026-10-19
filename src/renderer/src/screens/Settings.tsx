@@ -145,8 +145,11 @@ function Proxy() {
   const [user, setUser] = useState(proxy.username);
   const [password, setPassword] = useState("");
   const [hasPassword, setHasPassword] = useState(false);
+  // sc player's own proxy is offered only when the build carries one
+  const [builtin, setBuiltin] = useState(false);
   useEffect(() => {
     void call("proxy:hasPassword").then(setHasPassword);
+    void call("app:info").then((i) => setBuiltin(i.builtinProxy));
   }, []);
   const valid = PROXY_RE.test(url.trim());
   const socks = /^socks/i.test(url.trim());
@@ -169,11 +172,13 @@ function Proxy() {
           options={[
             ["system", t.proxySystem],
             ["direct", t.proxyDirect],
+            ...(builtin || proxy.mode === "builtin" ? [["builtin", t.proxyBuiltin] as ["builtin", string]] : []),
             ["custom", t.proxyCustom],
           ]}
           onChange={(mode) => setPref("proxy", { ...proxy, mode })}
         />
       </Row>
+      {proxy.mode === "builtin" && <p className="px-3 pb-2 text-sm text-muted">{t.proxyBuiltinHint}</p>}
       {proxy.mode === "custom" && (
         <form onSubmit={(e) => void save(e)} className="flex flex-col gap-2 rounded-md px-3 py-2.5">
           <label className="text-sm text-muted" htmlFor="proxy-url">

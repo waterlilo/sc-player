@@ -35,9 +35,25 @@ function shortVersion() {
   return `v${major}${patch !== "0" ? `.${minor}.${patch}` : minor !== "0" ? `.${minor}` : ""}`;
 }
 
+/**
+ * The built-in proxy (proxy/README.md): proxy.local.json next to package.json, kept out of git —
+ * { "host": "scp.example.com", "port": 443, "username": "…", "password": "…" } ("scheme": "http" only for a local test).
+ * Without the file the build has no built-in proxy and the setting doesn't show.
+ */
+function builtinProxy() {
+  try {
+    const c = JSON.parse(readFileSync("proxy.local.json", "utf8")) as Record<string, unknown>;
+    if (typeof c.host !== "string" || typeof c.username !== "string" || typeof c.password !== "string") return null;
+    return { scheme: c.scheme === "http" ? "http" : "https", host: c.host, port: typeof c.port === "number" ? c.port : 443, username: c.username, password: c.password };
+  } catch {
+    return null;
+  }
+}
+
 export default defineConfig({
   main: {
     resolve: { alias: shared },
+    define: { __SC_PROXY__: JSON.stringify(builtinProxy()) },
   },
   preload: {
     resolve: { alias: shared },

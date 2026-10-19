@@ -1,0 +1,22 @@
+# sc player proxy. Only SoundCloud (site, API, audio, artwork) and its bot protection go through; anything else
+# is refused, so the server can't be used as an open proxy. The values come from .env (docker-compose).
+{
+	order forward_proxy before respond
+	email {$SCP_EMAIL}
+}
+
+{$SCP_DOMAIN} {
+	forward_proxy {
+		basic_auth {$SCP_USER} {$SCP_PASS}
+		hide_ip
+		hide_via
+		# without the right password the server answers like an ordinary web site
+		probe_resistance
+		ports 443 80
+		acl {
+			allow soundcloud.com *.soundcloud.com *.sndcdn.com *.soundcloud.cloud *.datadome.co *.captcha-delivery.com
+			deny all
+		}
+	}
+	respond "OK" 200
+}

@@ -14,7 +14,7 @@ import { applyAutostart, startedHidden } from "./system/autostart";
 import { applyHotkeys, initHotkeys, suspendHotkeys } from "./system/hotkeys";
 import { log, logsDir } from "./system/log";
 import { netCheck } from "./system/netcheck";
-import { applyProxy, initProxyAuth } from "./system/proxy";
+import { applyProxy, hasBuiltinProxy, initProxyAuth } from "./system/proxy";
 import { notifyTrack } from "./system/notify";
 import { createTray, showWindow, updateTray } from "./system/tray";
 import { updateThumbar } from "./system/thumbar";
@@ -186,7 +186,7 @@ function registerIpc() {
   handle("hotkeys:suspend", (_e, on) => {
     send(main, "hotkeys:failed", suspendHotkeys(on === true));
   });
-  handle("app:info", () => ({ version: app.getVersion(), portable: !!process.env.PORTABLE_EXECUTABLE_DIR, packaged: app.isPackaged, logsDir: logsDir() }));
+  handle("app:info", () => ({ version: app.getVersion(), portable: !!process.env.PORTABLE_EXECUTABLE_DIR, packaged: app.isPackaged, logsDir: logsDir(), builtinProxy: hasBuiltinProxy() }));
   handle("log:write", (_e, message) => log("page", str(message, "message")));
   handle("diag:openLogs", async () => {
     await shell.openPath(logsDir());

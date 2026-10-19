@@ -48,6 +48,8 @@ export const en = {
   proxySystem: "Windows settings",
   proxyDirect: "No proxy",
   proxyCustom: "Custom",
+  proxyBuiltin: "sc player proxy",
+  proxyBuiltinHint: "Only SoundCloud goes through sc player's own server (site, audio, artwork); updates, lyrics and everything else go directly. No zapret or VPN needed.",
   proxyAddress: "Proxy address",
   proxyAddressHint: "socks5://127.0.0.1:1080 or http://host:8080",
   proxyBad: "Not an address like socks5://host:port or http://host:port",

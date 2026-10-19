@@ -58,6 +58,8 @@ export interface AppInfo {
   portable: boolean;
   packaged: boolean;
   logsDir: string;
+  /** the build carries sc player's own proxy */
+  builtinProxy: boolean;
 }
 export type StreamQuality = "high" | "low";
 export type PopupCorner = "bottom-right" | "top-right" | "bottom-left" | "top-left";
@@ -101,8 +103,8 @@ export interface Prefs {
   substituteTolerance: number;
   /** tracks the user told not to substitute */
   noSubstitute: number[];
-  /** proxy for SoundCloud and everything else: system settings, none, or an address */
-  proxy: { mode: "system" | "direct" | "custom"; url: string; username: string };
+  /** proxy: system settings, none, an address (for everything), or sc player's own (SoundCloud only) */
+  proxy: { mode: "system" | "direct" | "custom" | "builtin"; url: string; username: string };
 }
 
 export const EQ_BANDS = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000] as const;
