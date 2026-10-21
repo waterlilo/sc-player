@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { artwork } from "@shared/types";
 import { getActivity, subscribeActivity } from "@/lib/activity";
 import { bgUrl, onPalette, palette, type RGB } from "@/lib/look";
@@ -6,27 +6,78 @@ import { listen, onLevels, type Levels } from "@/lib/reactive";
 import { usePlayer, useCurrentTrack } from "@/state/player";
 import { useSettings } from "@/state/settings";
 
+type Kind = "liquid" | "image" | "video" | "none";
+interface Want {
+  key: string;
+  kind: Kind;
+  src: string;
+}
+interface Layer extends Want {
+  id: number;
+  shown: boolean;
+}
+const FADE_MS = 1200;
+
 /**
  * The studio design's background, under everything: a dim field in the colours of the cover that drifts with the
  * music (or the cover itself, or your own picture / GIF / video, or nothing), then a veil that keeps it quiet under
- * the interface (Settings → Appearance: blur, dim, how much it reacts).
+ * the interface (Settings → Appearance: blur, dim, how much it reacts). A new background — another kind, or the next
+ * track's cover — goes on top invisible, waits until it has loaded, fades in over ~1.2 s, and only then the old one
+ * underneath goes away: nothing ever snaps.
  */
 export default function LivingBackdrop() {
   const look = useSettings((s) => s.prefs.look);
   const track = useCurrentTrack();
   const cover = track?.artworkUrl ? artwork(track.artworkUrl, "t500x500") : null;
+  const want: Want =
+    look.bg === "liquid"
+      ? { key: "liquid", kind: "liquid", src: "" }
+      : look.bg === "cover" && cover
+        ? { key: `cover:${cover}`, kind: "image", src: cover }
+        : look.bg === "file" && look.bgFile
+          ? { key: `file:${look.bgFile}`, kind: look.bgFileType === "video" ? "video" : "image", src: bgUrl(look.bgFile) }
+          : { key: "none", kind: "none", src: "" };
+
+  const [layers, setLayers] = useState<Layer[]>(() => [{ ...want, id: 0, shown: true }]);
+  // a new background: on top, hidden until ready (adjusting state while rendering, React's pattern for this)
+  const top = layers[layers.length - 1]!;
+  if (top.key !== want.key) setLayers([...layers, { ...want, id: top.id + 1, shown: false }]);
+
+  const ready = useCallback((id: number) => setLayers((ls) => (ls.some((l) => l.id === id && !l.shown) ? ls.map((l) => (l.id === id ? { ...l, shown: true } : l)) : ls)), []);
+  // once a layer has faded in, everything under it can go
+  const settled = (id: number) =>
+    setLayers((ls) => {
+      const i = ls.findIndex((l) => l.id === id);
+      return i > 0 && ls[i]!.shown ? ls.slice(i) : ls;
+    });
+
   return (
     <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-0 overflow-hidden bg-[#050506]">
-      {look.bg === "liquid" && <LiquidField react={look.bgReact} />}
-      {look.bg === "cover" && cover && <Media kind="image" src={cover} react={look.bgReact} />}
-      {look.bg === "file" && look.bgFile && <Media kind={look.bgFileType === "video" ? "video" : "image"} src={bgUrl(look.bgFile)} react={look.bgReact} />}
+      {layers.map((l) => (
+        <div
+          key={l.id}
+          className="absolute inset-0"
+          style={{ opacity: l.shown ? 1 : 0, transition: `opacity ${FADE_MS}ms ease` }}
+          onTransitionEnd={(e) => e.target === e.currentTarget && l.shown && settled(l.id)}
+        >
+          {l.kind === "liquid" && <LiquidField react={look.bgReact} onReady={() => ready(l.id)} />}
+          {(l.kind === "image" || l.kind === "video") && <Media kind={l.kind} src={l.src} react={look.bgReact} onReady={() => ready(l.id)} />}
+          {l.kind === "none" && <Ready onReady={() => ready(l.id)} />}
+        </div>
+      ))}
       <div className="studio-veil" />
     </div>
   );
 }
 
+/** "nothing" is ready at once */
+function Ready({ onReady }: { onReady: () => void }) {
+  useEffect(() => onReady(), [onReady]);
+  return <div className="absolute inset-0 bg-[#050506]" />;
+}
+
 /** a picture or a video, blurred by the knob, breathing a little with the bass */
-function Media({ kind, src, react }: { kind: "image" | "video"; src: string; react: number }) {
+function Media({ kind, src, react, onReady }: { kind: "image" | "video"; src: string; react: number; onReady: () => void }) {
   const box = useRef<HTMLDivElement>(null);
   const video = useRef<HTMLVideoElement>(null);
   useEffect(() => listen(box.current), []);
@@ -45,9 +96,14 @@ function Media({ kind, src, react }: { kind: "image" | "video"; src: string; rea
       off();
     };
   }, [kind, src]);
+  // a broken file still fades in (to nothing) rather than holding the old picture forever
   return (
     <div ref={box} className="studio-media" style={{ ["--react-k" as string]: String(react / 40) }}>
-      {kind === "video" ? <video ref={video} src={src} autoPlay loop muted playsInline /> : <img src={src} alt="" draggable={false} crossOrigin="anonymous" />}
+      {kind === "video" ? (
+        <video ref={video} src={src} autoPlay loop muted playsInline onLoadedData={onReady} onError={onReady} />
+      ) : (
+        <img src={src} alt="" draggable={false} crossOrigin="anonymous" onLoad={onReady} onError={onReady} />
+      )}
     </div>
   );
 }
@@ -84,7 +140,11 @@ void main(){
  * 264×172 and stretched blurred over the window: a few hundred thousand pixel runs per frame, 30 frames a second, and
  * only while music plays and the window is in front. Paused, it holds still; a new palette fades in over ~1.2 s.
  */
-function LiquidField({ react }: { react: number }) {
+function LiquidField({ react, onReady }: { react: number; onReady: () => void }) {
+  const readyRef = useRef(onReady);
+  useEffect(() => {
+    readyRef.current = onReady;
+  }, [onReady]);
   const canvas = useRef<HTMLCanvasElement>(null);
   const k = useRef(react / 40);
   useEffect(() => {
@@ -162,6 +222,7 @@ function LiquidField({ react }: { react: number }) {
     const sync = () => (usePlayer.getState().status === "playing" && getActivity() === "active" ? start() : draw());
     draw();
     sync();
+    readyRef.current();
     const offLevels = onLevels((l) => (levels = l));
     const offPalette = onPalette((p) => {
       const m = fade * fade * (3 - 2 * fade);
