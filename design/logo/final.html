@@ -1,0 +1,78 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>sc player — logo, final candidates</title>
+<link rel="stylesheet" href="../../node_modules/@fontsource/onest/latin-500.css" />
+<link rel="stylesheet" href="../../node_modules/@fontsource/onest/latin-600.css" />
+<link rel="stylesheet" href="../../node_modules/@fontsource/onest/latin-700.css" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1600px; background: #0b0b0d; color: #ececef; font-family: Onest, system-ui, sans-serif; }
+  body { padding: 48px 56px 56px; }
+  h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; }
+  p.sub { color: #8b8b94; font-size: 14px; margin: 6px 0 30px; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .card { border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; overflow: hidden; background: #111114; }
+  .card h2 { font-size: 18px; font-weight: 700; padding: 18px 22px 0; display: flex; gap: 10px; align-items: baseline; }
+  .card h2 span { font-size: 12px; color: #8b8b94; font-weight: 600; letter-spacing: 0.1em; }
+  .card p { font-size: 13px; color: #9b9ba4; padding: 6px 22px 0; line-height: 1.5; }
+  .hero { display: flex; align-items: center; justify-content: center; gap: 48px; padding: 30px 22px 26px; }
+  .hero svg { filter: drop-shadow(0 20px 34px rgba(0,0,0,0.5)); }
+  .sizes { display: flex; align-items: flex-end; gap: 20px; }
+  .sizes div { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 10.5px; color: #6c6c75; }
+  .light { background: #ecebe7; display: flex; align-items: center; gap: 22px; padding: 16px 22px; }
+  .light .word { color: #16161a; }
+  .word { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 20px; letter-spacing: -0.02em; }
+  /* a Windows 11 taskbar strip */
+  .taskbar { display: flex; align-items: center; justify-content: center; gap: 6px; height: 56px; background: rgba(32,32,36,0.92); border-top: 1px solid rgba(255,255,255,0.06); }
+  .taskbar .app { width: 44px; height: 44px; border-radius: 6px; display: grid; place-items: center; position: relative; }
+  .taskbar .app.on { background: rgba(255,255,255,0.07); }
+  .taskbar .app.on::after { content: ""; position: absolute; bottom: 2px; width: 16px; height: 3px; border-radius: 2px; background: #9fb4ff; }
+  .taskbar .dummy { width: 24px; height: 24px; border-radius: 6px; }
+  .tray { display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 16px; background: rgba(32,32,36,0.92); justify-content: flex-end; font-size: 12px; color: #d0d0d6; }
+  .tray .dot { width: 16px; height: 16px; border-radius: 3px; background: #3a3a41; }
+</style>
+</head>
+<body>
+<h1>sc player — the mark, two readings of "variant 6 with the first figure"</h1>
+<p class="sub">Clear graphite night (no clouds), silver moon. A: the figure of the very first one (S1), leaning. B: the figure of U1, straight up, centred.</p>
+<div class="row" id="row"></div>
+<svg width="0" height="0" style="position:absolute"><defs>
+  <radialGradient id="mGlow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#eef3ff" stop-opacity=".5"/><stop offset=".35" stop-color="#c9d8ff" stop-opacity=".18"/><stop offset="1" stop-color="#c9d8ff" stop-opacity="0"/></radialGradient>
+  <radialGradient id="mFace" cx=".38" cy=".35" r=".75"><stop offset="0" stop-color="#ffffff"/><stop offset=".65" stop-color="#e8eeff"/><stop offset="1" stop-color="#b9c6e8"/></radialGradient>
+  <linearGradient id="gN" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#050506"/><stop offset="1" stop-color="#1d1d23"/></linearGradient>
+</defs></svg>
+<script>
+const TILE = "M50 2 C 86 2, 98 14, 98 50 C 98 86, 86 98, 50 98 C 14 98, 2 86, 2 50 C 2 14, 14 2, 50 2 Z";
+const night = `<path d="${TILE}" fill="url(#gN)"/><path d="${TILE}" fill="none" stroke="#fff" stroke-opacity=".06"/>`;
+const stars = (pts) => pts.map(([x, y, r, o]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#fff" opacity="${o}"/>`).join("");
+// waves from (cx, cy) toward `dir` degrees; the biggest is the crescent
+function soundMoon(cx, cy, dir, waves, moon = 24, span = 1.2) {
+  const arc = ([r, w, o]) => `<path d="M ${cx + r * Math.cos(-1.05)} ${cy + r * Math.sin(-1.05)} A ${r} ${r} 0 0 1 ${cx + r * Math.cos(1.05)} ${cy + r * Math.sin(1.05)}" fill="none" stroke="url(#mFace)" stroke-width="${w}" stroke-linecap="round" opacity="${o}"/>`;
+  const inner = moon * 0.8;
+  const c = `<path d="M ${cx + moon * Math.cos(-span)} ${cy + moon * Math.sin(-span)} A ${moon} ${moon} 0 0 1 ${cx + moon * Math.cos(span)} ${cy + moon * Math.sin(span)} A ${inner} ${inner} 0 0 0 ${cx + moon * Math.cos(-span)} ${cy + moon * Math.sin(-span)} Z" fill="url(#mFace)"/>`;
+  return `<g transform="rotate(${dir} ${cx} ${cy})">${waves.map(arc).join("")}${c}</g>`;
+}
+const W = [[8, 3.4, 0.55], [15, 3.8, 0.8]];
+// A: S1's figure (the waves face right, the whole turned -25°), centred on the tile by its bounding box
+const markA = () => `<svg viewBox="0 0 100 100">${night}${stars([[22, 26, 1, 0.8], [78, 22, 0.7, 0.6], [80, 76, 0.6, 0.4], [24, 74, 0.5, 0.35]])}<circle cx="54" cy="48" r="26" fill="url(#mGlow)"/>${soundMoon(41, 55, -25, W)}</svg>`;
+// B: U1's figure, straight up, centred
+const markB = () => `<svg viewBox="0 0 100 100">${night}${stars([[22, 26, 1, 0.8], [78, 24, 0.7, 0.6], [80, 74, 0.6, 0.4], [24, 72, 0.5, 0.35]])}<circle cx="50" cy="46" r="26" fill="url(#mGlow)"/>${soundMoon(50, 62, -90, [[9, 3.4, 0.55], [16.5, 3.8, 0.8]])}</svg>`;
+
+const sized = (mk, s) => mk().replace("<svg ", `<svg width="${s}" height="${s}" `);
+const card = (k, name, text, mk) => `
+  <div class="card">
+    <h2>${name}<span>${k}</span></h2><p>${text}</p>
+    <div class="hero">${sized(mk, 220)}<div class="sizes">${[96, 64, 48, 32, 24, 16].map((s) => `<div>${sized(mk, s)}${s}</div>`).join("")}</div></div>
+    <div class="light"><div class="word">${sized(mk, 34)}sc player</div><div class="sizes" style="margin-left:auto">${[32, 16].map((s) => `<div>${sized(mk, s)}</div>`).join("")}</div></div>
+    <div class="taskbar"><span class="dummy" style="background:#3b78d8"></span><span class="dummy" style="background:#f0b232"></span><span class="app on">${sized(mk, 24)}</span><span class="dummy" style="background:#5b5fc7"></span><span class="dummy" style="background:#2fb36b"></span></div>
+    <div class="tray"><span class="dot"></span><span>${sized(mk, 16)}</span><span class="dot"></span><span>ENG</span><span>21:40</span></div>
+  </div>`;
+document.getElementById("row").innerHTML =
+  card("A", "First figure, leaning", "The figure of the very first sound-moon (S1): the waves look right and up, the whole leaning — the moon in a sky. Least like a Wi-Fi sign.", markA) +
+  card("B", "First of round 6, straight up", "U1's figure, straight up and centred on the clear night of U6.", markB);
+document.fonts.ready.then(() => (window.__ready = true));
+</script>
+</body>
+</html>
