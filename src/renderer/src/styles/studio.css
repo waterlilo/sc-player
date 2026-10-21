@@ -1,0 +1,270 @@
+/*
+ * The studio design (2.0, html[data-design="studio"]): strict and quiet — dark glass panels with small radii over a
+ * living background, one sans-serif (Onest), medium weights, thin 1 px lines, and one accent taken from the cover
+ * (lib/look.ts sets --accent) used only where it means something. The hand-drawn night ("og") stays untouched: every
+ * rule here is scoped to the studio attribute and only re-skins the shared classes (panel, sketch, marker-fill,
+ * display-heading…), so screens need no studio-specific markup.
+ */
+
+html[data-design="studio"] {
+  --bg: #050506;
+  --bg-2: #0e0e11;
+  --text: #ececef;
+  --muted: #9b9ba4;
+  --ink: rgba(255, 255, 255, 0.12);
+  --paper: rgba(255, 255, 255, 0.06);
+  --line: rgba(255, 255, 255, 0.12);
+  --edge: rgba(255, 255, 255, 0.08);
+  --row-hover: rgba(255, 255, 255, 0.05);
+  --card: rgba(255, 255, 255, 0.035);
+  --card-edge: rgba(255, 255, 255, 0.08);
+  --blood: #d0574a;
+  --accent: rgb(178 160 230);
+  --accent-rgb: 178, 160, 230;
+  --on-accent: #120d1c;
+  /* the old yellow is the accent now: text-glow, rings, active icons follow the cover */
+  --glow: var(--accent);
+  --glow-soft: var(--accent);
+  --on-glow: var(--on-accent);
+  --tp-acid: var(--accent);
+  --tp-acid-fg: var(--on-accent);
+  --glass-a: 0.58;
+  --pblur: 30px;
+  --bg-blur: 14px;
+  --veil: 0.72;
+  --glass: rgba(14, 14, 17, var(--glass-a));
+  --glass-line: rgba(255, 255, 255, 0.075);
+  --r: 10px;
+  --r2: 7px;
+  --font-display: "Onest", ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+  --font-sans: "Onest", ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+  --font-type: "Onest", ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+}
+html[data-design="studio"] body {
+  font-weight: 500;
+  letter-spacing: -0.003em;
+}
+html[data-design="studio"] ::selection {
+  background: rgba(var(--accent-rgb), 0.35);
+  color: #fff;
+}
+html[data-design="studio"] :focus-visible {
+  outline: 1.5px solid rgba(var(--accent-rgb), 0.9);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+
+/* ── the background ── */
+.studio-field,
+.studio-media {
+  position: absolute;
+  inset: -40px;
+  width: calc(100% + 80px);
+  height: calc(100% + 80px);
+  filter: blur(var(--bg-blur)) saturate(1.1);
+}
+.studio-media img,
+.studio-media video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* breathes a little with the bass (lib/reactive.ts writes --rx-bass here) */
+  transform: scale(calc(1.03 + var(--rx-bass, 0) * 0.012 * var(--react-k, 1)));
+}
+.studio-veil {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(120% 100% at 50% 35%, rgba(5, 5, 6, 0.35), rgb(5, 5, 6));
+  opacity: var(--veil);
+}
+
+/* ── layout: panels float with a gap, the title bar is part of the background ── */
+html[data-design="studio"] .app-grid {
+  padding: 0 8px 8px;
+  column-gap: 8px;
+  row-gap: 8px;
+}
+html[data-design="studio"] .marker-edge,
+html[data-design="studio"] .grain {
+  display: none;
+}
+html[data-design="studio"] .panel {
+  background: var(--glass);
+  backdrop-filter: blur(var(--pblur)) saturate(1.2);
+  border: 1px solid var(--glass-line);
+  border-radius: var(--r);
+  box-shadow: none !important;
+}
+html[data-design="studio"].lite .panel {
+  backdrop-filter: none;
+  background: rgba(14, 14, 17, max(var(--glass-a), 0.86));
+}
+/* very clear glass: text gets a soft shadow so it reads on any background */
+html[data-design="studio"].thin-glass .panel {
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+}
+html[data-design="studio"] header.panel {
+  background: transparent;
+  backdrop-filter: none;
+  border: 0;
+  border-radius: 0;
+}
+/* the side panels (queue, lyrics) slide over the content with a small gap */
+html[data-design="studio"] main > aside.panel {
+  top: 0;
+  bottom: 0;
+}
+
+/* ── type: no dripping display font, no tilt, no glow ── */
+html[data-design="studio"] .display-heading {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  filter: none;
+  text-shadow: none;
+}
+html[data-design="studio"] [class*="rotate-"]:not(svg):not(svg *) {
+  rotate: none !important;
+}
+html[data-design="studio"] h1.display-heading {
+  font-size: 1.75rem !important;
+  line-height: 1.15;
+}
+html[data-design="studio"] h2.display-heading {
+  font-size: 1rem !important;
+  text-transform: none;
+}
+html[data-design="studio"] .font-type {
+  letter-spacing: 0.01em;
+}
+
+/* ── controls: thin lines instead of marker strokes ── */
+html[data-design="studio"] .sketch::after {
+  inset: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r2);
+  filter: none;
+  box-shadow: none;
+  animation: none;
+}
+html[data-design="studio"] .sketch-round::after {
+  border-radius: 50%;
+}
+html[data-design="studio"] .sketch-glow::after {
+  border-color: rgba(var(--accent-rgb), 0.7);
+}
+html[data-design="studio"] .marker-fill {
+  background: var(--text);
+  color: #0b0b0d;
+}
+html[data-design="studio"] .marker-fill .text-glow,
+html[data-design="studio"] .marker-fill svg {
+  color: #0b0b0d;
+}
+html[data-design="studio"] .paper-fill {
+  background: rgba(255, 255, 255, 0.06);
+}
+html[data-design="studio"] .torn,
+html[data-design="studio"] .tape-strip {
+  clip-path: none;
+  border-radius: var(--r2);
+}
+html[data-design="studio"] .tape::before {
+  display: none;
+}
+html[data-design="studio"] .rgb-glitch {
+  animation: none;
+}
+html[data-design="studio"] .card-frame {
+  inset: 0;
+  border: 1px solid var(--glass-line);
+  border-radius: var(--r2);
+  filter: none;
+  box-shadow: none;
+}
+html[data-design="studio"] .field::after {
+  border-color: var(--line);
+}
+html[data-design="studio"] .sketch-select {
+  border-radius: var(--r2);
+}
+/* settings cards and other dark cards become glass */
+html[data-design="studio"] .rounded-lg {
+  border-radius: var(--r);
+}
+html[data-design="studio"] [class*="shadow-[4px_6px"],
+html[data-design="studio"] [class*="shadow-[3px_4px"] {
+  box-shadow: none !important;
+}
+html[data-design="studio"] .player-cover {
+  border-radius: 5px;
+}
+
+/* volume and other marker sliders: a thin line with a round knob */
+html[data-design="studio"] .vol-range::-webkit-slider-runnable-track {
+  height: 3px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--text) var(--fill, 50%), rgba(255, 255, 255, 0.16) var(--fill, 50%));
+  filter: none;
+}
+html[data-design="studio"] .vol-range::-webkit-slider-thumb {
+  width: 12px;
+  height: 12px;
+  margin-top: -4.5px;
+  border-radius: 50%;
+  border: 0;
+  background: var(--text);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.35);
+  filter: none;
+  transform: none;
+}
+
+/* scrollbars a touch lighter */
+html[data-design="studio"] * {
+  scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+}
+
+/* fonts are inlined into the utilities by Tailwind, so they are set again here */
+html[data-design="studio"] body,
+html[data-design="studio"] .font-type,
+html[data-design="studio"] .font-display,
+html[data-design="studio"] .font-sans {
+  font-family: "Onest", ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+}
+html[data-design="studio"] .font-type.uppercase {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: rgba(236, 236, 239, 0.45);
+}
+/* the title bar's name: small and plain */
+html[data-design="studio"] header.panel .display-heading {
+  font-size: 0.85rem !important;
+  font-weight: 600;
+  letter-spacing: 0;
+  padding-left: 8px;
+}
+/* the current page in the sidebar: a quiet fill and a short accent mark instead of the scribbled ring */
+html[data-design="studio"] .scribble-ring {
+  display: none;
+}
+html[data-design="studio"] nav button[aria-current="page"] {
+  position: relative;
+  background: rgba(255, 255, 255, 0.07);
+}
+html[data-design="studio"] nav button[aria-current="page"]::before {
+  content: "";
+  position: absolute;
+  left: -8px;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--accent);
+}
+
+/* screen titles: sentence case, not the night's lowercase scrawl */
+html[data-design="studio"] h1.display-heading::first-letter,
+html[data-design="studio"] h2.display-heading::first-letter {
+  text-transform: uppercase;
+}

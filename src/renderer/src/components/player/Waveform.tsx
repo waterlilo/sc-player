@@ -5,6 +5,7 @@ import { currentTime } from "@/audio/engine";
 import { useT } from "@/i18n";
 import { getActivity, subscribeActivity } from "@/lib/activity";
 import { duration as fmt } from "@/lib/format";
+import { onPalette } from "@/lib/look";
 import { player, usePlayer, usePosition } from "@/state/player";
 
 const FRAME_MS = 1000 / 30; // never more than 30 redraws a second
@@ -129,8 +130,11 @@ export default function Waveform({ track, height = 44, big = false }: { track: T
       glow = cssColor("--glow");
       const bar = big ? 3 : 2;
       const gap = 2;
-      paintBars(played.getContext("2d")!, peaks, w, h, dpr, { color: glow, alpha: 1, halo: "rgba(242, 220, 26, 0.45)" }, track.id, bar, gap);
-      paintBars(rest.getContext("2d")!, peaks, w, h, dpr, { color: "#6b55c8", alpha: 0.55, halo: null }, track.id, bar, gap);
+      // the studio design: the accent from the cover and grey bars ahead; the night: yellow and violet
+      const studio = document.documentElement.dataset.design === "studio";
+      const accentRgb = cssColor("--accent-rgb");
+      paintBars(played.getContext("2d")!, peaks, w, h, dpr, { color: glow, alpha: 1, halo: studio ? `rgba(${accentRgb}, 0.35)` : "rgba(242, 220, 26, 0.45)" }, track.id, bar, gap);
+      paintBars(rest.getContext("2d")!, peaks, w, h, dpr, { color: studio ? "#8e8e98" : "#6b55c8", alpha: studio ? 0.45 : 0.55, halo: null }, track.id, bar, gap);
       dirty = true;
     };
 
@@ -195,6 +199,11 @@ export default function Waveform({ track, height = 44, big = false }: { track: T
     });
     io.observe(wrap);
     const offActivity = subscribeActivity(() => kick.current());
+    // a new cover brings a new accent
+    const offPalette = onPalette(() => {
+      paint();
+      kick.current();
+    });
 
     return () => {
       cancelAnimationFrame(raf);
@@ -202,6 +211,7 @@ export default function Waveform({ track, height = 44, big = false }: { track: T
       ro.disconnect();
       io.disconnect();
       offActivity();
+      offPalette();
     };
   }, [data, track.id, height, big]);
 

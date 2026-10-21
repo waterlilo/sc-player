@@ -1,3 +1,5 @@
+import CoverRing from "./CoverRing";
+import { useSettings } from "@/state/settings";
 import { useState, type CSSProperties } from "react";
 import { artwork, type Track } from "@shared/types";
 import { errorText, useT } from "@/i18n";
@@ -113,6 +115,7 @@ export default function PlayerBar() {
   const toggleQueue = useUi((s) => s.toggleQueue);
   const lyricsOpen = useUi((s) => s.lyricsOpen);
   const toggleLyrics = useUi((s) => s.toggleLyrics);
+  const studio = useSettings((s) => s.prefs.look.design === "studio");
 
   const repeatLabel = repeat === "off" ? t.repeatOff : repeat === "all" ? t.repeatAll : t.repeatOne;
 
@@ -121,8 +124,11 @@ export default function PlayerBar() {
       <MarkerEdge side="top" seed="c" />
       {/* now playing */}
       <div className="flex min-w-0 items-center gap-3">
-        <div className="h-14 w-14 shrink-0 overflow-hidden rounded-sm bg-[var(--paper)] shadow-[3px_4px_0_rgba(0,0,0,0.35)]">
-          {track?.artworkUrl && <img src={artwork(track.artworkUrl, "t300x300") ?? undefined} alt="" className="h-full w-full object-cover" draggable={false} />}
+        <div className="relative h-14 w-14 shrink-0">
+          {studio && <CoverRing size={56} />}
+          <div className="player-cover h-14 w-14 overflow-hidden rounded-sm bg-[var(--paper)] shadow-[3px_4px_0_rgba(0,0,0,0.35)]">
+            {track?.artworkUrl && <img src={artwork(track.artworkUrl, "t300x300") ?? undefined} alt="" className="h-full w-full object-cover" draggable={false} />}
+          </div>
         </div>
         <div className="min-w-0 flex-1">
           {track ? (

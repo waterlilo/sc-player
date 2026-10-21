@@ -11,6 +11,7 @@ import { flushAlternatives } from "./soundcloud/alternatives";
 import { patchRenderer, prefs, store } from "./store";
 import { getSecret, setSecret } from "./store/secrets";
 import { applyAutostart, startedHidden } from "./system/autostart";
+import { pickBackground, registerBackgroundScheme, serveBackgrounds } from "./system/background";
 import { applyHotkeys, initHotkeys, suspendHotkeys } from "./system/hotkeys";
 import { log, logsDir } from "./system/log";
 import { netCheck } from "./system/netcheck";
@@ -54,6 +55,7 @@ const data: MusicProvider = DEMO ? new DemoProvider() : provider;
 const status = async (): Promise<AuthStatus> => (DEMO ? { mode: "session", user: await data.getMe() } : authStatus());
 
 if (!app.requestSingleInstanceLock()) app.quit();
+registerBackgroundScheme();
 app.setAppUserModelId("com.skythemontage.scplayer");
 
 // ---- IPC ------------------------------------------------------------------------------------------------------------
@@ -155,6 +157,7 @@ function registerIpc() {
   handle("data:stream", (_e, t) => data.getStreamUrl(id(t)));
   handle("data:waveform", (_e, url) => data.getWaveform(str(url, "url")));
 
+  handle("bg:pick", () => pickBackground(main));
   handle("win:minimize", () => main?.minimize());
   handle("win:toggleMaximize", () => {
     if (main?.isMaximized()) main.unmaximize();
@@ -285,6 +288,7 @@ void app.whenReady().then(async () => {
   initProxyAuth(() => prefs().proxy.username);
   await applyProxy(prefs().proxy);
   allowAudioCors();
+  serveBackgrounds();
   registerIpc();
   await auth.restore();
   const p = prefs();

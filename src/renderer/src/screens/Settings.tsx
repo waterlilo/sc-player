@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { PREFS_DEFAULTS, type AppInfo, type HotkeyAction, type NetCheck } from "@shared/ipc";
+import Appearance from "@/components/settings/Appearance";
 import Equalizer from "@/components/settings/Equalizer";
 import HotkeyRecorder from "@/components/settings/HotkeyRecorder";
 import { Choice, Row, Section, Slider, Toggle } from "@/components/settings/Controls";
@@ -331,17 +332,7 @@ export default function Settings() {
         <OutputDevice />
       </Section>
 
-      <Section title={t.secAppearance}>
-        <Row label={t.skyClouds} hint={t.skyCloudsHint}>
-          <Toggle on={prefs.skyClouds} onChange={(v) => setPref("skyClouds", v)} label={t.skyClouds} />
-        </Row>
-        <Row label={t.reactiveSky} hint={t.reactiveSkyHint}>
-          <Toggle on={prefs.reactiveSky} onChange={(v) => setPref("reactiveSky", v)} label={t.reactiveSky} />
-        </Row>
-        <Row label={t.coverTint} hint={t.coverTintHint}>
-          <Toggle on={prefs.coverTint} onChange={(v) => setPref("coverTint", v)} label={t.coverTint} />
-        </Row>
-      </Section>
+      <Appearance />
 
       <Section title={t.secWindow}>
         <Row label={t.closeButton} hint={t.closeHint}>

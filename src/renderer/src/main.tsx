@@ -1,5 +1,6 @@
 import "./styles/fonts.css";
 import "./styles/globals.css";
+import "./styles/studio.css";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
@@ -15,6 +16,7 @@ import { initMediaSession } from "@/lib/media-session";
 import { initKeys } from "@/lib/keys";
 import { initReactive } from "@/lib/reactive";
 import { initCoverTint } from "@/lib/cover-tint";
+import { initLook } from "@/lib/look";
 import { initLikes } from "@/state/likes";
 import { initVolume } from "@/state/player";
 import { useSettings } from "@/state/settings";
@@ -35,6 +37,7 @@ async function boot() {
   initKeys();
   initReactive();
   initCoverTint();
+  initLook();
   void useAuth.getState().init();
   initLikes();
 

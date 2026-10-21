@@ -62,6 +62,30 @@ export interface AppInfo {
   builtinProxy: boolean;
 }
 export type StreamQuality = "high" | "low";
+/** studio — the 2.0 look (dark glass over a living background); og — the hand-drawn night sky of 1.x */
+export type Design = "studio" | "og";
+/** what fills the window behind the studio design */
+export type BackgroundKind = "liquid" | "cover" | "file" | "none";
+/** The studio design's knobs. */
+export interface Look {
+  design: Design;
+  bg: BackgroundKind;
+  /** the picked image / GIF / video, copied into userData/backgrounds ("" = none) */
+  bgFile: string;
+  bgFileType: "image" | "video" | "";
+  /** px, 0..40 */
+  bgBlur: number;
+  /** how much the background is darkened under the interface, 0..100 */
+  bgDim: number;
+  /** how much the background moves with the music, 0..100 (40 = the calm default) */
+  bgReact: number;
+  /** how opaque the glass panels are, 10..100 */
+  panelOpacity: number;
+  /** px of blur behind the panels, 0..60 */
+  panelBlur: number;
+  /** no blur behind panels (for slow PCs) */
+  lite: boolean;
+}
 export type PopupCorner = "bottom-right" | "top-right" | "bottom-left" | "top-left";
 
 /** Everything on the Settings screen. main reads the parts it acts on (tray, autostart, hotkeys, notifications). */
@@ -105,6 +129,7 @@ export interface Prefs {
   noSubstitute: number[];
   /** proxy: system settings, none, an address (for everything), or sc player's own (SoundCloud only) */
   proxy: { mode: "system" | "direct" | "custom" | "builtin"; url: string; username: string };
+  look: Look;
 }
 
 export const EQ_BANDS = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000] as const;
@@ -132,12 +157,13 @@ export const PREFS_DEFAULTS: Prefs = {
   substituteTolerance: 3,
   noSubstitute: [],
   proxy: { mode: "system", url: "", username: "" },
+  look: { design: "studio", bg: "liquid", bgFile: "", bgFileType: "", bgBlur: 14, bgDim: 72, bgReact: 40, panelOpacity: 58, panelBlur: 30, lite: false },
 };
 
 /** Fills in anything missing from stored prefs (new options in a newer version). */
 export function withPrefDefaults(stored: Partial<Prefs> | undefined): Prefs {
   const p = { ...PREFS_DEFAULTS, ...stored };
-  return { ...p, hotkeys: { ...PREFS_DEFAULTS.hotkeys, ...stored?.hotkeys }, eq: { ...PREFS_DEFAULTS.eq, ...stored?.eq }, proxy: { ...PREFS_DEFAULTS.proxy, ...stored?.proxy } };
+  return { ...p, hotkeys: { ...PREFS_DEFAULTS.hotkeys, ...stored?.hotkeys }, eq: { ...PREFS_DEFAULTS.eq, ...stored?.eq }, proxy: { ...PREFS_DEFAULTS.proxy, ...stored?.proxy }, look: { ...PREFS_DEFAULTS.look, ...stored?.look } };
 }
 
 /** State the renderer keeps in main's store (settings.json in userData). */
@@ -208,6 +234,8 @@ export interface InvokeMap {
   "data:stream": (trackId: number) => StreamInfo;
   "data:waveform": (url: string) => number[];
 
+  /** Settings → background: pick an image, GIF or video; main copies it into userData. null when cancelled */
+  "bg:pick": () => { file: string; type: "image" | "video" } | null;
   "win:minimize": () => void;
   "win:toggleMaximize": () => void;
   "win:close": () => void;
@@ -252,6 +280,7 @@ export type Result<T> = { ok: true; data: T } | { ok: false; error: AppErrorInfo
 
 /** Runtime allowlist for preload; the check below fails to compile when a channel is missing. */
 export const INVOKE_CHANNELS = [
+  "bg:pick",
   "auth:status",
   "auth:login",
   "auth:logout",

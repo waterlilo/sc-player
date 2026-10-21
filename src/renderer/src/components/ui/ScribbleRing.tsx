@@ -8,7 +8,7 @@ export default function ScribbleRing({ className = "" }: { className?: string })
       aria-hidden="true"
       viewBox="0 0 100 40"
       preserveAspectRatio="none"
-      className={`pointer-events-none absolute -left-3 -top-1.5 h-[calc(100%+0.75rem)] w-[calc(100%+1.5rem)] overflow-visible text-glow ${className}`}
+      className={`scribble-ring pointer-events-none absolute -left-3 -top-1.5 h-[calc(100%+0.75rem)] w-[calc(100%+1.5rem)] overflow-visible text-glow ${className}`}
       style={{ filter: "drop-shadow(0 0 4px color-mix(in srgb, var(--glow) 55%, transparent))" }}
     >
       <path

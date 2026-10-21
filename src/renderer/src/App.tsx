@@ -2,6 +2,8 @@ import { motion } from "framer-motion";
 import TitleBar from "@/components/chrome/TitleBar";
 import Sidebar from "@/components/chrome/Sidebar";
 import Backdrop from "@/components/deco/Backdrop";
+import LivingBackdrop from "@/components/deco/LivingBackdrop";
+import { useSettings } from "@/state/settings";
 import SvgDefs from "@/components/deco/SvgDefs";
 import PlayerBar from "@/components/player/PlayerBar";
 import QueuePanel from "@/components/player/QueuePanel";
@@ -52,14 +54,15 @@ function ScreenFor({ route }: { route: Route }) {
  */
 export default function App() {
   const route = useNav((s) => s.route);
+  const studio = useSettings((s) => s.prefs.look.design === "studio");
   return (
     <>
       <SvgDefs />
-      <Backdrop />
+      {studio ? <LivingBackdrop /> : <Backdrop />}
       <TrackMenu />
       <PlaylistPicker />
       <CheckDialog />
-      <div className="relative z-10 grid h-full grid-cols-[232px_minmax(0,1fr)] grid-rows-[40px_minmax(0,1fr)_88px]">
+      <div className="app-grid relative z-10 grid h-full grid-cols-[232px_minmax(0,1fr)] grid-rows-[40px_minmax(0,1fr)_88px]">
         <div className="col-span-2">
           <TitleBar />
         </div>
@@ -71,7 +74,7 @@ export default function App() {
               <ScreenFor route={route} />
             </ScreenBoundary>
           </motion.div>
-          <EdgeGlow />
+          {!studio && <EdgeGlow />}
           <QueuePanel />
           <LyricsPanel />
           <Toast />

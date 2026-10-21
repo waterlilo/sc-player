@@ -14,6 +14,12 @@
 @import "@fontsource/onest/cyrillic-700.css";
 @import "@fontsource/onest/cyrillic-ext-400.css";
 @import "@fontsource/pt-mono/cyrillic-400.css";
+/* the studio design (2.0) sets everything in Onest, Latin included */
+@import "@fontsource/onest/latin-400.css";
+@import "@fontsource/onest/latin-500.css";
+@import "@fontsource/onest/latin-600.css";
+@import "@fontsource/onest/latin-700.css";
+@import "@fontsource/onest/cyrillic-600.css";
 @import "@fontsource/rubik-wet-paint/cyrillic-400.css";
 
 /* the full font (the site ships a Latin-only subset; titles here can be anything) */

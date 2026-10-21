@@ -28,7 +28,7 @@ export default function MarkerEdge({ side, seed = "a" }: { side: keyof typeof PO
   const vertical = side === "left" || side === "right";
   const d = toPath(SEEDS[seed], vertical);
   return (
-    <svg aria-hidden="true" viewBox={vertical ? "0 0 10 1000" : "0 0 1000 10"} preserveAspectRatio="none" className={`pointer-events-none absolute z-10 overflow-visible ${POS[side]}`}>
+    <svg aria-hidden="true" viewBox={vertical ? "0 0 10 1000" : "0 0 1000 10"} preserveAspectRatio="none" className={`marker-edge pointer-events-none absolute z-10 overflow-visible ${POS[side]}`}>
       <path d={d} fill="none" stroke="#000" strokeWidth={5} strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" opacity={0.85} />
       <path d={d} fill="none" stroke="var(--edge)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
     </svg>

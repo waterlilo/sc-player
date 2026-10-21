@@ -35,6 +35,16 @@ export function listen(el: HTMLElement | null): () => void {
 }
 
 let current: Levels = REST;
+const subscribers = new Set<(l: Levels) => void>();
+
+/** For canvas drawings (the studio background): called with the new levels whenever they change visibly. */
+export function onLevels(fn: (l: Levels) => void): () => void {
+  subscribers.add(fn);
+  fn(current);
+  return () => {
+    subscribers.delete(fn);
+  };
+}
 
 function write(el: HTMLElement, l: Levels) {
   el.style.setProperty("--rx-bass", l.bass.toFixed(3));
@@ -48,6 +58,7 @@ function publish(l: Levels) {
   if (Math.abs(l.bass - current.bass) < 0.03 && Math.abs(l.treble - current.treble) < 0.03 && Math.abs(l.beat - current.beat) < 0.03 && Math.abs(l.energy - current.energy) < 0.03) return;
   current = l;
   for (const el of listeners) write(el, l);
+  for (const fn of subscribers) fn(l);
 }
 
 let frame = 0;
@@ -128,7 +139,9 @@ function tick() {
 }
 
 function update() {
-  const on = useSettings.getState().prefs.reactiveSky;
+  // the night sky has its own switch; the studio background listens when its "reacts to sound" knob is up
+  const { reactiveSky, look } = useSettings.getState().prefs;
+  const on = look.design === "studio" ? look.bgReact > 0 && look.bg !== "none" : reactiveSky;
   const s = usePlayer.getState().status;
   const run = on && s === "playing" && getActivity() === "active";
   if (run && !frame) {
@@ -145,7 +158,7 @@ function update() {
 
 export function initReactive() {
   usePlayer.subscribe((s, prev) => s.status !== prev.status && update());
-  useSettings.subscribe((s, prev) => s.prefs.reactiveSky !== prev.prefs.reactiveSky && update());
+  useSettings.subscribe((s, prev) => (s.prefs.reactiveSky !== prev.prefs.reactiveSky || s.prefs.look !== prev.prefs.look) && update());
   subscribeActivity(update);
   update();
 }
