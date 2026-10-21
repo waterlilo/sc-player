@@ -180,11 +180,11 @@ function registerIpc() {
     updateTray(info);
     updateThumbar(main, info, command);
     void notifyTrack(info, prefs().notifications, inFront);
-    trackPopup(info, { enabled: prefs().trackPopup, corner: prefs().popupCorner, windowInFront: inFront });
+    trackPopup(info, { enabled: prefs().trackPopup, corner: prefs().popupCorner, windowInFront: inFront, design: prefs().look.design });
   });
   handle("popup:preview", () => {
     const sample: PlayerInfo = { track: { id: -1, title: "Track title", artist: "Artist", artworkUrl: null }, playing: true };
-    previewTrackPopup(playerInfo.track ? playerInfo : sample, prefs().popupCorner);
+    previewTrackPopup(playerInfo.track ? playerInfo : sample, prefs().popupCorner, prefs().look.design);
   });
   handle("hotkeys:suspend", (_e, on) => {
     send(main, "hotkeys:failed", suspendHotkeys(on === true));
