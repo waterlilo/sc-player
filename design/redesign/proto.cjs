@@ -6,7 +6,7 @@ const { pathToFileURL } = require("node:url");
 
 app.commandLine.appendSwitch("autoplay-policy", "no-user-gesture-required");
 app.whenReady().then(() => {
-  const screen = process.argv.slice(2).find((a) => ["home", "full", "custom", "workshop"].includes(a)) || "home";
+  const screen = process.argv.slice(2).find((a) => ["home", "full", "custom", "workshop", "inbox", "send"].includes(a)) || "home";
   const win = new BrowserWindow({ width: 1280, height: 800, useContentSize: true, resizable: false, frame: false, backgroundColor: "#030304",
     webPreferences: { webSecurity: false } });
   win.loadURL(pathToFileURL(join(__dirname, "proto.html")).href + `?screen=${screen}`);
