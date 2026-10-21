@@ -21,7 +21,7 @@
   :root {
     --accent: #e0705f; --accent-rgb: 224, 112, 95; --on-accent: #120605;
     --text: #ececef; --muted: #9b9ba4; --dim: #64646c; --faint: #3a3a41;
-    --glass: rgba(14, 14, 17, 0.58); --line: rgba(255, 255, 255, 0.075); --line2: rgba(255, 255, 255, 0.12);
+    --glass-a: 0.58; --glass: rgba(14, 14, 17, var(--glass-a)); --bg-blur: 14px; --veil: 0.72; --line: rgba(255, 255, 255, 0.075); --line2: rgba(255, 255, 255, 0.12);
     --hover: rgba(255, 255, 255, 0.045); --sel: rgba(255, 255, 255, 0.07);
     --blur: 30px; --r: 10px; --r2: 7px;
   }
@@ -31,12 +31,15 @@
   svg { display: block; }
 
   /* ── background ── */
-  #bg { position: fixed; inset: -40px; width: calc(100% + 80px); height: calc(100% + 80px); filter: blur(14px) saturate(1.1); }
-  #custom { position: fixed; inset: -30px; width: calc(100% + 60px); height: calc(100% + 60px); object-fit: cover; display: none; opacity: 0.85; }
+  #bg { position: fixed; inset: -40px; width: calc(100% + 80px); height: calc(100% + 80px); filter: blur(var(--bg-blur)) saturate(1.1); }
+  #custom { position: fixed; inset: -30px; width: calc(100% + 60px); height: calc(100% + 60px); object-fit: cover; display: none; opacity: 0.85; filter: blur(var(--bg-blur)); }
   .custom #custom { display: block; }
   .custom #bg { display: none; }
   .veil { position: fixed; inset: 0; pointer-events: none;
-          background: radial-gradient(120% 100% at 50% 35%, rgba(5, 5, 6, 0.25), rgba(5, 5, 6, 0.72)); }
+          background: radial-gradient(120% 100% at 50% 35%, rgba(5, 5, 6, 0.35), rgba(5, 5, 6, 1)); opacity: var(--veil); }
+  /* very clear glass: the text gets a soft shadow so it stays readable on any background */
+  body.thin .glass { text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7); }
+  body.lite .glass { backdrop-filter: none; }
   .grain { position: fixed; inset: 0; pointer-events: none; opacity: 0.05; mix-blend-mode: overlay;
            background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"); }
 
@@ -231,6 +234,25 @@
   .palette { display: flex; gap: 4px; padding: 10px 8px 4px; align-items: center; font-size: 11.5px; color: var(--muted); }
   .palette span { margin-right: auto; }
   .palette i { width: 14px; height: 14px; border-radius: 3px; }
+
+  /* ── appearance: the knobs ── */
+  .appear { width: 312px; display: none; }
+  .appear.open { display: block; }
+  .appear .hd { display: flex; align-items: center; margin: 4px 8px 10px; }
+  .appear .hd b { font-size: 13px; font-weight: 600; }
+  .appear .hd span { margin-left: auto; font-size: 11px; color: var(--dim); }
+  .appear .seg { margin: 0 8px 4px; }
+  .appear .seg span { flex: 1; }
+  .appear .lbl { margin: 12px 8px 2px; }
+  .knob { padding: 7px 8px 3px; }
+  .knob .r { display: flex; font-size: 12px; color: var(--muted); }
+  .knob .r b { margin-left: auto; color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .knob input { -webkit-appearance: none; appearance: none; width: 100%; height: 16px; background: transparent; margin-top: 4px; cursor: pointer; }
+  .knob input::-webkit-slider-runnable-track { height: 3px; border-radius: 2px; background: linear-gradient(90deg, var(--text) var(--p, 50%), var(--faint) var(--p, 50%)); }
+  .knob input::-webkit-slider-thumb { -webkit-appearance: none; width: 13px; height: 13px; margin-top: -5px; border-radius: 50%; background: var(--text); box-shadow: 0 0 0 3px rgba(0,0,0,0.35); }
+  .appear .row { margin-top: 10px; padding: 10px 8px 4px; }
+  .appear .foot2 { display: flex; align-items: center; justify-content: space-between; padding: 8px 8px 2px; font-size: 11px; color: var(--dim); }
+  .appear .foot2 .palette { padding: 0; }
 
   /* ── workshop ── */
   .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
@@ -537,7 +559,7 @@ function drawField(t, b) {
 }
 
 /* ── data ── */
-const NOW = SCREEN === "home" || SCREEN === "send" ? 0 : SCREEN === "inbox" ? 2 : 3;
+const NOW = SCREEN === "home" || SCREEN === "send" || SCREEN === "appear" ? 0 : SCREEN === "inbox" ? 2 : 3;
 const TRACKS = [
   ["Midnight", "лунный кот", 157], ["Paper Moon", "серый шум", 108], ["Orbit", "ночная смена", 260], ["Пыль", "Glass Choir", 211],
   ["Кислотный", "Кислотный Двор", 264], ["Drive", "серый шум", 166], ["Над", "лунный кот", 215], ["Choir", "Glass Choir", 117],
@@ -583,7 +605,7 @@ function shell(active) {
     <div class="pin on">${cov(8)}<div style="min-width:0"><div class="t">ночной трамвай</div><div class="s">Playlist · 48</div></div><div class="eq" id="eq"><i></i><i></i><i></i></div></div>
     <div class="pin">${cov(9)}<div style="min-width:0"><div class="t">to focus</div><div class="s">Playlist · 112</div></div></div>
     <div class="pin">${cov(5)}<div style="min-width:0"><div class="t">лунный кот</div><div class="s">Profile</div></div></div>
-    <div class="me"><span class="av" style="background:#cfc7e6">S</span><div><div class="t">sky</div><div class="s">SKY-4F7Q</div></div>${I("gear")}</div>
+    <div class="me"><span class="av" style="background:#cfc7e6">S</span><div><div class="t">sky</div><div class="s">SKY-4F7Q</div></div><span id="gear">${I("gear")}</span></div>
   </aside>`;
 }
 function player() {
@@ -630,6 +652,7 @@ function home() {
   </aside>
   ${player()}
   ${SCREEN === "send" ? sendSheet() : ""}
+  ${appearance("home")}
 </div>`;
 }
 
@@ -737,6 +760,27 @@ function workshop() {
 </div>`;
 }
 
+/** the Appearance panel: the background (kind, blur, dim, how much it reacts) and the glass panels (opacity, blur) */
+function appearance(where) {
+  const open = SCREEN === "custom" || SCREEN === "appear";
+  const pos = where === "home" ? "left:252px; bottom:100px" : "right:14px; bottom:58px";
+  const kind = SCREEN === "custom" ? 2 : 0;
+  const knob = (k, label, min, max, unit) => `<div class="knob"><div class="r">${label}<b data-out="${k}"></b></div><input type="range" data-k="${k}" min="${min}" max="${max}" data-unit="${unit}" /></div>`;
+  return `<div class="pop glass appear ${open ? "open" : ""}" id="appear" style="${pos}">
+    <div class="hd"><b>Appearance</b><span>Theme · Liquid</span></div>
+    <span class="lbl" style="margin-top:2px">Background</span>
+    <div class="seg">${["Liquid", "Cover", "Your file", "None"].map((x, i) => `<span class="${i === kind ? "on" : ""}">${x}</span>`).join("")}</div>
+    ${knob("bgblur", "Blur", 0, 40, "px")}
+    ${knob("dim", "Dim", 0, 100, "%")}
+    ${knob("react", "Reacts to sound", 0, 100, "%")}
+    <span class="lbl">Panels</span>
+    ${knob("glass", "Opacity", 10, 100, "%")}
+    ${knob("pblur", "Blur behind", 0, 60, "px")}
+    <div class="row">${I("sparkle")}<div><div class="t">Lighter effects</div><div class="s">No blur behind panels, for slow PCs</div></div><span class="sw offsw" id="lite"></span></div>
+    <div class="foot2"><span>Reset to the theme</span><div class="palette">${"<i></i>".repeat(5)}</div></div>
+  </div>`;
+}
+
 const LYRICS = [
   ["", 0], ["we left the lights on in the hall", 0.0], ["the city hums a quiet song", 2.4], ["and every street remembers us", 4.7],
   ["the night is long, the night is long", 7.2], ["so turn it up and let it play", 9.6], ["until the morning finds its way", 12.0], ["", 14.4],
@@ -763,21 +807,12 @@ function full() {
     <div class="lyrics"><div class="roll" id="roll">${LYRICS.map(([l], i) => `<div class="ln" data-i="${i}">${l || '<span class="ins">Instrumental</span>'}</div>`).join("")}</div></div>
   </div>
   <div class="src">${I("lyrics", "ico sm")}Synced word by word · Better Lyrics, LRCLIB</div>
-  ${custom ? `<div class="pop glass" style="right:14px; bottom:58px; width:300px">
-    <span class="lbl">Background</span>
-    <div class="opt"><div class="pv" style="background:linear-gradient(135deg, ${COVERS[NOW].blobs[0]}, ${COVERS[NOW].base[1]})"></div><div><div class="t">Liquid</div><div class="s">Cover colours, moves with the music</div></div><span class="ck"></span></div>
-    <div class="opt"><div class="pv" style="background-image:url(${coverURL[NOW]}); filter: blur(1.5px)"></div><div><div class="t">Cover</div><div class="s">The artwork, blurred</div></div><span class="ck"></span></div>
-    <div class="opt on"><div class="pv" style="background-image:url(../../../sc-media/public/textures/stipple-night.webp)"></div><div><div class="t">Your file</div><div class="s">sky.webp · image, GIF or video</div></div><span class="ck"></span></div>
-    <div class="opt"><div class="pv" style="background:#0b0b0d"></div><div><div class="t">None</div><div class="s">Plain dark</div></div><span class="ck"></span></div>
-    <div class="sl"><div class="r">Reacts to sound<b class="num">40%</b></div><div class="track"><i style="width:40%"></i></div></div>
-    <div class="sl"><div class="r">Dim<b class="num">60%</b></div><div class="track"><i style="width:60%"></i></div></div>
-    <div class="palette"><span>Accent from the background</span>${"<i></i>".repeat(5)}</div>
-  </div>` : ""}
-  <div class="dock glass"><span class="on">${I("lyrics")}Lyrics</span><span>${I("queue")}Queue</span><span>${I("wave")}Visualizer</span><span ${custom ? 'class="on"' : ""}>${I("image")}Background</span></div>
+  ${appearance("full")}
+  <div class="dock glass"><span class="on">${I("lyrics")}Lyrics</span><span>${I("queue")}Queue</span><span>${I("wave")}Visualizer</span><span id="bgbtn" ${custom ? 'class="on"' : ""}>${I("image")}Background</span></div>
 </div>`;
 }
 
-document.getElementById("root").innerHTML = { home, send: home, inbox, workshop }[SCREEN]?.() ?? full();
+document.getElementById("root").innerHTML = { home, send: home, appear: home, inbox, workshop }[SCREEN]?.() ?? full();
 
 /* ── palette source: the playing cover, or your own background ── */
 const customImg = document.getElementById("custom");
@@ -785,6 +820,29 @@ if (SCREEN === "custom") {
   customImg.src = "../../../sc-media/public/textures/stipple-night.webp";
   customImg.onload = () => { const pal = paletteOf(customImg); applyPalette(pal); document.querySelectorAll(".palette i").forEach((el, i) => (el.style.background = i ? toHex(pal.field[i - 1]) : toHex(pal.accent))); window.__ready = true; };
 } else { applyPalette(paletteOf(coverCanvas[NOW])); window.__ready = true; }
+
+/* the knobs, live */
+const KNOBS = { bgblur: SCREEN === "custom" ? 4 : 14, dim: 72, react: 40, glass: 58, pblur: 30 };
+let REACT = 1;
+function applyKnobs() {
+  const r = document.documentElement.style;
+  r.setProperty("--bg-blur", KNOBS.bgblur + "px");
+  r.setProperty("--veil", String(KNOBS.dim / 100));
+  r.setProperty("--glass-a", String(KNOBS.glass / 100));
+  r.setProperty("--blur", KNOBS.pblur + "px");
+  REACT = KNOBS.react / 40; // 40% is the calm default
+  document.body.classList.toggle("thin", KNOBS.glass < 40);
+  document.querySelectorAll("#appear input").forEach((el) => {
+    const k = el.dataset.k; el.value = KNOBS[k];
+    el.style.setProperty("--p", ((KNOBS[k] - el.min) / (el.max - el.min)) * 100 + "%");
+    document.querySelector(`[data-out="${k}"]`).textContent = KNOBS[k] + el.dataset.unit;
+  });
+}
+document.querySelectorAll("#appear input").forEach((el) => el.addEventListener("input", () => { KNOBS[el.dataset.k] = Number(el.value); applyKnobs(); }));
+document.getElementById("lite")?.addEventListener("click", (e) => { e.currentTarget.classList.toggle("offsw"); document.body.classList.toggle("lite"); });
+for (const id of ["gear", "bgbtn"]) document.getElementById(id)?.addEventListener("click", () => document.getElementById("appear").classList.toggle("open"));
+applyKnobs();
+document.querySelectorAll(".appear .palette i").forEach((el, i) => { const f = window.__field || []; if (!f.length) return; el.style.background = i ? `rgb(${(f[i - 1] || f[0]).map((v) => Math.round(v * 255)).join(",")})` : getComputedStyle(document.documentElement).getPropertyValue("--accent"); });
 
 const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
@@ -882,8 +940,9 @@ function drawLyrics(t) {
 
 /* ── one frame ── */
 function frame(t, b, spec) {
-  if (SCREEN !== "custom") drawField(t, b);
-  else customImg.style.transform = `scale(${1.04 + b[1] * 0.01}) translate(${Math.sin(t * 0.1) * 6}px, ${Math.cos(t * 0.08) * 4}px)`;
+  const rb = b.map((v) => Math.min(1.5, v * REACT));
+  if (SCREEN !== "custom") drawField(t, rb);
+  else customImg.style.transform = `scale(${1.04 + rb[1] * 0.01}) translate(${Math.sin(t * 0.1) * 6}px, ${Math.cos(t * 0.08) * 4}px)`;
   const dur = TRACKS[NOW][2];
   drawWave((START + t) / dur);
   const cur = document.getElementById("cur"); if (cur) cur.textContent = fmt(START + t);
@@ -920,7 +979,9 @@ if (!RENDER) {
     raw.forEach((v, i) => (sm[i] += (v - sm[i]) * (v > sm[i] ? 0.5 : 0.12)));
     frame(audio.currentTime, [...sm], edges.slice(0, -1).map((lo, i) => Math.min(1, avg(lo, edges[i + 1]) * 1.3)));
   };
-  document.addEventListener("click", () => { ctx.resume(); audio.paused ? audio.play() : audio.pause(); });
+  const toggle = () => { ctx.resume(); audio.paused ? audio.play() : audio.pause(); };
+  document.querySelectorAll(".pp").forEach((el) => el.addEventListener("click", toggle));
+  document.addEventListener("keydown", (e) => { if (e.code === "Space") { e.preventDefault(); toggle(); } });
   audio.play().catch(() => {});
   requestAnimationFrame(loop);
 } else {
