@@ -6,12 +6,13 @@ const { join } = require("node:path");
 const { pathToFileURL } = require("node:url");
 
 const page = process.argv.find((a) => a.endsWith(".html")) || "logos.html";
+const QUERY = process.argv.find((a) => a.startsWith("?")) || "";
 const out = process.argv.find((a) => a.endsWith(".png")) || join(__dirname, "out", page.replace(".html", ".png"));
 
 app.whenReady().then(async () => {
   mkdirSync(join(__dirname, "out"), { recursive: true });
   const win = new BrowserWindow({ width: 1600, height: 1200, show: false, useContentSize: true, webPreferences: { offscreen: true } });
-  await win.loadURL(pathToFileURL(join(__dirname, page)).href);
+  await win.loadURL(pathToFileURL(join(__dirname, page)).href + QUERY);
   await win.webContents.executeJavaScript("new Promise((r) => { const w = () => (window.__ready ? r() : setTimeout(w, 50)); w(); })");
   const h = await win.webContents.executeJavaScript("document.documentElement.scrollHeight");
   win.setContentSize(1600, h);

@@ -1,0 +1,54 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>sc player — logo concepts</title>
+<link rel="stylesheet" href="../../node_modules/@fontsource/onest/latin-600.css" />
+<link rel="stylesheet" href="../../node_modules/@fontsource/onest/latin-700.css" />
+<link rel="stylesheet" href="../../node_modules/@fontsource/onest/latin-800.css" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1600px; background: #0b0b0d; color: #ececef; font-family: Onest, system-ui, sans-serif; }
+  body { padding: 48px 56px 56px; }
+  h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; }
+  p.sub { color: #8b8b94; font-size: 14px; margin: 6px 0 32px; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+  .card { border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; overflow: hidden; background: #111114; }
+  .stage { height: 250px; display: grid; place-items: center; background: radial-gradient(80% 90% at 50% 40%, #1a1a20, #0d0d10); }
+  .stage svg { width: 150px; height: 150px; filter: drop-shadow(0 18px 30px rgba(0,0,0,0.45)); }
+  .sizes { display: flex; align-items: center; gap: 18px; padding: 14px 18px; border-top: 1px solid rgba(255,255,255,0.06); }
+  .sizes.light { background: #ecebe7; border-top: 0; }
+  .sizes svg { flex: none; }
+  .sizes .lbl { margin-left: auto; font-size: 11px; color: #6c6c75; letter-spacing: 0.08em; text-transform: uppercase; }
+  .sizes.light .lbl { color: #8a8780; }
+  .meta { padding: 14px 18px 18px; border-top: 1px solid rgba(255,255,255,0.06); }
+  .meta b { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+  .meta b span { font-size: 11px; color: #8b8b94; font-weight: 600; letter-spacing: 0.1em; }
+  .meta p { font-size: 13px; color: #9b9ba4; line-height: 1.5; margin-top: 6px; }
+  .word { display: flex; align-items: center; gap: 10px; margin-top: 12px; font-weight: 700; font-size: 18px; letter-spacing: -0.02em; }
+  .word svg { width: 26px; height: 26px; }
+</style>
+</head>
+<body>
+<h1 id="title">sc player — logo, round 4: a night sky lit by the moon</h1>
+<p class="sub" id="sub">A dark night, the moon and its cold light, clouds with silver edges, a few stars — minimal, not the og colours. Clouds come as a bank or in layers, never one cloud alone. Each at 150, 64, 32 and 16 px.</p>
+<div class="grid" id="grid"></div>
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <linearGradient id="gViolet" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#b9a6ff"/><stop offset=".55" stop-color="#7b5cf0"/><stop offset="1" stop-color="#e0705f"/></linearGradient>
+    <linearGradient id="gWarm" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffb38a"/><stop offset=".5" stop-color="#e0705f"/><stop offset="1" stop-color="#7a2a5a"/></linearGradient>
+    <radialGradient id="gLiquid" cx=".3" cy=".25" r=".95"><stop offset="0" stop-color="#ffd2b8"/><stop offset=".35" stop-color="#e86f6a"/><stop offset=".7" stop-color="#6b3fd0"/><stop offset="1" stop-color="#21124a"/></radialGradient>
+    <linearGradient id="gMoon" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff3a6"/><stop offset="1" stop-color="#f2dc1a"/></linearGradient>
+    <linearGradient id="gTile" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1c1c22"/><stop offset="1" stop-color="#0c0c0f"/></linearGradient>
+    <linearGradient id="gSky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0a1440"/><stop offset=".6" stop-color="#1f3f9e"/><stop offset="1" stop-color="#4f7fe0"/></linearGradient>
+    <radialGradient id="gGlow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ffffff" stop-opacity=".9"/><stop offset=".45" stop-color="#cfe9ff" stop-opacity=".35"/><stop offset="1" stop-color="#cfe9ff" stop-opacity="0"/></radialGradient>
+    <linearGradient id="gPearl" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".6" stop-color="#dff3ff"/><stop offset="1" stop-color="#bfeee6"/></linearGradient>
+    <filter id="soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.6"/></filter>
+    <filter id="haze" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="5"/></filter>
+    <radialGradient id="mGlow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#eef3ff" stop-opacity=".5"/><stop offset=".35" stop-color="#c9d8ff" stop-opacity=".18"/><stop offset="1" stop-color="#c9d8ff" stop-opacity="0"/></radialGradient>
+    <radialGradient id="mFace" cx=".38" cy=".35" r=".75"><stop offset="0" stop-color="#ffffff"/><stop offset=".65" stop-color="#e8eeff"/><stop offset="1" stop-color="#b9c6e8"/></radialGradient>
+  </defs>
+</svg>
+<script src="round4.js"></script><script>document.getElementById("title").textContent += new URLSearchParams(location.search).get("p") === "mono" ? " · graphite" : " · moonlight blue";</script>
+</body>
+</html>
