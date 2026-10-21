@@ -15,10 +15,21 @@ function rand(seed: number) {
   return () => (s = (s * 16807) % 2147483647) / 2147483647;
 }
 
+/** a made-up cover that looks like artwork: soft colour fields, light from one side, film grain (hues spread by the golden angle) */
 function cover(seed: number) {
-  const r = rand(seed + 3);
-  const hue = Math.floor(r() * 360);
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="hsl(${hue} 45% 22%)"/><circle cx="${30 + r() * 40}" cy="${30 + r() * 40}" r="${12 + r() * 20}" fill="hsl(${(hue + 60) % 360} 80% 60%)"/></svg>`;
+  const r = rand(seed * 7919 + 13);
+  r();
+  const hue = Math.round((seed * 137.508) % 360);
+  const blob = (h: number, s: number, l: number) =>
+    `<ellipse cx="${(20 + r() * 60).toFixed(1)}" cy="${(25 + r() * 55).toFixed(1)}" rx="${(16 + r() * 22).toFixed(1)}" ry="${(12 + r() * 18).toFixed(1)}" fill="hsl(${h} ${s}% ${l}%)" opacity="${(0.6 + r() * 0.35).toFixed(2)}"/>`;
+  const kind = seed % 3;
+  const extra =
+    kind === 0
+      ? `<rect y="68" width="100" height="32" fill="#000" opacity=".5"/><path d="M47 68a11 11 0 0 1 22 0z" fill="hsl(${(hue + 30) % 360} 70% 72%)"/>`
+      : kind === 1
+        ? Array.from({ length: 14 }, (_, i) => `<path d="M0 ${18 + i * 5} Q 50 ${12 + i * 5 + r() * 8} 100 ${18 + i * 5}" stroke="#fff" stroke-opacity=".14" fill="none" stroke-width=".5"/>`).join("")
+        : `<rect x="20" y="20" width="60" height="60" fill="none" stroke="#fff" stroke-opacity=".22" stroke-width=".6"/>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><filter id="b" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="9"/></filter><filter id="g"><feTurbulence type="fractalNoise" baseFrequency="1.4" numOctaves="2" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .09 0"/></filter><radialGradient id="v" cx=".5" cy=".5" r=".75"><stop offset=".55" stop-opacity="0"/><stop offset="1" stop-opacity=".5"/></radialGradient><linearGradient id="d" x1="0" y1="0" x2=".3" y2="1"><stop offset="0" stop-color="hsl(${hue} 45% 14%)"/><stop offset="1" stop-color="hsl(${hue} 40% 5%)"/></linearGradient></defs><rect width="100" height="100" fill="url(#d)"/><g filter="url(#b)">${blob(hue, 60, 52)}${blob((hue + 25) % 360, 55, 38)}${blob((hue + 330) % 360, 65, 70)}</g>${extra}<rect width="100" height="100" fill="url(#v)"/><rect width="100" height="100" filter="url(#g)"/></svg>`;
   return `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}#-large.jpg`;
 }
 
