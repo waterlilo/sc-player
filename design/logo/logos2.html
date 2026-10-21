@@ -1,0 +1,139 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>sc player — logo concepts</title>
+<link rel="stylesheet" href="../../node_modules/@fontsource/onest/latin-600.css" />
+<link rel="stylesheet" href="../../node_modules/@fontsource/onest/latin-700.css" />
+<link rel="stylesheet" href="../../node_modules/@fontsource/onest/latin-800.css" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1600px; background: #0b0b0d; color: #ececef; font-family: Onest, system-ui, sans-serif; }
+  body { padding: 48px 56px 56px; }
+  h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; }
+  p.sub { color: #8b8b94; font-size: 14px; margin: 6px 0 32px; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+  .card { border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; overflow: hidden; background: #111114; }
+  .stage { height: 250px; display: grid; place-items: center; background: radial-gradient(80% 90% at 50% 40%, #1a1a20, #0d0d10); }
+  .stage svg { width: 150px; height: 150px; filter: drop-shadow(0 18px 30px rgba(0,0,0,0.45)); }
+  .sizes { display: flex; align-items: center; gap: 18px; padding: 14px 18px; border-top: 1px solid rgba(255,255,255,0.06); }
+  .sizes.light { background: #ecebe7; border-top: 0; }
+  .sizes svg { flex: none; }
+  .sizes .lbl { margin-left: auto; font-size: 11px; color: #6c6c75; letter-spacing: 0.08em; text-transform: uppercase; }
+  .sizes.light .lbl { color: #8a8780; }
+  .meta { padding: 14px 18px 18px; border-top: 1px solid rgba(255,255,255,0.06); }
+  .meta b { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+  .meta b span { font-size: 11px; color: #8b8b94; font-weight: 600; letter-spacing: 0.1em; }
+  .meta p { font-size: 13px; color: #9b9ba4; line-height: 1.5; margin-top: 6px; }
+  .word { display: flex; align-items: center; gap: 10px; margin-top: 12px; font-weight: 700; font-size: 18px; letter-spacing: -0.02em; }
+  .word svg { width: 26px; height: 26px; }
+</style>
+</head>
+<body>
+<h1>sc player — logo, round 2: Halo and Now</h1>
+<p class="sub">Original marks (no SoundCloud cloud). Each at 150, 64, 32 and 16 px, on dark and on light, and next to the name.</p>
+<div class="grid" id="grid"></div>
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <linearGradient id="gViolet" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#b9a6ff"/><stop offset=".55" stop-color="#7b5cf0"/><stop offset="1" stop-color="#e0705f"/></linearGradient>
+    <linearGradient id="gWarm" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffb38a"/><stop offset=".5" stop-color="#e0705f"/><stop offset="1" stop-color="#7a2a5a"/></linearGradient>
+    <radialGradient id="gLiquid" cx=".3" cy=".25" r=".95"><stop offset="0" stop-color="#ffd2b8"/><stop offset=".35" stop-color="#e86f6a"/><stop offset=".7" stop-color="#6b3fd0"/><stop offset="1" stop-color="#21124a"/></radialGradient>
+    <linearGradient id="gMoon" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff3a6"/><stop offset="1" stop-color="#f2dc1a"/></linearGradient>
+    <linearGradient id="gTile" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1c1c22"/><stop offset="1" stop-color="#0c0c0f"/></linearGradient>
+  </defs>
+</svg>
+<script>
+const TILE = "M50 2 C 86 2, 98 14, 98 50 C 98 86, 86 98, 50 98 C 14 98, 2 86, 2 50 C 2 14, 14 2, 50 2 Z";
+const tile = (fill = "url(#gTile)") => `<path d="${TILE}" fill="${fill}"/><path d="${TILE}" fill="none" stroke="#fff" stroke-opacity=".07" stroke-width="1.2"/>`;
+const bar = (x, h, w, fill, op = 1, cy = 50) => `<rect x="${(x - w / 2).toFixed(2)}" y="${(cy - h / 2).toFixed(2)}" width="${w}" height="${h.toFixed(2)}" rx="${w / 2}" fill="${fill}" opacity="${op}"/>`;
+// a point on a rounded square at 0..1 of the way round, with its outward normal
+function around(u, x, y, w, h, r) {
+  const sw = w - 2 * r, sh = h - 2 * r, arc = Math.PI / 2 * r;
+  let d = u * (2 * sw + 2 * sh + 4 * arc);
+  const c = (cx, cy, a0, t) => { const a = a0 + t / r; return [cx + Math.cos(a) * r, cy + Math.sin(a) * r, Math.cos(a), Math.sin(a)]; };
+  const parts = [[sw, (t) => [x + r + t, y, 0, -1]], [arc, (t) => c(x + w - r, y + r, -Math.PI / 2, t)], [sh, (t) => [x + w, y + r + t, 1, 0]], [arc, (t) => c(x + w - r, y + h - r, 0, t)],
+    [sw, (t) => [x + w - r - t, y + h, 0, 1]], [arc, (t) => c(x + r, y + h - r, Math.PI / 2, t)], [sh, (t) => [x, y + h - r - t, -1, 0]], [arc, (t) => c(x + r, y + r, Math.PI, t)]];
+  for (const [len, f] of parts) { if (d <= len) return f(d); d -= len; }
+  return parts[0][1](0);
+}
+const level = (i, n) => { const m = Math.abs(((i / n) * 2 + 1) % 2 - 1); return (0.35 + 0.65 * Math.abs(Math.sin(i * 1.37) * Math.cos(i * 0.53))) * (0.55 + 0.45 * m); };
+
+// A1 — Halo, refined: an even ring of short lines, the loud ones in the accent
+function a1(small = false) {
+  let g = "";
+  const N = small ? 28 : 56;
+  for (let i = 0; i < N; i++) {
+    const [x, y, nx, ny] = around(i / N, 33, 33, 34, 34, 7);
+    const v = level(i, N), len = 3 + v * 11;
+    const loud = v > 0.62;
+    g += `<line x1="${(x + nx * 4).toFixed(2)}" y1="${(y + ny * 4).toFixed(2)}" x2="${(x + nx * (4 + len)).toFixed(2)}" y2="${(y + ny * (4 + len)).toFixed(2)}" stroke="${loud ? "#e0705f" : "#ececef"}" stroke-opacity="${loud ? 1 : 0.55}" stroke-width="${small ? 2.6 : 1.5}" stroke-linecap="round"/>`;
+  }
+  return `<svg viewBox="0 0 100 100">${tile()}${g}<rect x="33" y="33" width="34" height="34" rx="7" fill="url(#gViolet)"/></svg>`;
+}
+// A2 — Halo, round: a disc (a cover, a record) with the spectrum all round
+function a2(small = false) {
+  let g = "";
+  const N = small ? 32 : 72;
+  for (let i = 0; i < N; i++) {
+    const a = (i / N) * Math.PI * 2 - Math.PI / 2, v = level(i, N), r0 = 22, len = 3 + v * 12;
+    g += `<line x1="${(50 + Math.cos(a) * r0).toFixed(2)}" y1="${(50 + Math.sin(a) * r0).toFixed(2)}" x2="${(50 + Math.cos(a) * (r0 + len)).toFixed(2)}" y2="${(50 + Math.sin(a) * (r0 + len)).toFixed(2)}" stroke="#ececef" stroke-opacity="${(0.3 + v * 0.6).toFixed(2)}" stroke-width="${small ? 2.8 : 1.6}" stroke-linecap="round"/>`;
+  }
+  return `<svg viewBox="0 0 100 100">${tile()}${g}<circle cx="50" cy="50" r="17" fill="url(#gViolet)"/><circle cx="50" cy="50" r="3.2" fill="#111114"/></svg>`;
+}
+// A3 — Halo, frame: the cover between two waveforms, above and below, like the player bar folded round it
+function a3() {
+  let g = "";
+  for (let i = 0; i < 9; i++) {
+    const x = 26 + i * 6, v = level(i * 3, 27);
+    g += bar(x, 4 + v * 14, 3, "#ececef", 0.4 + v * 0.5, 22 - (4 + v * 14) / 2 + 8);
+    g += bar(x, 4 + v * 14, 3, "#ececef", 0.4 + v * 0.5, 78 + (4 + v * 14) / 2 - 8);
+  }
+  return `<svg viewBox="0 0 100 100">${tile()}${g}<rect x="30" y="34" width="40" height="32" rx="6" fill="url(#gViolet)"/></svg>`;
+}
+// F1 — Now, bold: five thick bars, the middle one lit — still readable at 16 px
+function f1() {
+  const H = [26, 44, 62, 40, 22];
+  return `<svg viewBox="0 0 100 100">${tile()}${H.map((h, i) => bar(26 + i * 12, h, 8, i === 2 ? "url(#gWarm)" : "#ececef", i < 2 ? 1 : i === 2 ? 1 : 0.4)).join("")}</svg>`;
+}
+// F2 — Now, playhead: the waveform with the line that runs through it, as in the player
+function f2() {
+  const H = [16, 30, 22, 44, 34, 56, 40, 26, 46, 30, 18];
+  const bars = H.map((h, i) => bar(19 + i * 6.2, h, 3.6, "#ececef", i <= 5 ? 1 : 0.35)).join("");
+  return `<svg viewBox="0 0 100 100">${tile()}${bars}<rect x="54.3" y="22" width="2" height="56" rx="1" fill="#e0705f"/><circle cx="55.3" cy="22" r="3.4" fill="#e0705f"/></svg>`;
+}
+// F3 — Now, cut: bars of one height make a square — a cover made of sound; the played part bright
+function f3() {
+  const bars = Array.from({ length: 8 }, (_, i) => bar(29 + i * 6, 42, 3.8, i < 5 ? "url(#gViolet)" : "#ececef", i < 5 ? 1 : 0.3)).join("");
+  return `<svg viewBox="0 0 100 100">${tile()}${bars}</svg>`;
+}
+// H — Hybrid: the cover with a waveform for its halo on two sides, one bar lit
+function h1() {
+  let g = "";
+  for (let i = 0; i < 7; i++) {
+    const v = level(i * 2 + 1, 14), h = 6 + v * 12, lit = i === 3;
+    g += bar(28 + i * 7.3, h, 3.4, lit ? "#e0705f" : "#ececef", lit ? 1 : 0.55, 28 - h / 2 + 2);
+  }
+  return `<svg viewBox="0 0 100 100">${tile()}${g}<rect x="26" y="36" width="48" height="40" rx="7" fill="url(#gViolet)"/></svg>`;
+}
+
+const CONCEPTS = [
+  ["A1", "Halo · square", "The cover with an even ring of spectrum; the loud lines take the accent, as in the player.", () => a1(), () => a1(true)],
+  ["A2", "Halo · disc", "A round cover — a record — with the spectrum all round. The most \"music\" of the set; a clean circle at small sizes.", () => a2(), () => a2(true)],
+  ["A3", "Halo · frame", "The cover between two short waveforms above and below — the player bar folded round the artwork.", a3, a3],
+  ["F1", "Now · bold", "Five thick bars, the middle one lit. Survives 16 px in the tray and the taskbar.", f1, f1],
+  ["F2", "Now · playhead", "The waveform with the playhead running through it, the played half bright — exactly what the player shows.", f2, f2],
+  ["H", "Halo + Now", "The cover with one short waveform over it, one bar lit — the two ideas in one mark.", h1, h1],
+  ["F3", "Now · block", "Bars of one height that make a square: a cover made of sound, the played part in colour.", f3, f3],
+];
+
+document.getElementById("grid").innerHTML = CONCEPTS.map(([k, name, text, big, small]) => `
+  <div class="card">
+    <div class="stage">${big()}</div>
+    <div class="sizes">${big().replace("<svg ", '<svg width="64" height="64" ')}${small().replace("<svg ", '<svg width="32" height="32" ')}${small().replace("<svg ", '<svg width="16" height="16" ')}<span class="lbl">dark</span></div>
+    <div class="sizes light">${big().replace("<svg ", '<svg width="64" height="64" ')}${small().replace("<svg ", '<svg width="32" height="32" ')}${small().replace("<svg ", '<svg width="16" height="16" ')}<span class="lbl">light</span></div>
+    <div class="meta"><b>${name}<span>${k}</span></b><p>${text}</p><div class="word">${small()}sc player</div></div>
+  </div>`).join("");
+document.fonts.ready.then(() => (window.__ready = true));
+</script>
+</body>
+</html>
