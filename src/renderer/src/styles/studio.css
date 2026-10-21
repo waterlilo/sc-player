@@ -6,7 +6,14 @@
  * display-heading…), so screens need no studio-specific markup.
  */
 
+/* the accent is a registered colour, so a new cover's accent eases in with the background instead of snapping */
+@property --accent {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: rgb(178 160 230);
+}
 html[data-design="studio"] {
+  transition: --accent 1.2s ease;
   --bg: #050506;
   --bg-2: #0e0e11;
   --text: #ececef;
