@@ -49,9 +49,9 @@
   img.cv { display: block; object-fit: cover; }
 
   /* ── shell ── */
-  .app { position: fixed; inset: 0; display: grid; grid-template-columns: 236px 1fr 288px; grid-template-rows: 44px 1fr 84px; gap: 0 8px; padding: 0 8px 8px; }
+  .app { position: fixed; inset: 0; display: grid; grid-template-columns: 236px 1fr 288px; grid-template-rows: 44px 1fr 84px; gap: 8px; padding: 0 8px 8px; }
   .app.two { grid-template-columns: 236px 1fr; }
-  .tb { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; }
+  .tb { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; margin-bottom: -8px; }
   .brand { display: flex; align-items: center; gap: 9px; width: 228px; font-weight: 600; font-size: 13px; padding-left: 8px; letter-spacing: 0; }
   .mark { width: 18px; height: 18px; border-radius: 5px; background: var(--text); display: grid; place-items: center; }
   .mark i { width: 7px; height: 7px; border-radius: 50%; background: #0b0b0d; }
@@ -649,7 +649,7 @@ function inbox() {
     <div class="meta2"><span class="num">${when}</span><div class="icons">${state}<span class="pl">${playing ? I("pause", "ico sm") : I("play", "ico sm")}</span></div></div></div>`;
   return `<div class="app two">
   ${shell("inbox")}
-  <main class="main" style="padding: 4px 0 0">
+  <main class="main" style="padding: 0">
     <div class="inbox">
       <section class="people glass">
         <div class="hd"><b>Inbox</b><span class="btn">${I("plus", "ico sm")}Add friend</span></div>
@@ -850,7 +850,7 @@ function drawRing(spec, bass) {
   for (let i = 0; i < N; i++) {
     const m = Math.abs(((i / N) * 2 + 1) % 2 - 1), v = spec[Math.floor(m * spec.length * 0.8)] ?? 0;
     const [px, py, nx, ny] = roundRectPoint(i / N, 24 * s - 4 * s, 24 * s - 4 * s, 52 * s + 8 * s, 52 * s + 8 * s, 8 * s);
-    const len = Math.min(14, 1 + v * v * 12) * s;
+    const len = Math.min(9, 1 + v * v * 8) * s;
     g.strokeStyle = v > 0.55 ? `rgba(${acc}, 0.9)` : `rgba(255,255,255,${0.12 + v * 0.35})`;
     g.beginPath(); g.moveTo(px, py); g.lineTo(px + nx * len, py + ny * len); g.stroke();
   }
