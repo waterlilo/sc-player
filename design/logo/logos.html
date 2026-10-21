@@ -1,0 +1,120 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>sc player — logo concepts</title>
+<link rel="stylesheet" href="../../node_modules/@fontsource/onest/latin-600.css" />
+<link rel="stylesheet" href="../../node_modules/@fontsource/onest/latin-700.css" />
+<link rel="stylesheet" href="../../node_modules/@fontsource/onest/latin-800.css" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1600px; background: #0b0b0d; color: #ececef; font-family: Onest, system-ui, sans-serif; }
+  body { padding: 48px 56px 56px; }
+  h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; }
+  p.sub { color: #8b8b94; font-size: 14px; margin: 6px 0 32px; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+  .card { border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; overflow: hidden; background: #111114; }
+  .stage { height: 250px; display: grid; place-items: center; background: radial-gradient(80% 90% at 50% 40%, #1a1a20, #0d0d10); }
+  .stage svg { width: 150px; height: 150px; filter: drop-shadow(0 18px 30px rgba(0,0,0,0.45)); }
+  .sizes { display: flex; align-items: center; gap: 18px; padding: 14px 18px; border-top: 1px solid rgba(255,255,255,0.06); }
+  .sizes.light { background: #ecebe7; border-top: 0; }
+  .sizes svg { flex: none; }
+  .sizes .lbl { margin-left: auto; font-size: 11px; color: #6c6c75; letter-spacing: 0.08em; text-transform: uppercase; }
+  .sizes.light .lbl { color: #8a8780; }
+  .meta { padding: 14px 18px 18px; border-top: 1px solid rgba(255,255,255,0.06); }
+  .meta b { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+  .meta b span { font-size: 11px; color: #8b8b94; font-weight: 600; letter-spacing: 0.1em; }
+  .meta p { font-size: 13px; color: #9b9ba4; line-height: 1.5; margin-top: 6px; }
+  .word { display: flex; align-items: center; gap: 10px; margin-top: 12px; font-weight: 700; font-size: 18px; letter-spacing: -0.02em; }
+  .word svg { width: 26px; height: 26px; }
+</style>
+</head>
+<body>
+<h1>sc player — logo directions</h1>
+<p class="sub">Original marks (no SoundCloud cloud). Each at 150, 64, 32 and 16 px, on dark and on light, and next to the name.</p>
+<div class="grid" id="grid"></div>
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <linearGradient id="gViolet" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#b9a6ff"/><stop offset=".55" stop-color="#7b5cf0"/><stop offset="1" stop-color="#e0705f"/></linearGradient>
+    <linearGradient id="gWarm" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffb38a"/><stop offset=".5" stop-color="#e0705f"/><stop offset="1" stop-color="#7a2a5a"/></linearGradient>
+    <radialGradient id="gLiquid" cx=".3" cy=".25" r=".95"><stop offset="0" stop-color="#ffd2b8"/><stop offset=".35" stop-color="#e86f6a"/><stop offset=".7" stop-color="#6b3fd0"/><stop offset="1" stop-color="#21124a"/></radialGradient>
+    <linearGradient id="gMoon" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff3a6"/><stop offset="1" stop-color="#f2dc1a"/></linearGradient>
+    <linearGradient id="gTile" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1c1c22"/><stop offset="1" stop-color="#0c0c0f"/></linearGradient>
+  </defs>
+</svg>
+<script>
+// a squircle tile path (superellipse-ish) for app-icon shapes
+const TILE = "M50 2 C 86 2, 98 14, 98 50 C 98 86, 86 98, 50 98 C 14 98, 2 86, 2 50 C 2 14, 14 2, 50 2 Z";
+
+// A — Halo: the cover with its spectrum, our player's own signature
+function halo() {
+  let lines = "";
+  const N = 40;
+  for (let i = 0; i < N; i++) {
+    const u = i / N, per = 4;
+    // walk a rounded square 30..70 and stand short lines out of it
+    const t = u * per, side = Math.floor(t), f = t - side;
+    const p = [[30 + 40 * f, 30, 0, -1], [70, 30 + 40 * f, 1, 0], [70 - 40 * f, 70, 0, 1], [30, 70 - 40 * f, -1, 0]][side];
+    const m = Math.abs((u * 2 + 1) % 2 - 1);
+    const len = 3 + 9 * Math.abs(Math.sin(i * 1.7) * Math.cos(i * 0.6)) * (0.6 + 0.4 * m);
+    const x = p[0] + p[2] * 5, y = p[1] + p[3] * 5;
+    lines += `<line x1="${x.toFixed(2)}" y1="${y.toFixed(2)}" x2="${(x + p[2] * len).toFixed(2)}" y2="${(y + p[3] * len).toFixed(2)}" stroke="#fff" stroke-opacity="${(0.35 + 0.5 * m).toFixed(2)}" stroke-width="1.6" stroke-linecap="round"/>`;
+  }
+  return `<svg viewBox="0 0 100 100"><path d="${TILE}" fill="url(#gTile)"/><g>${lines}</g><rect x="30" y="30" width="40" height="40" rx="6" fill="url(#gViolet)"/></svg>`;
+}
+const haloSmall = () => `<svg viewBox="0 0 100 100"><path d="${TILE}" fill="url(#gTile)"/><rect x="22" y="22" width="56" height="56" rx="9" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="5" stroke-dasharray="3 5"/><rect x="31" y="31" width="38" height="38" rx="6" fill="url(#gViolet)"/></svg>`;
+
+// B — Monogram: lowercase "sc" with the c opening into sound
+const mono = () => `<svg viewBox="0 0 100 100"><path d="${TILE}" fill="url(#gViolet)"/>
+  <text x="44" y="64" text-anchor="middle" font-family="Onest" font-weight="800" font-size="46" fill="#fff" letter-spacing="-2">sc</text>
+  <path d="M71 37 a 18 18 0 0 1 0 26" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round" opacity=".9"/>
+  <path d="M79 31 a 26 26 0 0 1 0 38" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round" opacity=".55"/></svg>`;
+
+// C — Liquid: a drop of the living background with a cut-out play
+const liquid = () => `<svg viewBox="0 0 100 100"><path d="${TILE}" fill="url(#gLiquid)"/>
+  <path d="M28 34 C 40 20, 64 24, 72 38 C 82 54, 70 76, 50 78 C 30 80, 18 62, 24 48 C 25 42, 26 38, 28 34 Z" fill="#fff" opacity=".14"/>
+  <path d="M42 34 L 68 50 L 42 66 Z" fill="#fff" stroke="#fff" stroke-width="5" stroke-linejoin="round"/></svg>`;
+
+// D — Honest shuffle: two waves crossing once, the arrows of shuffle drawn as sound
+const shuffle = () => `<svg viewBox="0 0 100 100"><path d="${TILE}" fill="#f2f0ea"/>
+  <path d="M20 36 C 40 36, 46 64, 66 64 L 80 64" fill="none" stroke="#111114" stroke-width="7" stroke-linecap="round"/>
+  <path d="M20 64 C 40 64, 46 36, 66 36 L 80 36" fill="none" stroke="#e0705f" stroke-width="7" stroke-linecap="round"/>
+  <path d="M73 29 L 81 36 L 73 43" fill="none" stroke="#e0705f" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M73 57 L 81 64 L 73 71" fill="none" stroke="#111114" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+// E — Moon: the night of the og design, a crescent cut from waveform bars
+function moon() {
+  // a crescent (a disc minus a smaller disc) seen through vertical waveform stripes
+  let bars = "";
+  for (let i = 0; i < 12; i++) bars += `<rect x="${21.5 + i * 5}" y="18" width="3.2" height="64" rx="1.6" fill="url(#gMoon)"/>`;
+  return `<svg viewBox="0 0 100 100"><defs><mask id="cres"><rect width="100" height="100" fill="#000"/><circle cx="50" cy="51" r="29" fill="#fff"/><circle cx="63" cy="41" r="24" fill="#000"/></mask></defs>
+    <path d="${TILE}" fill="#0f0b1f"/><g mask="url(#cres)">${bars}</g><circle cx="74" cy="28" r="2" fill="#fff" opacity=".85"/><circle cx="81" cy="47" r="1.2" fill="#fff" opacity=".6"/></svg>`;
+}
+
+// F — Now: a waveform where one bar is "now", lit — the player in one glance
+function now() {
+  const H = [18, 30, 44, 26, 52, 36, 22, 40, 16];
+  const bars = H.map((h, i) => `<rect x="${17 + i * 7.5}" y="${50 - h / 2}" width="4.6" height="${h}" rx="2.3" fill="${i < 4 ? "#ececef" : i === 4 ? "#e0705f" : "#ececef"}" opacity="${i < 4 ? 1 : i === 4 ? 1 : 0.32}"/>`).join("");
+  return `<svg viewBox="0 0 100 100"><path d="${TILE}" fill="url(#gTile)"/>${bars}</svg>`;
+}
+
+const CONCEPTS = [
+  ["A", "Halo", "The cover with its spectrum around it — the thing only our player has. Reads as \"music app\" at any size; the lines drop away when it's tiny.", halo, haloSmall],
+  ["B", "Monogram", "Lowercase sc, the c opening into sound waves. Simple and ownable; works as a favicon and in the README header.", mono, mono],
+  ["C", "Liquid", "A drop of the living background with a play cut into it. The most \"2.0\", colourful, close to modern app icons.", liquid, liquid],
+  ["D", "Honest shuffle", "Two sound waves crossing once — the shuffle sign drawn as sound. Tells the story of the app's main feature.", shuffle, shuffle],
+  ["E", "Moon", "A crescent cut from waveform bars on a night tile — the og sky in one mark, ties the old design to the new.", moon, moon],
+  ["F", "Now", "A waveform with one bar lit: the moment that's playing. Strict, monochrome with one accent — the studio style itself.", now, now],
+];
+
+document.getElementById("grid").innerHTML = CONCEPTS.map(([k, name, text, big, small]) => `
+  <div class="card">
+    <div class="stage">${big()}</div>
+    <div class="sizes">${big().replace("<svg ", '<svg width="64" height="64" ')}${small().replace("<svg ", '<svg width="32" height="32" ')}${small().replace("<svg ", '<svg width="16" height="16" ')}<span class="lbl">dark</span></div>
+    <div class="sizes light">${big().replace("<svg ", '<svg width="64" height="64" ')}${small().replace("<svg ", '<svg width="32" height="32" ')}${small().replace("<svg ", '<svg width="16" height="16" ')}<span class="lbl">light</span></div>
+    <div class="meta"><b>${name}<span>${k}</span></b><p>${text}</p><div class="word">${small()}sc player</div></div>
+  </div>`).join("");
+document.fonts.ready.then(() => (window.__ready = true));
+</script>
+</body>
+</html>
