@@ -1,0 +1,338 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>sc player 2.0 — redesign mockups</title>
+<!-- Mockups of the 2.0 redesign, rendered to PNG by render.cjs: ?v=a|b|c &screen=home|full. Made-up tracks and
+     generated covers only. Fonts from the app's own @fontsource packages. -->
+<link rel="stylesheet" href="../../node_modules/@fontsource/onest/400.css" />
+<link rel="stylesheet" href="../../node_modules/@fontsource/onest/500.css" />
+<link rel="stylesheet" href="../../node_modules/@fontsource/onest/600.css" />
+<link rel="stylesheet" href="../../node_modules/@fontsource/onest/700.css" />
+<link rel="stylesheet" href="../../node_modules/@fontsource/onest/800.css" />
+<link rel="stylesheet" href="../../node_modules/@fontsource/space-grotesk/500.css" />
+<link rel="stylesheet" href="../../node_modules/@fontsource/space-grotesk/700.css" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1280px; height: 800px; overflow: hidden; background: #000; }
+  body { font-family: Onest, system-ui, sans-serif; color: var(--text); -webkit-font-smoothing: antialiased; }
+
+  /* ── three directions ─────────────────────────────────────────────── */
+  /* A "Midnight": near-black, flat, one accent (the brand yellow) */
+  .v-a { --bg: #09090b; --side: #0c0c0f; --surface: #141418; --surface2: #1b1b20; --line: rgba(255,255,255,0.06);
+         --text: #f4f4f5; --muted: #8b8b94; --dim: #5d5d66; --accent: #f2dc1a; --on-accent: #0b0b0c;
+         --radius: 12px; --head: Onest; }
+  /* B "Aura": the window takes its colour from the cover; glass islands floating over it */
+  .v-b { --bg: #0b0708; --side: rgba(255,255,255,0.045); --surface: rgba(255,255,255,0.06); --surface2: rgba(255,255,255,0.1);
+         --line: rgba(255,255,255,0.08); --text: #fff7f5; --muted: rgba(255,240,236,0.62); --dim: rgba(255,240,236,0.38);
+         --accent: #ff6a55; --on-accent: #1a0806; --radius: 18px; --head: Onest; }
+  /* C "Editorial": graphite, big type, dense lists, the violet of the old sky as the accent */
+  .v-c { --bg: #0f0f12; --side: #0f0f12; --surface: #16161b; --surface2: #1e1e25; --line: rgba(255,255,255,0.07);
+         --text: #ededf2; --muted: #92929e; --dim: #62626d; --accent: #9b85ff; --on-accent: #0d0a1a;
+         --radius: 6px; --head: "Space Grotesk"; }
+
+  .app { position: relative; width: 1280px; height: 800px; background: var(--bg); overflow: hidden; display: grid;
+         grid-template-columns: 236px 1fr; grid-template-rows: 40px 1fr 88px; }
+  .v-b .app { grid-template-columns: 252px 1fr; grid-template-rows: 40px 1fr 100px; }
+
+  /* the aura under everything (B), a soft glow from the cover (A, C keep it faint) */
+  .aura { position: absolute; inset: -20%; filter: blur(90px) saturate(1.2); opacity: 0.0; pointer-events: none; }
+  .v-b .aura { opacity: 0.75; }
+  .v-a .aura { opacity: 0.12; }
+  .v-c .aura { opacity: 0; }
+  .grain { position: absolute; inset: 0; pointer-events: none; opacity: 0.06; mix-blend-mode: overlay;
+           background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"); }
+
+  .titlebar { grid-column: 1 / -1; display: flex; align-items: center; padding: 0 0 0 18px; gap: 10px; position: relative; z-index: 2;
+              -webkit-app-region: drag; }
+  .titlebar .name { font-weight: 700; font-size: 13px; letter-spacing: 0.01em; display: flex; align-items: center; gap: 8px; }
+  .titlebar .wc { margin-left: auto; display: flex; height: 100%; }
+  .titlebar .wc span { width: 46px; display: grid; place-items: center; color: var(--muted); font-size: 12px; }
+  .logo { width: 18px; height: 18px; border-radius: 6px; background: var(--accent); display: grid; place-items: center; }
+  .logo i { width: 8px; height: 8px; border-radius: 50%; background: var(--on-accent); }
+
+  /* sidebar */
+  .side { background: var(--side); border-right: 1px solid var(--line); padding: 10px 12px; display: flex; flex-direction: column; gap: 2px;
+          position: relative; z-index: 2; }
+  .v-b .side { margin: 0 0 10px 10px; border: 1px solid var(--line); border-radius: var(--radius); backdrop-filter: blur(30px); }
+  .nav { display: flex; align-items: center; gap: 12px; height: 38px; padding: 0 12px; border-radius: 9px; color: var(--muted); font-weight: 500; font-size: 14px; }
+  .nav svg { width: 18px; height: 18px; flex: none; }
+  .nav.on { color: var(--text); background: var(--surface2); }
+  .v-c .nav.on { background: none; color: var(--text); box-shadow: inset 2px 0 0 var(--accent); border-radius: 0; }
+  .sect { margin: 18px 12px 8px; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); }
+  .pin { display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 8px; border-radius: 9px; }
+  .pin .cv { width: 32px; height: 32px; border-radius: 6px; flex: none; }
+  .pin .t { font-size: 13px; font-weight: 500; }
+  .pin .s { font-size: 11.5px; color: var(--muted); }
+  .me { margin-top: auto; display: flex; align-items: center; gap: 10px; padding: 8px; }
+  .me .av { width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, #3a3550, #6b55c8); }
+  .me .t { font-size: 13px; font-weight: 600; }
+  .me .gear { margin-left: auto; color: var(--muted); width: 18px; height: 18px; }
+
+  /* main */
+  .main { position: relative; z-index: 1; overflow: hidden; padding: 18px 34px 0 34px; }
+  .v-b .main { padding: 8px 30px 0 30px; }
+  .hello { font-family: var(--head); font-weight: 800; font-size: 34px; letter-spacing: -0.02em; margin: 6px 0 22px; }
+  .v-c .hello { font-weight: 700; font-size: 46px; letter-spacing: -0.03em; }
+  .row-h { display: flex; align-items: baseline; gap: 10px; margin: 0 0 12px; }
+  .row-h h2 { font-family: var(--head); font-size: 19px; font-weight: 700; letter-spacing: -0.01em; }
+  .row-h a { margin-left: auto; font-size: 12.5px; color: var(--muted); font-weight: 500; }
+
+  .dial { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 30px; }
+  .tile { display: flex; align-items: center; gap: 14px; height: 64px; background: var(--surface); border-radius: var(--radius); overflow: hidden;
+          border: 1px solid var(--line); padding-right: 14px; }
+  .v-b .tile { backdrop-filter: blur(24px); }
+  .tile .cv { width: 64px; height: 64px; flex: none; }
+  .tile .t { font-size: 14px; font-weight: 600; }
+  .tile .s { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .tile .play { margin-left: auto; width: 34px; height: 34px; border-radius: 50%; background: var(--accent); display: grid; place-items: center; opacity: 0; }
+  .tile.hover .play { opacity: 1; }
+  .tile.hover { background: var(--surface2); }
+
+  .cards { display: grid; grid-template-columns: repeat(6, 1fr); gap: 18px; margin-bottom: 30px; }
+  .card .cv { aspect-ratio: 1; border-radius: var(--radius); position: relative; overflow: hidden; }
+  .v-c .card .cv { border-radius: 4px; }
+  .card .t { font-size: 13.5px; font-weight: 600; margin-top: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card .s { font-size: 12px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* C: the home is a list, not a wall of covers */
+  .list { display: flex; flex-direction: column; }
+  .li { display: grid; grid-template-columns: 26px 44px 1fr 200px 60px; align-items: center; gap: 14px; height: 52px; border-bottom: 1px solid var(--line); }
+  .li .n { color: var(--dim); font-size: 13px; text-align: right; font-variant-numeric: tabular-nums; }
+  .li .cv { width: 40px; height: 40px; border-radius: 4px; }
+  .li .t { font-size: 14px; font-weight: 600; }
+  .li .s { font-size: 12.5px; color: var(--muted); }
+  .li .al { font-size: 13px; color: var(--muted); }
+  .li .d { font-size: 13px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+  .li.on .t { color: var(--accent); }
+
+  /* player bar */
+  .bar { grid-column: 1 / -1; display: grid; grid-template-columns: 300px 1fr 300px; align-items: center; padding: 0 22px; gap: 24px;
+         border-top: 1px solid var(--line); background: var(--side); position: relative; z-index: 2; }
+  .v-b .bar { margin: 0 10px 10px; border: 1px solid var(--line); border-radius: var(--radius); backdrop-filter: blur(30px); }
+  .now { display: flex; align-items: center; gap: 14px; min-width: 0; }
+  .now .cv { width: 56px; height: 56px; border-radius: 9px; flex: none; }
+  .now .t { font-size: 14px; font-weight: 600; }
+  .now .s { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+  .now .heart { margin-left: 6px; color: var(--accent); width: 18px; height: 18px; }
+  .mid { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .ctrl { display: flex; align-items: center; gap: 22px; color: var(--muted); }
+  .ctrl svg { width: 18px; height: 18px; }
+  .ctrl .pp { width: 40px; height: 40px; border-radius: 50%; background: var(--text); color: var(--bg); display: grid; place-items: center; }
+  .v-a .ctrl .pp { background: var(--accent); color: var(--on-accent); }
+  .ctrl .on { color: var(--accent); }
+  .prog { width: 100%; max-width: 560px; display: flex; align-items: center; gap: 10px; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .wave { flex: 1; height: 26px; display: flex; align-items: center; gap: 2px; }
+  .wave i { flex: 1; border-radius: 2px; background: var(--dim); }
+  .wave i.p { background: var(--accent); }
+  .v-b .wave i.p { background: var(--text); }
+  .right { display: flex; justify-content: flex-end; align-items: center; gap: 18px; color: var(--muted); }
+  .right svg { width: 18px; height: 18px; }
+  .vol { width: 92px; height: 4px; border-radius: 2px; background: var(--dim); position: relative; }
+  .vol::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 64%; background: var(--text); border-radius: 2px; }
+
+  /* ── fullscreen now playing ──────────────────────────────────────── */
+  .full { position: relative; width: 1280px; height: 800px; overflow: hidden; background: #050506; color: #fff; }
+  .field { position: absolute; inset: -10%; }
+  .field b { position: absolute; border-radius: 50%; filter: blur(80px); }
+  .full .shade { position: absolute; inset: 0; background: radial-gradient(120% 90% at 50% 50%, transparent 30%, rgba(0,0,0,0.6) 100%); }
+  .full .tb { position: absolute; top: 0; left: 0; right: 0; height: 40px; display: flex; align-items: center; padding: 0 18px; gap: 10px;
+              font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.7); z-index: 2; }
+  .full .tb .x { margin-left: auto; display: flex; gap: 26px; }
+  .stage { position: absolute; inset: 40px 0 0 0; display: grid; grid-template-columns: 500px 1fr; align-items: center; padding: 0 70px 30px 90px; z-index: 1; }
+  .left { display: flex; flex-direction: column; gap: 22px; }
+  .bigcv { width: 360px; height: 360px; border-radius: 16px; box-shadow: 0 30px 80px rgba(0,0,0,0.55); position: relative; overflow: hidden; }
+  .v-c .bigcv { border-radius: 6px; }
+  .meta .t { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; font-family: var(--head); }
+  .meta .s { font-size: 16px; color: rgba(255,255,255,0.66); margin-top: 4px; }
+  .fprog { width: 360px; }
+  .fprog .wave { height: 34px; }
+  .fprog .wave i { background: rgba(255,255,255,0.25); }
+  .fprog .wave i.p { background: #fff; }
+  .fprog .tt { display: flex; justify-content: space-between; font-size: 11.5px; color: rgba(255,255,255,0.55); margin-top: 6px; }
+  .fctrl { width: 360px; display: flex; justify-content: space-between; align-items: center; color: rgba(255,255,255,0.8); }
+  .fctrl svg { width: 22px; height: 22px; }
+  .fctrl .pp { width: 58px; height: 58px; border-radius: 50%; background: #fff; color: #000; display: grid; place-items: center; }
+  .fctrl .pp svg { width: 24px; height: 24px; }
+  .lyr { display: flex; flex-direction: column; gap: 22px; font-weight: 800; font-size: 34px; letter-spacing: -0.02em; line-height: 1.2; max-width: 560px;
+         -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 18%, #000 78%, transparent 100%); }
+  .v-c .lyr { font-family: "Space Grotesk"; font-weight: 700; }
+  .lyr p { color: rgba(255,255,255,0.32); }
+  .lyr p.far { filter: blur(1.5px); color: rgba(255,255,255,0.22); }
+  .lyr p.on { color: rgba(255,255,255,0.35); }
+  .lyr p.on .w { color: #fff; text-shadow: 0 0 22px rgba(255,255,255,0.35); }
+  .lyr p.on .w2 { background: linear-gradient(90deg, #fff 55%, rgba(255,255,255,0.35) 56%); -webkit-background-clip: text; color: transparent; }
+  .pill { position: absolute; right: 26px; bottom: 26px; display: flex; gap: 8px; z-index: 2; }
+  .pill span { height: 34px; padding: 0 14px; display: flex; align-items: center; gap: 8px; border-radius: 17px; font-size: 12.5px; font-weight: 600;
+               background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.85); backdrop-filter: blur(20px); }
+  .pill span.on { background: #fff; color: #000; }
+  .tag { position: absolute; left: 90px; bottom: 30px; font-size: 12px; color: rgba(255,255,255,0.5); z-index: 2; letter-spacing: 0.02em; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const q = new URLSearchParams(location.search);
+const V = q.get("v") || "a";
+const SCREEN = q.get("screen") || "home";
+
+// made-up covers: two colours, a shape — nothing taken from real artwork
+const COVERS = [
+  ["#ff6a55", "#5b1d3a", "moon"], ["#2a3a8f", "#7fd3ff", "ring"], ["#173d2f", "#c6f36b", "dot"], ["#3a1d5c", "#ff9ad5", "wave"],
+  ["#5e3a1f", "#ffcf6b", "moon"], ["#1f4b55", "#9ff0e4", "ring"], ["#2b2b33", "#f4f4f5", "dot"], ["#4a1418", "#ff5e5e", "wave"],
+  ["#20123d", "#8a72e6", "moon"], ["#463b16", "#f2dc1a", "ring"], ["#102a3d", "#ff8a3d", "dot"], ["#3d0f2e", "#f2a7c8", "wave"],
+];
+function cover(i) {
+  const [a, b, shape] = COVERS[i % COVERS.length];
+  const s = {
+    moon: `radial-gradient(circle at 62% 38%, ${b} 0 22%, transparent 23%)`,
+    ring: `radial-gradient(circle at 50% 55%, transparent 0 24%, ${b} 25% 31%, transparent 32%)`,
+    dot: `radial-gradient(circle at 30% 70%, ${b} 0 12%, transparent 13%), radial-gradient(circle at 70% 30%, ${b}88 0 7%, transparent 8%)`,
+    wave: `repeating-linear-gradient(160deg, transparent 0 14px, ${b}55 14px 18px)`,
+  }[shape];
+  return `background: ${s}, linear-gradient(145deg, ${a}, ${shade(a, -0.45)});`;
+}
+function shade(hex, k) {
+  const n = parseInt(hex.slice(1), 16), r = n >> 16, g = (n >> 8) & 255, bl = n & 255;
+  const f = (c) => Math.round(k < 0 ? c * (1 + k) : c + (255 - c) * k);
+  return `rgb(${f(r)}, ${f(g)}, ${f(bl)})`;
+}
+
+const I = {
+  home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>',
+  search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
+  feed: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 11a8 8 0 0 1 8 8M5 5a14 14 0 0 1 14 14"/><circle cx="6" cy="18" r="1.2" fill="currentColor"/></svg>',
+  heart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 20s-7.5-4.6-9.2-9.4C1.6 7 4 4 7.2 4c2 0 3.6 1.1 4.8 2.8C13.2 5.1 14.8 4 16.8 4 20 4 22.4 7 21.2 10.6 19.5 15.4 12 20 12 20z"/></svg>',
+  heartF: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 20s-7.5-4.6-9.2-9.4C1.6 7 4 4 7.2 4c2 0 3.6 1.1 4.8 2.8C13.2 5.1 14.8 4 16.8 4 20 4 22.4 7 21.2 10.6 19.5 15.4 12 20 12 20z"/></svg>',
+  lib: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="4" y="4" width="5" height="16" rx="1"/><rect x="11" y="4" width="5" height="16" rx="1"/><path d="m18 5 3 15"/></svg>',
+  clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>',
+  gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
+  shuffle: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg>',
+  prev: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg>',
+  next: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg>',
+  pause: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>',
+  repeat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14M7 22l-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>',
+  lyrics: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h10M4 12h16M4 18h12"/></svg>',
+  queue: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h16M4 12h10M4 18h10M18 14v6l4-3z"/></svg>',
+  vol: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/></svg>',
+  full: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>',
+};
+
+const TRACKS = [
+  ["Midnight", "лунный кот"], ["Paper Moon", "серый шум"], ["Orbit", "ночная смена"], ["Пыль", "Glass Choir"],
+  ["Кислотный", "Кислотный Двор"], ["Drive", "серый шум"], ["Над", "лунный кот"], ["Choir", "Glass Choir"],
+];
+
+function wave(n, played) {
+  let h = "";
+  for (let i = 0; i < n; i++) {
+    const v = 0.25 + 0.75 * Math.abs(Math.sin(i * 0.37) * Math.cos(i * 0.11 + 1.3)) * (0.7 + 0.3 * Math.sin(i * 1.7));
+    h += `<i class="${i / n < played ? "p" : ""}" style="height:${Math.round(v * 100)}%"></i>`;
+  }
+  return `<div class="wave">${h}</div>`;
+}
+
+// the aura: the playing cover's colours, blown up and blurred
+function aura(i) {
+  const [a, b] = COVERS[i];
+  return `<div class="aura" style="background:
+    radial-gradient(40% 50% at 20% 20%, ${a}, transparent 70%),
+    radial-gradient(45% 45% at 85% 30%, ${b}66, transparent 70%),
+    radial-gradient(50% 50% at 60% 90%, ${shade(a, -0.3)}, transparent 70%)"></div>`;
+}
+
+function home() {
+  const NOW = 0;
+  const side = `
+    <aside class="side">
+      <div class="nav on">${I.home}Home</div>
+      <div class="nav">${I.search}Search</div>
+      <div class="nav">${I.feed}Feed</div>
+      <div class="nav">${I.lib}Library</div>
+      <div class="nav">${I.clock}History</div>
+      <div class="sect">Pinned</div>
+      <div class="pin"><div class="cv" style="background: linear-gradient(135deg, var(--accent), ${shade("#f2dc1a", -0.6)})"></div><div><div class="t">Liked tracks</div><div class="s">320 tracks</div></div></div>
+      <div class="pin"><div class="cv" style="${cover(3)}"></div><div><div class="t">ночной трамвай</div><div class="s">Playlist · 48</div></div></div>
+      <div class="pin"><div class="cv" style="${cover(5)}"></div><div><div class="t">лунный кот</div><div class="s">Profile</div></div></div>
+      <div class="pin"><div class="cv" style="${cover(9)}"></div><div><div class="t">to focus</div><div class="s">Playlist · 112</div></div></div>
+      <div class="me"><div class="av"></div><div class="t">sky</div><span class="gear">${I.gear}</span></div>
+    </aside>`;
+  const dial = `
+    <div class="dial">
+      <div class="tile"><div class="cv" style="background: linear-gradient(135deg, var(--accent), ${shade("#f2dc1a", -0.6)})"></div><div><div class="t">Liked tracks</div><div class="s">320 tracks</div></div></div>
+      <div class="tile hover"><div class="cv" style="${cover(3)}"></div><div><div class="t">ночной трамвай</div><div class="s">48 tracks</div></div><div class="play" style="color:var(--on-accent)">${I.pause}</div></div>
+      <div class="tile"><div class="cv" style="${cover(9)}"></div><div><div class="t">to focus</div><div class="s">112 tracks</div></div></div>
+      <div class="tile"><div class="cv" style="${cover(1)}"></div><div><div class="t">Station: Orbit</div><div class="s">Based on a track</div></div></div>
+      <div class="tile"><div class="cv" style="${cover(5)}"></div><div><div class="t">лунный кот</div><div class="s">Profile · new track</div></div></div>
+      <div class="tile"><div class="cv" style="${cover(10)}"></div><div><div class="t">Imported · Night Drive</div><div class="s">64 of 64 found</div></div></div>
+    </div>`;
+  const cards = (offset) => `<div class="cards">${[0, 1, 2, 3, 4, 5].map((k) => {
+      const i = (k + offset) % TRACKS.length; const [t, s] = TRACKS[i];
+      return `<div class="card"><div class="cv" style="${cover(k + offset)}"></div><div class="t">${t}</div><div class="s">${s}</div></div>`;
+    }).join("")}</div>`;
+  const body = V === "c"
+    ? `<div class="hello">Good evening, sky</div>
+       ${dial}
+       <div class="row-h"><h2>Jump back in</h2><a>History</a></div>
+       <div class="list">${TRACKS.slice(0, 6).map(([t, s], i) => `
+         <div class="li ${i === NOW ? "on" : ""}"><div class="n">${i + 1}</div><div class="cv" style="${cover(i)}"></div>
+         <div><div class="t">${t}</div><div class="s">${s}</div></div><div class="al">${["Liked tracks", "ночной трамвай", "Station: Orbit", "to focus", "Liked tracks", "лунный кот"][i]}</div>
+         <div class="d">${["2:37", "1:48", "4:20", "3:31", "2:42", "1:53"][i]}</div></div>`).join("")}</div>`
+    : `<div class="hello">Good evening, sky</div>
+       ${dial}
+       <div class="row-h"><h2>Jump back in</h2><a>Show all</a></div>
+       ${cards(0)}
+       <div class="row-h"><h2>New from your follows</h2><a>Open feed</a></div>
+       ${cards(6)}`;
+  const [nt, ns] = TRACKS[NOW];
+  const bar = `
+    <footer class="bar">
+      <div class="now"><div class="cv" style="${cover(NOW)}"></div><div style="min-width:0"><div class="t">${nt}</div><div class="s">${ns}</div></div><span class="heart">${I.heartF}</span></div>
+      <div class="mid">
+        <div class="ctrl"><span class="on">${I.shuffle}</span>${I.prev}<div class="pp">${I.pause}</div>${I.next}${I.repeat}</div>
+        <div class="prog"><span>1:02</span>${wave(110, 0.4)}<span>2:37</span></div>
+      </div>
+      <div class="right">${I.lyrics}${I.queue}${I.vol}<div class="vol"></div>${I.full}</div>
+    </footer>`;
+  return `<div class="app">${aura(NOW)}<div class="grain"></div>
+    <div class="titlebar"><div class="name"><span class="logo"><i></i></span>sc player</div><div class="wc"><span>—</span><span>☐</span><span>✕</span></div></div>
+    ${side}<main class="main">${body}</main>${bar}</div>`;
+}
+
+function full() {
+  const NOW = V === "c" ? 3 : V === "b" ? 0 : 1;
+  const [a, b] = COVERS[NOW];
+  const field = `<div class="field">
+      <b style="left:-5%; top:-10%; width:60%; height:70%; background:${a}; opacity:.85"></b>
+      <b style="left:45%; top:5%; width:55%; height:60%; background:${b}; opacity:.55"></b>
+      <b style="left:20%; top:50%; width:70%; height:60%; background:${shade(a, -0.35)}; opacity:.9"></b>
+      <b style="left:65%; top:55%; width:40%; height:45%; background:${shade(b, -0.2)}; opacity:.5"></b>
+    </div>`;
+  const [t, s] = TRACKS[NOW % TRACKS.length];
+  return `<div class="full">${field}<div class="shade"></div><div class="grain" style="opacity:.09"></div>
+    <div class="tb"><span class="logo"><i></i></span>sc player<div class="x"><span>—</span><span>☐</span><span>✕</span></div></div>
+    <div class="stage">
+      <div class="left">
+        <div class="bigcv" style="${cover(NOW)}"></div>
+        <div class="meta"><div class="t">${t}</div><div class="s">${s}</div></div>
+        <div class="fprog">${wave(90, 0.46)}<div class="tt"><span>1:12</span><span>2:37</span></div></div>
+        <div class="fctrl">${I.shuffle}${I.prev}<div class="pp">${I.pause}</div>${I.next}${I.heartF}</div>
+      </div>
+      <div class="lyr">
+        <p class="far">we left the lights on in the hall</p>
+        <p>the city hums a quiet song</p>
+        <p class="on"><span class="w">and every </span><span class="w">street </span><span class="w2">remembers</span> us</p>
+        <p>the night is long, the night is long</p>
+        <p>so turn it up and let it play</p>
+        <p class="far">until the morning finds its way</p>
+      </div>
+    </div>
+    <div class="tag">Lyrics · word by word</div>
+    <div class="pill"><span class="on">Lyrics</span><span>Queue</span><span>Visualizer</span></div></div>`;
+}
+
+document.body.className = "v-" + V;
+document.getElementById("root").innerHTML = SCREEN === "full" ? full() : home();
+</script>
+</body>
+</html>
