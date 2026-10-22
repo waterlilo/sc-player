@@ -7,6 +7,7 @@ import { getActivity, subscribeActivity } from "@/lib/activity";
 import { duration as fmt } from "@/lib/format";
 import { onPalette } from "@/lib/look";
 import { player, usePlayer, usePosition } from "@/state/player";
+import { useSettings } from "@/state/settings";
 
 const FRAME_MS = 1000 / 30; // never more than 30 redraws a second
 
@@ -127,12 +128,13 @@ export default function Waveform({ track, height = 44, big = false }: { track: T
       h = Math.max(1, Math.round(height * dpr));
       canvas.width = played.width = rest.width = w;
       canvas.height = played.height = rest.height = h;
-      glow = cssColor("--glow");
       const bar = big ? 3 : 2;
       const gap = 2;
       // the studio design: the accent from the cover and grey bars ahead; the night: yellow and violet
       const studio = document.documentElement.dataset.design === "studio";
       const accentRgb = cssColor("--accent-rgb");
+      // --accent itself is still easing to the new colour when a palette arrives; its plain rgb copy is not
+      glow = studio ? `rgb(${accentRgb})` : cssColor("--glow");
       paintBars(played.getContext("2d")!, peaks, w, h, dpr, { color: glow, alpha: 1, halo: studio ? `rgba(${accentRgb}, 0.35)` : "rgba(242, 220, 26, 0.45)" }, track.id, bar, gap);
       paintBars(rest.getContext("2d")!, peaks, w, h, dpr, { color: studio ? "#8e8e98" : "#6b55c8", alpha: studio ? 0.45 : 0.55, halo: null }, track.id, bar, gap);
       dirty = true;
@@ -204,6 +206,12 @@ export default function Waveform({ track, height = 44, big = false }: { track: T
       paint();
       kick.current();
     });
+    // another design: other colours
+    const offDesign = useSettings.subscribe((s, prev) => {
+      if (s.prefs.look.design === prev.prefs.look.design) return;
+      paint();
+      kick.current();
+    });
 
     return () => {
       cancelAnimationFrame(raf);
@@ -212,6 +220,7 @@ export default function Waveform({ track, height = 44, big = false }: { track: T
       io.disconnect();
       offActivity();
       offPalette();
+      offDesign();
     };
   }, [data, track.id, height, big]);
 

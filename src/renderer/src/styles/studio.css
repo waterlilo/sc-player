@@ -154,11 +154,16 @@ html[data-design="studio"] .sketch::after {
   box-shadow: none;
   animation: none;
 }
-html[data-design="studio"] .sketch-round::after {
+html[data-design="studio"] .sketch-round::after,
+html[data-design="studio"] .sketch.rounded-full::after {
   border-radius: 50%;
 }
 html[data-design="studio"] .sketch-glow::after {
   border-color: rgba(var(--accent-rgb), 0.7);
+}
+/* a filled button needs no outline (the play button's showed as a square ring) */
+html[data-design="studio"] .marker-fill.sketch::after {
+  border-color: transparent;
 }
 html[data-design="studio"] .marker-fill {
   background: var(--text);

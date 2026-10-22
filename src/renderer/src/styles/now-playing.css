@@ -1,0 +1,62 @@
+/* The full screen player (both designs). */
+
+/* everything under the title bar steps back while it is open (kept mounted: scroll places and state stay) */
+.app-grid > :not(:first-child):not(.now-playing) {
+  transition: opacity 0.22s ease-out, visibility 0s linear 0s;
+}
+.app-grid.full-open > :not(:first-child):not(.now-playing) {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.22s ease-out, visibility 0s linear 0.22s;
+}
+
+/* the lines fade out at the top and bottom edges; no scrollbar */
+.np-lines {
+  mask-image: linear-gradient(to bottom, transparent 0, #000 22%, #000 70%, transparent 100%);
+  scrollbar-width: none;
+}
+.np-lines::-webkit-scrollbar {
+  display: none;
+}
+
+.np-line {
+  display: block;
+  width: 100%;
+  padding: 9px 0;
+  text-align: left;
+  font-size: clamp(22px, 2.3vw, 34px);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.22;
+  color: rgba(255, 255, 255, 0.3);
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.25);
+  transition: color 0.4s, filter 0.4s, opacity 0.4s;
+}
+.np-line.near {
+  filter: blur(0.5px);
+}
+.np-line.far {
+  filter: blur(1.4px);
+  color: rgba(255, 255, 255, 0.18);
+}
+.np-line:hover {
+  filter: none;
+  color: rgba(255, 255, 255, 0.6);
+}
+/* the line being sung: each word fills from the left as it is sung (--k is set per word, 0%..100%) */
+.np-line.on .w {
+  background-image: linear-gradient(90deg, #f6f6f8 var(--k, 0%), rgba(255, 255, 255, 0.3) var(--k, 0%));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: none;
+}
+.np-gap {
+  font-size: 0.7em;
+  letter-spacing: 0.3em;
+  opacity: 0.6;
+}
+.np-line.on .np-gap {
+  color: rgba(var(--accent-rgb, 230, 230, 240), 0.9);
+}

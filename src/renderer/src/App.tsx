@@ -9,6 +9,8 @@ import PlayerBar from "@/components/player/PlayerBar";
 import QueuePanel from "@/components/player/QueuePanel";
 import EdgeGlow from "@/components/deco/EdgeGlow";
 import LyricsPanel from "@/components/player/LyricsPanel";
+import NowPlaying from "@/components/player/NowPlaying";
+import { useUi } from "@/state/ui";
 import ScreenBoundary from "@/components/ui/ScreenBoundary";
 import History from "@/screens/History";
 import Feed from "@/screens/Feed";
@@ -55,6 +57,7 @@ function ScreenFor({ route }: { route: Route }) {
 export default function App() {
   const route = useNav((s) => s.route);
   const studio = useSettings((s) => s.prefs.look.design === "studio");
+  const full = useUi((s) => s.fullOpen);
   return (
     <>
       <SvgDefs />
@@ -62,7 +65,7 @@ export default function App() {
       <TrackMenu />
       <PlaylistPicker />
       <CheckDialog />
-      <div className="app-grid relative z-10 grid h-full grid-cols-[232px_minmax(0,1fr)] grid-rows-[40px_minmax(0,1fr)_88px]">
+      <div className={`app-grid relative z-10 grid${full ? " full-open" : ""} h-full grid-cols-[232px_minmax(0,1fr)] grid-rows-[40px_minmax(0,1fr)_88px]`}>
         <div className="col-span-2">
           <TitleBar />
         </div>
@@ -82,6 +85,7 @@ export default function App() {
         <div className="col-span-2">
           <PlayerBar />
         </div>
+        <NowPlaying />
       </div>
     </>
   );

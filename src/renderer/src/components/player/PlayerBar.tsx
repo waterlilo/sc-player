@@ -17,7 +17,7 @@ import Icon from "../ui/Icon";
 import Waveform from "./Waveform";
 import SleepTimer from "./SleepTimer";
 
-function Time() {
+export function Time() {
   const position = usePosition((s) => s.position);
   return <span className="w-12 shrink-0 text-right font-type text-xs tabular-nums text-muted">{duration(position * 1000)}</span>;
 }
@@ -48,7 +48,7 @@ function SubstituteLine({ sound }: { sound: Track }) {
 }
 
 /** ♥ for the current track (signed in only). */
-function LikeButton({ track }: { track: Track }) {
+export function LikeButton({ track }: { track: Track }) {
   const t = useT();
   const signedIn = useAuth((s) => s.status?.mode === "session");
   const liked = useLiked(track.id);
@@ -56,7 +56,7 @@ function LikeButton({ track }: { track: Track }) {
   return <IconButton icon="heart" label={liked ? t.unlike : t.like} on={liked} filled={liked} aria-pressed={liked} onClick={() => void toggleLike(track)} />;
 }
 
-function PlayButton() {
+export function PlayButton() {
   const t = useT();
   const status = usePlayer((s) => s.status);
   const hasTrack = usePlayer((s) => s.index >= 0);
@@ -116,6 +116,7 @@ export default function PlayerBar() {
   const lyricsOpen = useUi((s) => s.lyricsOpen);
   const toggleLyrics = useUi((s) => s.toggleLyrics);
   const studio = useSettings((s) => s.prefs.look.design === "studio");
+  const openFull = useUi((s) => s.openFull);
 
   const repeatLabel = repeat === "off" ? t.repeatOff : repeat === "all" ? t.repeatAll : t.repeatOne;
 
@@ -126,9 +127,9 @@ export default function PlayerBar() {
       <div className="flex min-w-0 items-center gap-3">
         <div className="relative h-14 w-14 shrink-0">
           {studio && <CoverRing size={56} />}
-          <div className="player-cover h-14 w-14 overflow-hidden rounded-sm bg-[var(--paper)] shadow-[3px_4px_0_rgba(0,0,0,0.35)]">
+          <button type="button" onClick={openFull} disabled={!track} aria-label={t.fullPlayer} title={t.fullPlayer} className="player-cover block h-14 w-14 overflow-hidden rounded-sm bg-[var(--paper)] shadow-[3px_4px_0_rgba(0,0,0,0.35)] enabled:cursor-zoom-in">
             {track?.artworkUrl && <img src={artwork(track.artworkUrl, "t300x300") ?? undefined} alt="" className="h-full w-full object-cover" draggable={false} />}
-          </div>
+          </button>
         </div>
         <div className="min-w-0 flex-1">
           {track ? (
@@ -177,6 +178,7 @@ export default function PlayerBar() {
         <Volume />
         <IconButton icon="lyrics" label={t.lyrics} on={lyricsOpen} aria-pressed={lyricsOpen} onClick={toggleLyrics} />
         <IconButton icon="queue" label={t.queue} on={queueOpen} aria-pressed={queueOpen} onClick={toggleQueue} />
+        <IconButton icon="expand" label={t.fullPlayer} onClick={openFull} disabled={!track} />
       </div>
     </footer>
   );

@@ -139,6 +139,8 @@ export const en = {
   lyricsOffline: "Lyrics couldn't be loaded: LRCLIB is busy or the connection dropped.",
   tryAgain: "Try again",
   lyricsSyncedBadge: "synced",
+  fullPlayer: "Full screen player",
+  fullPlayerClose: "Back to the app (Esc)",
   lyricsCredit: "Lyrics: LRCLIB (lrclib.net), made by its community.",
   findInList: "Find in this list",
   clear: "Clear",

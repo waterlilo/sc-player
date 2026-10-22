@@ -9,6 +9,10 @@ interface UiStore {
   lyricsOpen: boolean;
   toggleLyrics(): void;
   closeLyrics(): void;
+  /** the player over the whole window: big cover with its spectrum, the words sung line by line */
+  fullOpen: boolean;
+  openFull(): void;
+  closeFull(): void;
   /** the track context menu (right click / menu key on a row) */
   menu: { x: number; y: number; track: Track } | null;
   openMenu(x: number, y: number, track: Track): void;
@@ -31,6 +35,9 @@ export const useUi = create<UiStore>((set) => ({
   toggleLyrics: () => set((s) => ({ lyricsOpen: !s.lyricsOpen, queueOpen: false })),
   closeLyrics: () => set({ lyricsOpen: false }),
   closeQueue: () => set({ queueOpen: false }),
+  fullOpen: false,
+  openFull: () => set({ fullOpen: true, queueOpen: false, lyricsOpen: false }),
+  closeFull: () => set({ fullOpen: false }),
   menu: null,
   openMenu: (x, y, track) => set({ menu: { x, y, track } }),
   closeMenu: () => set({ menu: null }),

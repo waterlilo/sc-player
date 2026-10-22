@@ -13,6 +13,17 @@ import Icon from "../ui/Icon";
 
 const key = (id: number) => ["lyrics", id] as const;
 
+/** The words of a track (cached for the session; the panel and the full screen player share them). */
+export function useLyrics(track: Track | null) {
+  return useQuery({
+    enabled: !!track,
+    queryKey: key(track?.id ?? 0),
+    queryFn: () => call("lyrics:get", { trackId: track!.id, artist: track!.artist, title: track!.title, durationMs: track!.durationMs }),
+    staleTime: Infinity,
+    retry: 1,
+  });
+}
+
 /** Synced words: the line being sung is lit and kept in view; a click on a line jumps there. */
 function SyncedLines({ lines }: { lines: NonNullable<Lyrics["synced"]> }) {
   const position = usePosition((s) => s.position);
@@ -117,12 +128,7 @@ function ManualSearch({ track, onDone }: { track: Track; onDone: () => void }) {
 function Body({ track }: { track: Track }) {
   const t = useT();
   const [searching, setSearching] = useState(false);
-  const q = useQuery({
-    queryKey: key(track.id),
-    queryFn: () => call("lyrics:get", { trackId: track.id, artist: track.artist, title: track.title, durationMs: track.durationMs }),
-    staleTime: Infinity,
-    retry: 1,
-  });
+  const q = useLyrics(track);
   const l = q.data;
 
   return (
