@@ -23,15 +23,20 @@ function OutputDevice() {
   const value = useSettings((s) => s.prefs.outputDevice);
   const setPref = useSettings((s) => s.setPref);
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
+  // the list is read when the pointer or focus reaches the field (or at once when a device is already chosen, to show
+  // its name): reading it starts Chromium's media device service (~60 MB) and it stays for the rest of the session
+  const [wanted, setWanted] = useState(value !== "");
   useEffect(() => {
+    if (!wanted) return;
     const load = () => void navigator.mediaDevices.enumerateDevices().then((all) => setDevices(all.filter((d) => d.kind === "audiooutput" && d.deviceId !== "default" && d.deviceId !== "communications")));
     load();
     navigator.mediaDevices.addEventListener("devicechange", load);
     return () => navigator.mediaDevices.removeEventListener("devicechange", load);
-  }, []);
+  }, [wanted]);
+  const want = () => setWanted(true);
   return (
     <Row label={t.outputDevice} htmlFor="output-device">
-      <select id="output-device" value={value} onChange={(e) => setPref("outputDevice", e.target.value)} className="paper-fill sketch-select max-w-72 truncate rounded-md px-3 py-1.5 text-sm text-text">
+      <select id="output-device" value={value} onChange={(e) => setPref("outputDevice", e.target.value)} onPointerEnter={want} onFocus={want} className="paper-fill sketch-select max-w-72 truncate rounded-md px-3 py-1.5 text-sm text-text">
         <option value="">{t.systemDefault}</option>
         {devices.map((d, i) => (
           <option key={d.deviceId} value={d.deviceId}>
