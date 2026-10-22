@@ -709,3 +709,24 @@ html[data-design="studio"].lite .settings-card {
 html[data-design="studio"].thin-glass .settings-card {
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
 }
+
+/* menus, dialogs and popups float over everything: dense dark glass, not the see-through card of the pages */
+html[data-design="studio"] .float-card {
+  background: rgba(17, 17, 21, 0.96);
+  backdrop-filter: blur(20px) saturate(1.2);
+  border: 1px solid var(--s-line2);
+  border-radius: var(--r);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  text-shadow: none;
+}
+html[data-design="studio"] .float-card.sketch::after {
+  border-color: transparent;
+}
+html[data-design="studio"] [role="menu"].float-card button:hover,
+html[data-design="studio"] [role="menu"].float-card button:focus-visible {
+  background: rgba(255, 255, 255, 0.07);
+}
+html[data-design="studio"] [role="menu"].float-card button:focus-visible {
+  outline: none;
+  box-shadow: none;
+}

@@ -30,7 +30,7 @@ function Modal({ label, onClose, children, width = "w-[44rem]" }: { label: strin
       exit={{ opacity: 0, transition: { duration: 0.08 } }}
       onPointerDown={(e) => !ref.current?.contains(e.target as Node) && onClose()}
     >
-      <div ref={ref} role="dialog" aria-label={label} className={`paper-fill sketch sketch-thin max-h-full max-w-full overflow-y-auto rounded-md shadow-[0_30px_80px_rgba(0,0,0,0.55)] ${width}`} data-keys-own>
+      <div ref={ref} role="dialog" aria-label={label} className={`float-card paper-fill sketch sketch-thin max-h-full max-w-full overflow-y-auto rounded-md shadow-[0_30px_80px_rgba(0,0,0,0.55)] ${width}`} data-keys-own>
         {children}
       </div>
     </motion.div>

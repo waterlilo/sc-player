@@ -133,6 +133,8 @@ export interface Prefs {
   /** proxy: system settings, none, an address (for everything), or sc player's own (SoundCloud only) */
   proxy: { mode: "system" | "direct" | "custom" | "builtin"; url: string; username: string };
   look: Look;
+  /** the full screen player's spectrum */
+  spectrum: SpectrumLook;
   /** a pop-up when a friend sends a track while the window isn't in front */
   socialPopups: boolean;
   /** once a day: an anonymous "one more app is running" to sc player's server (a random install id + the version) */
@@ -165,6 +167,7 @@ export const PREFS_DEFAULTS: Prefs = {
   noSubstitute: [],
   proxy: { mode: "system", url: "", username: "" },
   look: { design: "studio", bg: "liquid", bgFile: "", bgFileType: "", bgBlur: 14, bgDim: 72, bgReact: 40, panelOpacity: 58, panelBlur: 30, lite: false, accent: "" },
+  spectrum: { place: "cover", style: "bars", height: 120, color: "accent", mirror: true },
   socialPopups: true,
   countMe: true,
 };
@@ -172,10 +175,22 @@ export const PREFS_DEFAULTS: Prefs = {
 /** Fills in anything missing from stored prefs (new options in a newer version). */
 export function withPrefDefaults(stored: Partial<Prefs> | undefined): Prefs {
   const p = { ...PREFS_DEFAULTS, ...stored };
-  return { ...p, hotkeys: { ...PREFS_DEFAULTS.hotkeys, ...stored?.hotkeys }, eq: { ...PREFS_DEFAULTS.eq, ...stored?.eq }, proxy: { ...PREFS_DEFAULTS.proxy, ...stored?.proxy }, look: { ...PREFS_DEFAULTS.look, ...stored?.look } };
+  return { ...p, hotkeys: { ...PREFS_DEFAULTS.hotkeys, ...stored?.hotkeys }, eq: { ...PREFS_DEFAULTS.eq, ...stored?.eq }, proxy: { ...PREFS_DEFAULTS.proxy, ...stored?.proxy }, look: { ...PREFS_DEFAULTS.look, ...stored?.look }, spectrum: { ...PREFS_DEFAULTS.spectrum, ...stored?.spectrum } };
 }
 
 /** State the renderer keeps in main's store (settings.json in userData). */
+/** How the full screen player draws the sound. */
+export interface SpectrumLook {
+  /** around the cover, along the bottom of the window, both, or none */
+  place: "cover" | "bottom" | "both" | "off";
+  style: "bars" | "lines" | "dots";
+  /** the bottom one's height, px */
+  height: number;
+  color: "accent" | "white";
+  /** the bottom one: the lows in the middle, mirrored to both sides (else lows on the left) */
+  mirror: boolean;
+}
+
 export interface PinnedPlaylist {
   id: string;
   title: string;

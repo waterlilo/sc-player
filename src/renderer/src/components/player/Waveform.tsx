@@ -283,7 +283,7 @@ export default function Waveform({ track, height = 44, big = false }: { track: T
       {hover !== null && (
         <>
           <div aria-hidden="true" className="pointer-events-none absolute top-0 w-px bg-text/50" style={{ left: hoverLeft, height: "100%" }} />
-          <div aria-hidden="true" className="paper-fill pointer-events-none absolute -top-7 -translate-x-1/2 rounded px-1.5 py-0.5 font-type text-xs text-text shadow" style={{ left: hoverLeft }}>
+          <div aria-hidden="true" className="float-card paper-fill pointer-events-none absolute -top-7 -translate-x-1/2 rounded px-1.5 py-0.5 font-type text-xs text-text shadow" style={{ left: hoverLeft }}>
             {fmt(hover * 1000)}
           </div>
         </>

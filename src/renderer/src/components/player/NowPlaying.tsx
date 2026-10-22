@@ -1,9 +1,9 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { artwork, type Lyrics, type Track } from "@shared/types";
 import { analyser, currentTime } from "@/audio/engine";
 import { useT } from "@/i18n";
-import { getActivity, subscribeActivity } from "@/lib/activity";
+import { usePlayingLoop } from "@/lib/playingLoop";
 import { duration } from "@/lib/format";
 import { player, useCurrentTrack, usePlayer, usePosition, useStreamTrack } from "@/state/player";
 import { useNav } from "@/state/nav";
@@ -16,35 +16,12 @@ import { WindowButtons } from "../chrome/TitleBar";
 import { QueueList, useSourceLabel } from "../studio/Queue";
 import { outlinePoint, spectrum } from "./CoverRing";
 import { ManualSearch, useLyrics } from "./LyricsPanel";
+import { BottomSpectrum, SpectrumPopover } from "./Spectrum";
 import { LikeButton, PlayButton } from "./PlayerBar";
 import Waveform from "./Waveform";
 
 const BANDS = 48;
 
-/** runs `fn` 30 times a second while music plays and the window is in front; `idle` once whenever it stops */
-function usePlayingLoop(fn: () => void, idle: () => void, deps: unknown[]) {
-  useEffect(() => {
-    let timer = 0;
-    const sync = () => {
-      const run = usePlayer.getState().status === "playing" && getActivity() === "active";
-      if (run && !timer) timer = window.setInterval(fn, 33);
-      if (!run && timer) {
-        window.clearInterval(timer);
-        timer = 0;
-        idle();
-      }
-    };
-    sync();
-    const offActivity = subscribeActivity(sync);
-    const offPlayer = usePlayer.subscribe((s, prev) => s.status !== prev.status && sync());
-    return () => {
-      window.clearInterval(timer);
-      offActivity();
-      offPlayer();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps);
-}
 
 /**
  * The big cover with thin spectrum lines standing out of its outline: the lows at the bottom, the highs at the top,
@@ -58,6 +35,9 @@ function Halo({ track, size }: { track: Track; size: number }) {
   const box = size + pad * 2;
   const levels = useRef(new Float32Array(BANDS));
   const buf = useRef<Uint8Array<ArrayBuffer> | null>(null);
+  // Spectrum settings: rays here only when the sound is drawn around the cover
+  const look = useSettings((s) => s.prefs.spectrum);
+  const rays = look.place === "cover" || look.place === "both";
 
   usePlayingLoop(
     () => {
@@ -78,14 +58,27 @@ function Halo({ track, size }: { track: Track; size: number }) {
       bloom.addColorStop(1, "rgba(0,0,0,0)");
       g.fillStyle = bloom;
       g.fillRect(0, 0, cv.width, cv.height);
-      const n = Math.round(size * 0.55);
-      g.lineWidth = 1.6 * s;
+      if (!rays) return;
+      const n = Math.round(size * (look.style === "bars" ? 0.32 : 0.55));
+      g.lineWidth = (look.style === "bars" ? 3.4 : 1.6) * s;
+      g.lineCap = look.style === "bars" ? "round" : "butt";
       for (let i = 0; i < n; i++) {
         const m = Math.abs((((i / n) * 2 + 1) % 2) - 1);
         const v = lv[Math.min(BANDS - 1, Math.floor(m * BANDS * 0.85))]!;
         const [px, py, nx, ny] = outlinePoint(i / n, (pad - gap) * s, (pad - gap) * s, (size + gap * 2) * s, (size + gap * 2) * s, (8 + gap) * s);
         const len = Math.min(reach, 3 + v * v * reach * 0.9) * s;
-        g.strokeStyle = v > 0.55 ? `rgba(${accent}, ${0.55 + v * 0.35})` : `rgba(255,255,255,${0.14 + v * 0.4})`;
+        const color = look.color === "white" ? `rgba(255,255,255,${0.2 + v * 0.7})` : v > 0.55 ? `rgba(${accent}, ${0.55 + v * 0.35})` : `rgba(255,255,255,${0.14 + v * 0.4})`;
+        if (look.style === "dots") {
+          g.fillStyle = color;
+          const d = 2.6 * s;
+          for (let k = 0; k * d * 1.7 <= len; k++) {
+            g.beginPath();
+            g.arc(px + nx * (k * d * 1.7 + d / 2), py + ny * (k * d * 1.7 + d / 2), d / 2, 0, Math.PI * 2);
+            g.fill();
+          }
+          continue;
+        }
+        g.strokeStyle = color;
         g.beginPath();
         g.moveTo(px, py);
         g.lineTo(px + nx * len, py + ny * len);
@@ -97,7 +90,7 @@ function Halo({ track, size }: { track: Track; size: number }) {
       const cv = canvas.current;
       cv?.getContext("2d")!.clearRect(0, 0, cv.width, cv.height);
     },
-    [size],
+    [size, rays, look.style, look.color],
   );
 
   return (
@@ -113,6 +106,33 @@ function Halo({ track, size }: { track: Track; size: number }) {
 function Elapsed() {
   const position = usePosition((s) => s.position);
   return <span className="font-type text-xs tabular-nums text-muted">{duration(position * 1000)}</span>;
+}
+
+/** Studio, full screen: the volume under the transport. */
+function FullVolume({ width }: { width: number }) {
+  const t = useT();
+  const volume = usePlayer((s) => s.volume);
+  const muted = usePlayer((s) => s.muted);
+  const shown = muted ? 0 : volume;
+  return (
+    <div className="mt-3 flex items-center gap-2.5" style={{ width }}>
+      <button type="button" onClick={player.toggleMute} aria-label={muted ? t.unmute : t.mute} title={muted ? t.unmute : t.mute} className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-muted hover:text-text">
+        <Icon name={muted || volume === 0 ? "mute" : "volume"} size={16} />
+      </button>
+      <input
+        type="range"
+        min={0}
+        max={1}
+        step={0.01}
+        value={shown}
+        aria-label={t.volume}
+        onChange={(e) => player.setVolume(Number(e.target.value))}
+        onWheel={(e) => player.setVolume(volume + (e.deltaY < 0 ? 0.05 : -0.05))}
+        className="s-vol !w-auto flex-1"
+        style={{ "--fill": `${shown * 100}%` } as CSSProperties}
+      />
+    </div>
+  );
 }
 
 function StudioPlay() {
@@ -144,13 +164,13 @@ function Stage({ track, sound, studio = false }: { track: Track; sound: Track | 
     const fit = () => {
       const { width, height } = el.getBoundingClientRect();
       // the halo needs ~0.24 of the cover on each side; title, waveform and buttons ~210 px under it
-      setSize(Math.round(Math.max(150, Math.min(340, (height - 214) / 1.5, width / 1.6))));
+      setSize(Math.round(Math.max(150, Math.min(340, (height - (studio ? 252 : 214)) / 1.5, width / 1.6))));
     };
     fit();
     const ro = new ResizeObserver(fit);
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [studio]);
 
   const repeatLabel = repeat === "off" ? t.repeatOff : repeat === "all" ? t.repeatAll : t.repeatOne;
   const width = Math.max(300, Math.min(440, size + 80));
@@ -193,6 +213,7 @@ function Stage({ track, sound, studio = false }: { track: Track; sound: Track | 
         <IconButton icon="next" label={t.next} onClick={player.next} />
         <IconButton icon={repeat === "one" ? "repeatOne" : "repeat"} label={repeatLabel} on={repeat !== "off"} onClick={player.cycleRepeat} />
       </div>
+      {studio && <FullVolume width={width} />}
     </div>
   );
 }
@@ -320,7 +341,7 @@ const TABS: { id: FullTab; icon: "lyrics" | "queue" | "wave" }[] = [
  * The stage keeps its width; without a right side it glides to the middle (and grows a little for Visualizer) instead
  * of jumping there, and the right side fades in and out.
  */
-function StudioBody({ track, sound, right, scale, children }: { track: Track; sound: Track | null; right: boolean; scale: number; children: ReactNode }) {
+function StudioBody({ track, sound, right, scale, bottom, children }: { track: Track; sound: Track | null; right: boolean; scale: number; bottom: number; children: ReactNode }) {
   const box = useRef<HTMLDivElement>(null);
   const [inner, setInner] = useState(0);
   useLayoutEffect(() => {
@@ -337,7 +358,7 @@ function StudioBody({ track, sound, right, scale, children }: { track: Track; so
   const width = Math.round(Math.min(620, Math.max(360, inner * 0.45)));
   const x = right ? 0 : Math.max(0, (inner - width) / 2);
   return (
-    <div ref={box} className="absolute inset-x-0 bottom-0 top-12 flex min-h-0 gap-6 pb-14 pl-6 pr-14">
+    <div ref={box} className="absolute inset-x-0 bottom-0 top-12 flex min-h-0 gap-6 pl-6 pr-14" style={{ paddingBottom: bottom }}>
       <motion.div className="flex min-h-0 shrink-0" style={{ width }} initial={false} animate={{ x, scale }} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}>
         <Stage track={track} sound={sound} studio />
       </motion.div>
@@ -389,6 +410,10 @@ function StudioFull() {
   const searching = !!track && searchFor === track.id;
   const right = !!track && (tab === "queue" || (tab === "lyrics" && (hasLyrics || searching)));
   const label = (id: FullTab) => (id === "lyrics" ? t.lyrics : id === "queue" ? t.queue : t.visualizer);
+  // the sound along the bottom (Spectrum settings) takes room from the stage
+  const spec = useSettings((s) => s.prefs.spectrum);
+  const bottomBand = spec.place === "bottom" || spec.place === "both";
+  const [specOpen, setSpecOpen] = useState(false);
 
   return (
     <motion.section
@@ -423,7 +448,7 @@ function StudioFull() {
         </div>
       </header>
       {track ? (
-        <StudioBody track={track} sound={sound} right={right} scale={tab === "visualizer" ? 1.08 : 1}>
+        <StudioBody track={track} sound={sound} right={right} scale={tab === "visualizer" ? 1.08 : 1} bottom={bottomBand ? spec.height + 72 : 56}>
           {tab === "queue" ? (
             <div className="s-fullq min-h-0 w-full max-w-[460px] overflow-y-auto">
               <QueueList />
@@ -472,6 +497,8 @@ function StudioFull() {
           )}
         </p>
       )}
+      {track && bottomBand && <BottomSpectrum look={spec} />}
+      <SpectrumPopover open={specOpen} onClose={() => setSpecOpen(false)} />
       <div className="s-dock s-glass" role="tablist">
         {TABS.map((x) => (
           <button key={x.id} type="button" role="tab" aria-selected={tab === x.id} className={tab === x.id ? "on" : ""} onClick={() => setTab(x.id)}>
@@ -479,7 +506,29 @@ function StudioFull() {
             {label(x.id)}
           </button>
         ))}
-        <button type="button" className={appearance === "full" ? "on" : ""} onClick={() => setAppearance(appearance === "full" ? null : "full")} aria-expanded={appearance === "full"} data-appearance-toggle>
+        <button
+          type="button"
+          className={specOpen ? "on" : ""}
+          onClick={() => {
+            setAppearance(null);
+            setSpecOpen((o) => !o);
+          }}
+          aria-expanded={specOpen}
+          data-spectrum-toggle
+        >
+          <Icon name="sparkle" size={14} />
+          {t.spectrum}
+        </button>
+        <button
+          type="button"
+          className={appearance === "full" ? "on" : ""}
+          onClick={() => {
+            setSpecOpen(false);
+            setAppearance(appearance === "full" ? null : "full");
+          }}
+          aria-expanded={appearance === "full"}
+          data-appearance-toggle
+        >
           <Icon name="image" size={14} />
           {t.background}
         </button>

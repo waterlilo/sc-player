@@ -63,7 +63,7 @@ export default function SleepTimer() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, transition: { duration: 0.08 } }}
             transition={{ duration: 0.12 }}
-            className="paper-fill sketch sketch-thin absolute bottom-11 right-0 z-[60] w-48 rounded-md py-1.5 shadow-[4px_6px_0_rgba(0,0,0,0.5)]"
+            className="float-card paper-fill sketch sketch-thin absolute bottom-11 right-0 z-[60] w-48 rounded-md py-1.5 shadow-[4px_6px_0_rgba(0,0,0,0.5)]"
           >
             <div className="px-3 pb-1 pt-0.5 font-type text-xs text-muted">{t.sleepTimer}</div>
             {CHOICES.map((m) => (

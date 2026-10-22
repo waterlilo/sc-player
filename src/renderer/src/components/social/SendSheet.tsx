@@ -63,7 +63,7 @@ export default function SendSheet() {
           exit={{ opacity: 0, transition: { duration: 0.08 } }}
           onPointerDown={(e) => !ref.current?.contains(e.target as Node) && shut()}
         >
-          <div ref={ref} role="dialog" aria-label={t.sendToFriends} className="paper-fill sketch sketch-thin flex w-[23rem] max-w-[90vw] flex-col rounded-md py-2 shadow-[0_24px_60px_rgba(0,0,0,0.5)]">
+          <div ref={ref} role="dialog" aria-label={t.sendToFriends} className="float-card paper-fill sketch sketch-thin flex w-[23rem] max-w-[90vw] flex-col rounded-md py-2 shadow-[0_24px_60px_rgba(0,0,0,0.5)]">
             <div className="px-4 pb-2 pt-1 font-type text-xs uppercase tracking-wider text-muted">{t.sendToFriends}</div>
             <div className="mx-3 mb-2 flex items-center gap-3 rounded-md bg-white/[0.04] p-2">
               <Cover url={track.artworkUrl} size={40} />

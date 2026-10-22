@@ -63,7 +63,7 @@ export default function PlaylistPicker() {
           exit={{ opacity: 0, transition: { duration: 0.08 } }}
           onPointerDown={(e) => !ref.current?.contains(e.target as Node) && close()}
         >
-          <div ref={ref} role="dialog" aria-label={t.addToPlaylist} className="paper-fill sketch sketch-thin w-[22rem] max-w-[90vw] rounded-md py-2 shadow-[4px_6px_0_rgba(0,0,0,0.5)]">
+          <div ref={ref} role="dialog" aria-label={t.addToPlaylist} className="float-card paper-fill sketch sketch-thin w-[22rem] max-w-[90vw] rounded-md py-2 shadow-[4px_6px_0_rgba(0,0,0,0.5)]">
             <div className="px-4 pb-2 pt-1">
               <div className="font-type text-xs text-muted">{t.addToPlaylist}</div>
               <div className="truncate text-sm text-text">{track.title}</div>

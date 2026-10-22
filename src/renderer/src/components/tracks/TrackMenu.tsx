@@ -127,7 +127,7 @@ export default function TrackMenu() {
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, transition: { duration: 0.08 } }}
           transition={{ duration: 0.12 }}
-          className="paper-fill sketch sketch-thin fixed z-[60] min-w-56 max-w-80 rounded-md py-1.5 shadow-[4px_6px_0_rgba(0,0,0,0.5)]"
+          className="float-card paper-fill sketch sketch-thin fixed z-[60] min-w-56 max-w-80 rounded-md py-1.5 shadow-[4px_6px_0_rgba(0,0,0,0.5)]"
           style={{ ...pos, transformOrigin: "top left" }}
         >
           <div className="truncate px-3 pb-1.5 pt-0.5 font-type text-xs text-muted">{track?.title}</div>
