@@ -52,6 +52,19 @@
   color: transparent;
   text-shadow: none;
 }
+/* plain words following roughly: the guessed line lights up whole, softly (no word sweep); a new verse gets air */
+.np-lines.rough .np-line.on {
+  color: #f6f6f8;
+  transition: color 0.8s, filter 0.4s, opacity 0.4s;
+}
+.np-lines.rough .np-line.on .w {
+  background-image: none;
+  color: inherit;
+  text-shadow: inherit;
+}
+.np-line.verse {
+  margin-top: 0.9em;
+}
 .np-gap {
   font-size: 0.7em;
   letter-spacing: 0.3em;

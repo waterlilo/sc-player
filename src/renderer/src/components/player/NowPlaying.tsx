@@ -3,7 +3,9 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperti
 import { artwork, type Lyrics, type Track } from "@shared/types";
 import { analyser, currentTime } from "@/audio/engine";
 import { useT } from "@/i18n";
+import { getActivity } from "@/lib/activity";
 import { usePlayingLoop } from "@/lib/playingLoop";
+import { pin, roughLines, roughTimes, type Pins } from "@/lib/roughSync";
 import { duration } from "@/lib/format";
 import { player, useCurrentTrack, usePlayer, usePosition, useStreamTrack } from "@/state/player";
 import { useNav } from "@/state/nav";
@@ -235,9 +237,10 @@ function sweep(words: string[], start: number, next: number, now: number) {
 /**
  * Synced words, big: the line being sung lights up word by word (timed by word length — the words come with line
  * times only), the lines around it soften with distance. It follows the song unless you scrolled in the last 4 s; a
- * click on a line jumps there.
+ * click on a line jumps there. `rough`: the times are guessed (plain words), so a line lights up whole and a click
+ * pins it to the moment instead of seeking.
  */
-function SweepLines({ lines }: { lines: NonNullable<Lyrics["synced"]> }) {
+function SweepLines({ lines, rough }: { lines: NonNullable<Lyrics["synced"]>; rough?: { verses: boolean[]; onPin: (line: number) => void } }) {
   const t = useT();
   const studioWords = useSettings((s) => s.prefs.look.design === "studio");
   const box = useRef<HTMLDivElement>(null);
@@ -251,7 +254,7 @@ function SweepLines({ lines }: { lines: NonNullable<Lyrics["synced"]> }) {
     for (let i = 0; i < lines.length; i++) if (lines[i]!.t <= now) cur = i;
     else break;
     setAt(cur);
-    if (cur < 0) return;
+    if (cur < 0 || rough) return;
     const row = box.current?.querySelector<HTMLElement>(`[data-line="${cur}"]`);
     const spans = row?.querySelectorAll<HTMLElement>(".w");
     if (!spans?.length) return;
@@ -263,9 +266,17 @@ function SweepLines({ lines }: { lines: NonNullable<Lyrics["synced"]> }) {
     spans.forEach((s, i) => s.style.setProperty("--k", `${(k[i] ?? 0) * 100}%`));
   };
   usePlayingLoop(paint, paint, [lines]);
-  // paused: a seek still moves the light
+  // without the loop (paused, or the window visible but not in front) the light moves with the player's time updates,
+  // a few a second: a seek, and the song going on behind another window; new times (a pin) show at once
   useEffect(
-    () => usePosition.subscribe(() => usePlayer.getState().status !== "playing" && paint()),
+    () => {
+      const first = requestAnimationFrame(paint);
+      const off = usePosition.subscribe(() => (usePlayer.getState().status !== "playing" || getActivity() !== "active") && paint());
+      return () => {
+        cancelAnimationFrame(first);
+        off();
+      };
+    },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [lines],
   );
@@ -278,7 +289,7 @@ function SweepLines({ lines }: { lines: NonNullable<Lyrics["synced"]> }) {
   }, [at]);
 
   return (
-    <div ref={box} onWheel={() => (userScroll.current = Date.now())} className="np-lines relative h-full overflow-y-auto pr-10" data-keys-own>
+    <div ref={box} onWheel={() => (userScroll.current = Date.now())} className={`np-lines relative h-full overflow-y-auto pr-10${rough ? " rough" : ""}`} data-keys-own>
       <div className="h-[40%]" />
       {lines.map((l, i) => {
         const d = Math.abs(i - at);
@@ -287,11 +298,13 @@ function SweepLines({ lines }: { lines: NonNullable<Lyrics["synced"]> }) {
             key={`${l.t}-${i}`}
             type="button"
             data-line={i}
+            title={rough ? t.lyricsPinLine : undefined}
             onClick={() => {
               userScroll.current = 0;
-              player.seek(l.t);
+              if (rough) rough.onPin(i);
+              else player.seek(l.t);
             }}
-            className={`np-line ${i === at ? "on" : d === 1 ? "near" : d > 2 ? "far" : ""}`}
+            className={`np-line ${i === at ? "on" : d === 1 ? "near" : d > 2 ? "far" : ""}${rough?.verses[i] ? " verse" : ""}`}
           >
             {l.words?.length ? (
               l.words.map((w, j) => (
@@ -317,18 +330,60 @@ function SweepLines({ lines }: { lines: NonNullable<Lyrics["synced"]> }) {
   );
 }
 
+// the lines the listener pinned in plain words, per track, kept between launches (the newest 300 tracks)
+const PINS_KEY = "sc.lyricPins";
+function loadPins(id: number): Pins {
+  try {
+    return (JSON.parse(localStorage.getItem(PINS_KEY) ?? "{}") as Record<string, Pins>)[id] ?? {};
+  } catch {
+    return {};
+  }
+}
+function savePins(id: number, pins: Pins) {
+  try {
+    const all = JSON.parse(localStorage.getItem(PINS_KEY) ?? "{}") as Record<string, Pins>;
+    delete all[id];
+    all[id] = pins;
+    const ids = Object.keys(all);
+    for (const old of ids.slice(0, Math.max(0, ids.length - 300))) delete all[old];
+    localStorage.setItem(PINS_KEY, JSON.stringify(all));
+  } catch {
+    /* no storage: the pins last until the track changes */
+  }
+}
+
+/** Plain words (no times anywhere): guessed times from lib/roughSync, corrected by the listener's clicks. */
+function RoughLines({ track, plain }: { track: Track; plain: string }) {
+  const lines = useMemo(() => roughLines(plain), [plain]);
+  // the stream's own length: a replacement upload can be a little longer or shorter than the track
+  const playing = usePlayer((s) => s.duration);
+  const length = playing > 0 ? playing : track.durationMs / 1000;
+  const [pins, setPins] = useState<Pins>(() => loadPins(track.id));
+  const synced = useMemo(() => {
+    const times = roughTimes(lines, length, pins);
+    return lines.map((l, i) => ({ t: times[i]!, text: l.text }));
+  }, [lines, length, pins]);
+  const rough = useMemo(
+    () => ({
+      verses: lines.map((l) => l.verse),
+      onPin: (line: number) => {
+        const next = pin(pins, line, currentTime());
+        setPins(next);
+        savePins(track.id, next);
+      },
+    }),
+    [lines, pins, track.id],
+  );
+  return <SweepLines lines={synced} rough={rough} />;
+}
+
 /** The right side: synced words, plain words, or nothing (then the stage takes the middle). */
 function Words({ track }: { track: Track }) {
   const q = useLyrics(track);
   const l = q.data;
   if (q.isPending) return <LyricsSkeleton />;
   if (l?.synced?.length) return <SweepLines lines={l.synced} />;
-  if (l?.plain)
-    return (
-      <div className="np-lines h-full overflow-y-auto pr-10" data-keys-own>
-        <p className="whitespace-pre-line py-[18vh] text-[1.35rem] font-medium leading-relaxed text-text/80">{l.plain}</p>
-      </div>
-    );
+  if (l?.plain) return <RoughLines track={track} plain={l.plain} />;
   return null;
 }
 
@@ -485,7 +540,7 @@ function StudioFull() {
             </button>
           ) : hasWords(words.data) ? (
             <>
-              <LyricsSource lyrics={words.data} /> ·
+              <LyricsSource lyrics={words.data} rough /> ·
               <button type="button" className="hover:text-text" onClick={() => setSearchFor(track.id)}>
                 {t.lyricsWrong}
               </button>

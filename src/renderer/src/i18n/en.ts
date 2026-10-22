@@ -144,6 +144,8 @@ export const en = {
   syncedByWord: "Synced word by word",
   syncedByLine: "Synced by line",
   lyricsWord: "Lyrics",
+  lyricsRough: "Not synced, following roughly — click the line being sung to align",
+  lyricsPinLine: "Sung now? Click to align the words here",
   findInList: "Find in this list",
   clear: "Clear",
   sortBy: "Sort",

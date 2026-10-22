@@ -20,13 +20,13 @@ const SOURCES = {
 } as const;
 
 /** Where the words came from, with a link to it (Better Lyrics asked for one), and how they are timed. */
-export function LyricsSource({ lyrics }: { lyrics: Lyrics | null | undefined }) {
+export function LyricsSource({ lyrics, rough = false }: { lyrics: Lyrics | null | undefined; rough?: boolean }) {
   const t = useT();
   const src = SOURCES[lyrics?.source ?? "lrclib"];
   const byWord = !!lyrics?.synced?.some((l) => (l.words?.length ?? 0) > 1);
   return (
     <>
-      {lyrics?.synced?.length ? (byWord ? t.syncedByWord : t.syncedByLine) : t.lyricsWord}
+      {lyrics?.synced?.length ? (byWord ? t.syncedByWord : t.syncedByLine) : rough ? t.lyricsRough : t.lyricsWord}
       {" · "}
       <button type="button" className="underline-offset-2 hover:text-text hover:underline" onClick={() => void call("shell:open", src.url)}>
         {src.name}
