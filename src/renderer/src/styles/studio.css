@@ -6,14 +6,16 @@
  * display-heading…), so screens need no studio-specific markup.
  */
 
-/* the accent is a registered colour, so a new cover's accent eases in with the background instead of snapping */
+/* the accent is a registered colour, so a new cover's accent eases in with the background instead of snapping. In
+   steps: an inherited property animated on the root restyles the whole page each time it changes, and every frame for
+   1.2 s left ~100 MB of style garbage per track (the full screen player reached 1 GB); 8 steps look the same */
 @property --accent {
   syntax: "<color>";
   inherits: true;
   initial-value: rgb(178 160 230);
 }
 html[data-design="studio"] {
-  transition: --accent 1.2s ease;
+  transition: --accent 1.2s steps(8, end);
   --bg: #050506;
   --bg-2: #0e0e11;
   --text: #ececef;

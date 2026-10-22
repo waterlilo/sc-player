@@ -49,8 +49,8 @@ async function boot() {
   void useAuth.getState().init();
   initLikes();
 
-  // development only: the stores, for driving the page from DevTools (window.__sc)
-  if (import.meta.env.DEV) Object.assign(window, { __sc: { player, usePlayer, useNav, useUi, useSettings, useSocial, queryClient, call } });
+  // development (or a profiling run from the sources): the stores, for driving the page from DevTools (window.__sc)
+  if (import.meta.env.DEV || location.search === "?sc-debug") Object.assign(window, { __sc: { player, usePlayer, useNav, useUi, useSettings, useSocial, queryClient, call } });
 
   createRoot(document.getElementById("root")!).render(
     <StrictMode>

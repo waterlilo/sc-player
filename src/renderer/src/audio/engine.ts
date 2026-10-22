@@ -60,7 +60,7 @@ function graph() {
   filters.forEach((f, i) => f.connect(filters[i + 1] ?? ctx!.destination));
   for (const deck of decks) deck.route();
   applyEq();
-  if (sinkId) void setOutput(sinkId);
+  if (sinkId) void applySink();
   return ctx;
 }
 
@@ -373,7 +373,15 @@ export function analyser(): AnalyserNode {
 
 /** Audio output device ("" = the system default). */
 export async function setOutput(id: string) {
+  // the default device needs no call: setSinkId starts Chromium's media device service (and its video capture
+  // helper, ~60 MB) even for ""
+  if (id === sinkId) return;
   sinkId = id;
+  await applySink();
+}
+
+async function applySink() {
+  const id = sinkId;
   try {
     if (ctx && "setSinkId" in ctx) await (ctx as AudioContext & { setSinkId(id: string): Promise<void> }).setSinkId(id);
     else await Promise.all(decks.map((d) => d.audio.setSinkId(id)));

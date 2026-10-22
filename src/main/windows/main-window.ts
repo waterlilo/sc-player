@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { BrowserWindow, shell } from "electron";
+import { app, BrowserWindow, shell } from "electron";
 import type { EventMap, WindowActivity } from "@shared/ipc";
 import { appIcon } from "../system/tray";
 
@@ -81,6 +81,7 @@ export function createMainWindow(opts: { startHidden: boolean; closeToTray: () =
   win.on("unmaximize", () => send(win, "win:maximized", false));
 
   if (DEV_URL) void win.loadURL(DEV_URL);
-  else void win.loadFile(join(import.meta.dirname, "../renderer/index.html"));
+  // SKY_DEBUG_STORES=1 when run from the sources (not installed): the page puts its stores on window.__sc, for profiling
+  else void win.loadFile(join(import.meta.dirname, "../renderer/index.html"), !app.isPackaged && process.env.SKY_DEBUG_STORES === "1" ? { search: "sc-debug" } : undefined);
   return win;
 }
