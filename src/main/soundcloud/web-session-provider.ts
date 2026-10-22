@@ -7,7 +7,7 @@ import { scSession } from "./session";
 import { prefs } from "../store";
 import { pickTranscoding } from "./stream";
 import { cachedAlternatives, rememberAlternatives } from "./alternatives";
-import { rankCandidates, searchQueries, type Candidate, type MatchInput } from "./match";
+import { rankBySound, rankCandidates, searchQueries, shortlist, waveSimilarity, type Candidate, type MatchInput, type WaveFit } from "./match";
 
 const PAGE = 50;
 const TRACK_META_LIMIT = 4000;
@@ -157,10 +157,32 @@ export class WebSessionProvider implements MusicProvider {
       uploader: raw.user.username ?? "",
       durationMs: raw.full_duration ?? raw.duration ?? 0,
     };
+    // the original's loudness curve: with it the sound decides which upload is the same recording
+    const originalWave = raw.waveform_url ? await this.getWaveform(raw.waveform_url).catch(() => null) : null;
     const seen = new Map<number, Candidate>();
+    const waves = new Map<number, string>();
+    // uploads already compared by sound (a waveform is fetched once per upload)
+    const compared = new Map<number, { c: Candidate; fit: WaveFit } | null>();
+    const rank = async (): Promise<Candidate[]> => {
+      if (!originalWave) return rankCandidates(original, [...seen.values()], tolerance);
+      // the closest-worded uploads, compared by sound
+      const fresh = shortlist(original, [...seen.values()], tolerance, deep ? 24 : 16).filter((c) => !compared.has(c.id));
+      await Promise.all(
+        fresh.map(async (c) => {
+          const url = waves.get(c.id);
+          const wave = url ? await this.getWaveform(url).catch(() => null) : null;
+          compared.set(c.id, wave ? { c, fit: waveSimilarity(originalWave, original.durationMs, wave, c.durationMs) } : null);
+        }),
+      );
+      return rankBySound(
+        original,
+        [...compared.values()].filter((x): x is NonNullable<typeof x> => !!x),
+        tolerance,
+      );
+    };
     let ranked: Candidate[] = [];
-    // fans' re-uploads often rank below the original, its remixes and covers: up to two pages of each query
-    // (a deep search, when the user wants another upload: five pages of every query, no early stop)
+    // fans' re-uploads often rank below the original, its remixes and covers: up to two pages of each query, until
+    // three uploads are confirmed (a deep search, when the user wants another upload: five pages, no early stop)
     search: for (const q of searchQueries(original)) {
       let href: string | null = "/search/tracks";
       for (let page = 0; page < (deep ? 5 : 2) && href; page++) {
@@ -169,12 +191,15 @@ export class WebSessionProvider implements MusicProvider {
           const t = this.track(r);
           if (!t || t.id === trackId || t.playability !== "ok" || seen.has(t.id)) continue;
           seen.set(t.id, { id: t.id, title: t.title, artist: r.publisher_metadata?.artist ?? "", uploader: t.user.username, durationMs: t.durationMs, plays: r.playback_count ?? 0 });
+          if (t.waveformUrl) waves.set(t.id, t.waveformUrl);
         }
-        ranked = rankCandidates(original, [...seen.values()], tolerance);
-        if (!deep && ranked.length >= 3) break search;
         href = res.next_href ?? null;
+        if (deep) continue;
+        ranked = await rank();
+        if (ranked.length >= 3) break search;
       }
     }
+    if (deep || ranked.length < 3) ranked = await rank();
     const ids = ranked.slice(0, deep ? 10 : 5).map((c) => c.id);
     rememberAlternatives(trackId, tolerance, ids);
     return this.tracksById(ids);

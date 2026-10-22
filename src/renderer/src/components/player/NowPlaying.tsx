@@ -144,7 +144,7 @@ function Stage({ track, sound, studio = false }: { track: Track; sound: Track | 
     const fit = () => {
       const { width, height } = el.getBoundingClientRect();
       // the halo needs ~0.24 of the cover on each side; title, waveform and buttons ~210 px under it
-      setSize(Math.round(Math.max(150, Math.min(400, (height - 214) / 1.5, width / 1.6))));
+      setSize(Math.round(Math.max(150, Math.min(340, (height - 214) / 1.5, width / 1.6))));
     };
     fit();
     const ro = new ResizeObserver(fit);
@@ -423,7 +423,7 @@ function StudioFull() {
         </div>
       </header>
       {track ? (
-        <StudioBody track={track} sound={sound} right={right} scale={tab === "visualizer" ? 1.16 : 1}>
+        <StudioBody track={track} sound={sound} right={right} scale={tab === "visualizer" ? 1.08 : 1}>
           {tab === "queue" ? (
             <div className="s-fullq min-h-0 w-full max-w-[460px] overflow-y-auto">
               <QueueList />
