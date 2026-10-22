@@ -404,7 +404,8 @@ function getTheme(c: Ctx) {
   const t = themeRow(c.params[0]!);
   const d = optionalMe(c);
   if ((!t.published || t.hidden) && t.author !== d?.id && !isAdmin(c)) fail(404, "no such theme");
-  send(c.res, 200, themeOut(t, { look: JSON.parse(String(t.look)), css: t.css }));
+  const liked = d ? !!one("SELECT 1 FROM theme_votes WHERE theme = ? AND device = ? AND kind = 'like'", t.id, d.id) : false;
+  send(c.res, 200, themeOut(t, { look: JSON.parse(String(t.look)), css: t.css, mine: t.author === d?.id, liked }));
 }
 
 async function createTheme(c: Ctx) {

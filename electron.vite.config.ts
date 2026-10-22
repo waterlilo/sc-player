@@ -50,10 +50,20 @@ function builtinProxy() {
   }
 }
 
+/** sc player's own server (server/README.md): server.local.json next to package.json — { "api": "https://…" }. */
+function serverApi() {
+  try {
+    const c = JSON.parse(readFileSync("server.local.json", "utf8")) as Record<string, unknown>;
+    return typeof c.api === "string" && /^https:\/\/[\w.-]+(:\d+)?$/.test(c.api) ? c.api : null;
+  } catch {
+    return null;
+  }
+}
+
 export default defineConfig({
   main: {
     resolve: { alias: shared },
-    define: { __SC_PROXY__: JSON.stringify(builtinProxy()) },
+    define: { __SC_PROXY__: JSON.stringify(builtinProxy()), __SC_API__: JSON.stringify(serverApi()) },
   },
   preload: {
     resolve: { alias: shared },

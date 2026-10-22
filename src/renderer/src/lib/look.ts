@@ -146,25 +146,34 @@ async function fromVideo(url: string): Promise<Palette> {
   return paletteOf(v);
 }
 
+/** "#rrggbb" → RGB; null for "" (the accent then comes from the picture) */
+function hexRgb(hex: string): RGB | null {
+  const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex);
+  return m ? [parseInt(m[1]!, 16), parseInt(m[2]!, 16), parseInt(m[3]!, 16)] : null;
+}
+
 let source = "";
 let job = 0;
 async function update() {
   const look = useSettings.getState().prefs.look;
   if (look.design !== "studio") return;
   const t: Track | undefined = usePlayer.getState().queue[usePlayer.getState().index];
-  const next =
+  const picture =
     look.bg === "file" && look.bgFile ? `${look.bgFileType}:${bgUrl(look.bgFile)}` : t?.artworkUrl ? `image:${artwork(t.artworkUrl, "t300x300")}` : "";
+  const next = `${look.accent}|${picture}`;
   if (next === source) return;
   source = next;
   const mine = ++job;
-  if (!next) return apply(DEFAULT);
-  const [kind, ...rest] = next.split(":");
+  // a fixed accent (a workshop theme can set one) wins over the picture's; the background still takes its colours
+  const fixed = hexRgb(look.accent);
+  const done = (p: Palette) => mine === job && apply(fixed ? { ...p, accent: fixed } : p);
+  if (!picture) return done(DEFAULT);
+  const [kind, ...rest] = picture.split(":");
   const url = rest.join(":");
   try {
-    const p = kind === "video" ? await fromVideo(url) : await fromImage(url);
-    if (mine === job) apply(p);
+    done(kind === "video" ? await fromVideo(url) : await fromImage(url));
   } catch {
-    if (mine === job) apply(DEFAULT);
+    done(DEFAULT);
   }
 }
 

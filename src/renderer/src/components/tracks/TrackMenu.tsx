@@ -8,6 +8,7 @@ import { useAuth } from "@/state/auth";
 import { toggleLike, useLikes } from "@/state/likes";
 import { player, substituteFor, useSubs } from "@/state/player";
 import { useSettings } from "@/state/settings";
+import { useSocial } from "@/state/social";
 import { useUi } from "@/state/ui";
 import Icon, { type IconName } from "../ui/Icon";
 
@@ -52,6 +53,8 @@ export default function TrackMenu() {
   const signedIn = useAuth((s) => s.status?.mode === "session");
   const likes = useLikes((s) => s.ids);
   const openPicker = useUi((s) => s.openPicker);
+  const canSend = useSocial((s) => !!s.status?.profile);
+  const openSend = useSocial((s) => s.openSend);
 
   /** For a protected track: try another found upload, open the one that plays, or switch substitution for it. */
   const substituteItems = (tr: Track): { icon: IconName; label: string; run: () => void }[] => {
@@ -79,6 +82,7 @@ export default function TrackMenu() {
               { icon: "plus" as IconName, label: t.addToPlaylist, run: () => openPicker(track) },
             ]
           : []),
+        ...(canSend ? [{ icon: "send" as IconName, label: t.sendToFriends, run: () => openSend(track) }] : []),
         { icon: "play", label: t.goToTrack, run: () => go({ name: "track", id: track.id }) },
         { icon: "user", label: t.goToArtist, run: () => go({ name: "profile", userId: track.user.id }) },
         {

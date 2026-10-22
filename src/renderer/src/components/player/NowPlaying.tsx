@@ -8,6 +8,7 @@ import { duration } from "@/lib/format";
 import { player, useCurrentTrack, usePlayer, usePosition, useStreamTrack } from "@/state/player";
 import { useNav } from "@/state/nav";
 import { useSettings } from "@/state/settings";
+import { useSocial } from "@/state/social";
 import { useUi } from "@/state/ui";
 import { IconButton } from "../ui/Buttons";
 import { outlinePoint, spectrum } from "./CoverRing";
@@ -119,6 +120,8 @@ function Stage({ track, sound }: { track: Track; sound: Track | null }) {
   const repeat = usePlayer((s) => s.repeat);
   const shuffle = usePlayer((s) => s.shuffle);
   const durationS = usePlayer((s) => s.duration);
+  const canSend = useSocial((s) => !!s.status?.profile);
+  const openSend = useSocial((s) => s.openSend);
   const box = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState(300);
 
@@ -159,6 +162,7 @@ function Stage({ track, sound }: { track: Track; sound: Track | null }) {
             {track.artist}
           </button>
         </div>
+        {canSend && <IconButton icon="send" label={t.sendToFriends} onClick={() => openSend(track)} />}
         <LikeButton track={track} />
       </div>
       <div className="mt-3" style={{ width }}>

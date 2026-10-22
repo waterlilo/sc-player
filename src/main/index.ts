@@ -3,11 +3,13 @@ import { join } from "node:path";
 import { app, BrowserWindow, clipboard, ipcMain, session, shell, type IpcMainInvokeEvent } from "electron";
 import { RENDERER_DEFAULTS, type AuthStatus, type InvokeChannel, type InvokeMap, type PlayerCommand, type PlayerInfo, type RendererState, type Result } from "@shared/ipc";
 import type { MusicProvider, SearchKind } from "@shared/provider";
+import type { SocialTrack } from "@shared/social";
 import type { QueueSource } from "@shared/types";
 import { DemoProvider } from "./demo";
 import { flushLyrics, lyricsFor, pickLyrics, searchLyrics } from "./lyrics";
 import { auth, authStatus, chromeUserAgent, provider, ScError, scSession, startBrowserSignIn, stopBrowserSignIn, toErrorInfo, tokenFromArgs, waitingForBrowser } from "./soundcloud";
 import { flushAlternatives } from "./soundcloud/alternatives";
+import * as social from "./social";
 import { patchRenderer, prefs, store } from "./store";
 import { getSecret, setSecret } from "./store/secrets";
 import { applyAutostart, startedHidden } from "./system/autostart";
@@ -84,6 +86,20 @@ const str = (v: unknown, what: string) => (typeof v === "string" && v.length < 4
 const cursor = (v: unknown) => (v === null || v === undefined ? null : str(v, "cursor"));
 const id = (v: unknown) => (typeof v === "number" && Number.isSafeInteger(v) && v > 0 ? v : bad("id"));
 const kinds: SearchKind[] = ["tracks", "playlists", "users"];
+const themeId = (v: unknown) => (typeof v === "string" && /^[\w-]{10}$/.test(v) ? v : bad("theme id"));
+/** a track to send or show to friends: the fields the server keeps */
+function socialTrack(v: unknown): SocialTrack {
+  const t = (typeof v === "object" && v !== null ? v : bad("track")) as Record<string, unknown>;
+  return {
+    id: id(t.id),
+    title: str(t.title, "title"),
+    artist: str(t.artist, "artist"),
+    // the server takes SoundCloud's own pictures only; anything else would refuse the whole message
+    artworkUrl: typeof t.artworkUrl === "string" && /^https:\/\/[a-z0-9.-]+\.sndcdn\.com\//.test(t.artworkUrl) ? t.artworkUrl : null,
+    permalinkUrl: str(t.permalinkUrl, "link"),
+    durationMs: typeof t.durationMs === "number" ? Math.max(0, Math.round(t.durationMs)) : 0,
+  };
+}
 /** a queue source from the page: only the fields each kind needs, type-checked */
 function queueSource(v: unknown): QueueSource {
   const s = (typeof v === "object" && v !== null ? v : bad("source")) as Record<string, unknown>;
@@ -158,6 +174,34 @@ function registerIpc() {
   handle("data:waveform", (_e, url) => data.getWaveform(str(url, "url")));
 
   handle("bg:pick", () => pickBackground(main));
+
+  handle("social:status", () => social.status());
+  handle("social:join", (_e, name) => social.join(str(name, "name").slice(0, 32)));
+  handle("social:profile", (_e, patch) => {
+    const p = (typeof patch === "object" && patch !== null ? patch : bad("patch")) as Record<string, unknown>;
+    return social.updateProfile({ ...(p.name !== undefined ? { name: str(p.name, "name").slice(0, 32) } : {}), ...(p.shareNow !== undefined ? { shareNow: p.shareNow === true } : {}) });
+  });
+  handle("social:leave", () => social.leave());
+  handle("social:friends", () => social.getFriends());
+  handle("social:addFriend", (_e, code) => social.friendAction("add", str(code, "code").slice(0, 16)));
+  handle("social:accept", (_e, code) => social.friendAction("accept", str(code, "code").slice(0, 16)));
+  handle("social:removeFriend", (_e, code) => social.friendAction("remove", str(code, "code").slice(0, 16)));
+  handle("social:send", (_e, codes, track) => social.sendTrack(Array.isArray(codes) ? codes.slice(0, 20).map((c) => str(c, "code").slice(0, 16)) : bad("codes"), socialTrack(track)));
+  handle("social:chat", (_e, code, before) => social.chat(str(code, "code").slice(0, 16), before === undefined ? undefined : id(before)));
+  handle("social:seen", (_e, code) => social.seen(str(code, "code").slice(0, 16)));
+  handle("social:state", (_e, m, state) => social.setState(id(m), state === "heard" || state === "liked" || state === "queued" ? state : bad("state")));
+  handle("social:now", (_e, track) => social.now(track === null ? null : socialTrack(track)));
+  handle("social:poll", () => social.poll());
+  handle("ws:list", (_e, sort, page, q, mine) => social.wsList(sort === "top" ? "top" : "new", typeof page === "number" && page >= 0 && page < 1000 ? Math.floor(page) : 0, str(q ?? "", "query").slice(0, 40), mine === true));
+  handle("ws:get", (_e, t) => social.wsGet(themeId(t)));
+  handle("ws:publish", (_e, t) => {
+    const o = (typeof t === "object" && t !== null ? t : bad("theme")) as Record<string, unknown>;
+    return social.wsPublish({ name: str(o.name, "name").slice(0, 40), description: str(o.description ?? "", "description").slice(0, 300), withBackground: o.withBackground === true });
+  });
+  handle("ws:install", (_e, t) => social.wsInstall(themeId(t)));
+  handle("ws:like", (_e, t) => social.wsLike(themeId(t)));
+  handle("ws:report", (_e, t, reason) => social.wsReport(themeId(t), str(reason ?? "", "reason").slice(0, 300)));
+  handle("ws:delete", (_e, t) => social.wsDelete(themeId(t)));
   handle("win:minimize", () => main?.minimize());
   handle("win:toggleMaximize", () => {
     if (main?.isMaximized()) main.unmaximize();
@@ -309,4 +353,7 @@ void app.whenReady().then(async () => {
   main.webContents.once("did-finish-load", () => send(main, "hotkeys:failed", failed));
   applyAutostart(p.startWithWindows);
   updater.initUpdater(() => main, () => prefs().checkUpdates);
+  social.initSocial(() => main);
+  // back in front: the messenger catches up at once
+  main.on("focus", () => void social.poll());
 });

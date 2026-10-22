@@ -1,4 +1,5 @@
 import type { SearchKind } from "./provider";
+import type { Friends, Message, SocialStatus, SocialTrack, SocialUpdate, WsPage, WsSort, WsThemeFull } from "./social";
 import type { AppErrorInfo, Lyrics, LyricsHit, Page, Playlist, QueueSource, Resolved, SavedProfile, StreamInfo, Track, TrackDetails, User } from "./types";
 
 /**
@@ -85,6 +86,8 @@ export interface Look {
   panelBlur: number;
   /** no blur behind panels (for slow PCs) */
   lite: boolean;
+  /** a fixed accent "#rrggbb" (a workshop theme can set one); "" = from the cover */
+  accent: string;
 }
 export type PopupCorner = "bottom-right" | "top-right" | "bottom-left" | "top-left";
 
@@ -130,6 +133,10 @@ export interface Prefs {
   /** proxy: system settings, none, an address (for everything), or sc player's own (SoundCloud only) */
   proxy: { mode: "system" | "direct" | "custom" | "builtin"; url: string; username: string };
   look: Look;
+  /** a pop-up when a friend sends a track while the window isn't in front */
+  socialPopups: boolean;
+  /** once a day: an anonymous "one more app is running" to sc player's server (a random install id + the version) */
+  countMe: boolean;
 }
 
 export const EQ_BANDS = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000] as const;
@@ -157,7 +164,9 @@ export const PREFS_DEFAULTS: Prefs = {
   substituteTolerance: 3,
   noSubstitute: [],
   proxy: { mode: "system", url: "", username: "" },
-  look: { design: "studio", bg: "liquid", bgFile: "", bgFileType: "", bgBlur: 14, bgDim: 72, bgReact: 40, panelOpacity: 58, panelBlur: 30, lite: false },
+  look: { design: "studio", bg: "liquid", bgFile: "", bgFileType: "", bgBlur: 14, bgDim: 72, bgReact: 40, panelOpacity: 58, panelBlur: 30, lite: false, accent: "" },
+  socialPopups: true,
+  countMe: true,
 };
 
 /** Fills in anything missing from stored prefs (new options in a newer version). */
@@ -260,6 +269,39 @@ export interface InvokeMap {
   "update:check": () => UpdateStatus;
   "update:download": () => void;
   "update:install": () => void;
+
+  /** sc player's own server: the messenger (friend codes, tracks only) */
+  "social:status": () => SocialStatus;
+  /** "Get my code": a new profile on the server with this name */
+  "social:join": (name: string) => SocialStatus;
+  "social:profile": (patch: { name?: string; shareNow?: boolean }) => SocialStatus;
+  /** forget the profile here and on the server (friends, tracks, themes) */
+  "social:leave": () => SocialStatus;
+  "social:friends": () => Friends;
+  "social:addFriend": (code: string) => Friends;
+  "social:accept": (code: string) => Friends;
+  /** decline, cancel or unfriend */
+  "social:removeFriend": (code: string) => Friends;
+  /** the new messages' ids, one per friend, in the order given */
+  "social:send": (codes: string[], track: SocialTrack) => number[];
+  /** the conversation with one friend, oldest first; `before` = an older page */
+  "social:chat": (code: string, before?: number) => Message[];
+  "social:seen": (code: string) => void;
+  "social:state": (messageId: number, state: "heard" | "liked" | "queued") => void;
+  /** what is playing, for friends (sent only when sharing is on) */
+  "social:now": (track: SocialTrack | null) => void;
+  /** poll now (the inbox opened) */
+  "social:poll": () => void;
+  /** the theme workshop */
+  "ws:list": (sort: WsSort, page: number, q: string, mine: boolean) => WsPage;
+  "ws:get": (id: string) => WsThemeFull;
+  /** publish the current look (with its own background when `withBackground`) and a picture of the window; the theme's id */
+  "ws:publish": (t: { name: string; description: string; withBackground: boolean }) => string;
+  /** download a theme (and its background): the look to apply */
+  "ws:install": (id: string) => Look;
+  "ws:like": (id: string) => { likes: number; liked: boolean };
+  "ws:report": (id: string, reason: string) => void;
+  "ws:delete": (id: string) => void;
 }
 
 export interface EventMap {
@@ -273,6 +315,10 @@ export interface EventMap {
   /** global hotkeys that could not be registered (taken by another app) */
   "hotkeys:failed": HotkeyAction[];
   "update:status": UpdateStatus;
+  /** the messenger: new tracks, unread counts, friends — after every poll that brought something */
+  "social:update": SocialUpdate;
+  /** a pop-up about a sent track was clicked: open the inbox (at this friend) */
+  "social:open": string;
 }
 
 export type InvokeChannel = keyof InvokeMap;
@@ -280,6 +326,27 @@ export type Result<T> = { ok: true; data: T } | { ok: false; error: AppErrorInfo
 
 /** Runtime allowlist for preload; the check below fails to compile when a channel is missing. */
 export const INVOKE_CHANNELS = [
+  "social:status",
+  "social:join",
+  "social:profile",
+  "social:leave",
+  "social:friends",
+  "social:addFriend",
+  "social:accept",
+  "social:removeFriend",
+  "social:send",
+  "social:chat",
+  "social:seen",
+  "social:state",
+  "social:now",
+  "social:poll",
+  "ws:list",
+  "ws:get",
+  "ws:publish",
+  "ws:install",
+  "ws:like",
+  "ws:report",
+  "ws:delete",
   "bg:pick",
   "auth:status",
   "auth:login",
@@ -336,7 +403,7 @@ export const INVOKE_CHANNELS = [
   "update:download",
   "update:install",
 ] as const satisfies readonly InvokeChannel[];
-export const EVENT_CHANNELS = ["win:activity", "win:maximized", "auth:changed", "auth:browserRefused", "player:command", "hotkeys:failed", "update:status"] as const satisfies readonly (keyof EventMap)[];
+export const EVENT_CHANNELS = ["win:activity", "win:maximized", "auth:changed", "auth:browserRefused", "player:command", "hotkeys:failed", "update:status", "social:update", "social:open"] as const satisfies readonly (keyof EventMap)[];
 
 type MissingInvoke = Exclude<InvokeChannel, (typeof INVOKE_CHANNELS)[number]>;
 type MissingEvent = Exclude<keyof EventMap, (typeof EVENT_CHANNELS)[number]>;

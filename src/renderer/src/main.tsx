@@ -19,6 +19,7 @@ import { initKeys } from "@/lib/keys";
 import { initReactive } from "@/lib/reactive";
 import { initCoverTint } from "@/lib/cover-tint";
 import { initLook } from "@/lib/look";
+import { initSocial } from "@/state/social";
 import { initLikes } from "@/state/likes";
 import { initVolume } from "@/state/player";
 import { useSettings } from "@/state/settings";
@@ -40,6 +41,7 @@ async function boot() {
   initReactive();
   initCoverTint();
   initLook();
+  initSocial();
   void useAuth.getState().init();
   initLikes();
 

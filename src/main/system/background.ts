@@ -1,4 +1,4 @@
-import { copyFileSync, mkdirSync, readdirSync, rmSync, statSync } from "node:fs";
+import { copyFileSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { basename, extname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { app, dialog, net, protocol, type BrowserWindow } from "electron";
@@ -48,4 +48,26 @@ export async function pickBackground(win: BrowserWindow | null): Promise<{ file:
   const file = `bg-${Date.now()}${ext}`;
   copyFileSync(src, join(folder(), file));
   return { file, type };
+}
+
+/** A background that came from elsewhere (a workshop theme): replaces the current one, like a picked file. */
+export function saveBackground(data: Buffer, ext: string): { file: string; type: "image" | "video" } {
+  const e = `.${ext.toLowerCase().replace(/^\./, "")}`;
+  const type = VIDEO.includes(e) ? "video" : IMAGE.includes(e) ? "image" : null;
+  if (!type) throw new Error("This file type can't be a background");
+  mkdirSync(folder(), { recursive: true });
+  for (const old of readdirSync(folder())) if (NAME.test(old)) rmSync(join(folder(), old), { force: true });
+  const file = `bg-${Date.now()}${e}`;
+  writeFileSync(join(folder(), file), data);
+  return { file, type };
+}
+
+/** The current own background's bytes (to publish it with a theme); null when there is none. */
+export function readBackground(file: string): { data: Buffer; ext: string } | null {
+  if (!NAME.test(file)) return null;
+  try {
+    return { data: readFileSync(join(folder(), file)), ext: extname(file).slice(1).toLowerCase() };
+  } catch {
+    return null;
+  }
 }

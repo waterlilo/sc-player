@@ -32,3 +32,35 @@ html[data-design="studio"] .home-tile:hover {
 html[data-design="studio"] .home-greeting {
   font-size: 2rem;
 }
+
+/* the messenger: a friend listening right now */
+.social-eq i {
+  display: block;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--glow);
+  animation: social-eq 0.9s ease-in-out infinite alternate;
+}
+.social-eq i:nth-child(1) {
+  height: 60%;
+}
+.social-eq i:nth-child(2) {
+  height: 100%;
+  animation-delay: -0.3s;
+}
+.social-eq i:nth-child(3) {
+  height: 40%;
+  animation-delay: -0.6s;
+}
+@keyframes social-eq {
+  to {
+    transform: scaleY(0.35);
+  }
+}
+.social-eq i {
+  transform-origin: bottom;
+}
+html[data-activity="hidden"] .social-eq i,
+html[data-activity="blurred"] .social-eq i {
+  animation-play-state: paused;
+}

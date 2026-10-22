@@ -8,11 +8,12 @@ import { useSystem } from "@/lib/system";
 import { useAuth } from "@/state/auth";
 import { useNav } from "@/state/nav";
 import { useSettings } from "@/state/settings";
+import { unreadTotal, useSocial } from "@/state/social";
 import MarkerEdge from "../deco/MarkerEdge";
 import Icon, { type IconName } from "../ui/Icon";
 import ScribbleRing from "../ui/ScribbleRing";
 
-function NavItem({ active, onClick, icon, children }: { active: boolean; onClick: () => void; icon?: IconName; children: ReactNode }) {
+function NavItem({ active, onClick, icon, badge = 0, children }: { active: boolean; onClick: () => void; icon?: IconName; badge?: number; children: ReactNode }) {
   return (
     <li>
       <button
@@ -26,6 +27,7 @@ function NavItem({ active, onClick, icon, children }: { active: boolean; onClick
           <span className="block truncate">{children}</span>
           {active && <ScribbleRing />}
         </span>
+        {badge > 0 && <span className="nav-badge ml-auto grid h-[18px] min-w-[18px] place-items-center rounded-full bg-glow px-1 font-type text-[0.65rem] font-semibold tabular-nums text-on-glow">{badge > 99 ? "99+" : badge}</span>}
       </button>
     </li>
   );
@@ -81,6 +83,8 @@ export default function Sidebar() {
   const logout = useAuth((s) => s.logout);
   const [adding, setAdding] = useState(false);
   const update = useSystem((s) => s.update);
+  const social = useSocial((s) => s.status?.available ?? false);
+  const unread = useSocial((s) => unreadTotal(s.unread) + (s.friends?.incoming.length ?? 0));
 
 
   return (
@@ -105,6 +109,16 @@ export default function Sidebar() {
         <NavItem icon="search" active={section === "search"} onClick={() => open("search", { name: "search" })}>
           {t.search}
         </NavItem>
+        {social && (
+          <>
+            <NavItem icon="inbox" active={section === "inbox"} badge={unread} onClick={() => open("inbox", { name: "inbox" })}>
+              {t.inbox}
+            </NavItem>
+            <NavItem icon="brush" active={section === "workshop"} onClick={() => open("workshop", { name: "workshop" })}>
+              {t.workshop}
+            </NavItem>
+          </>
+        )}
       </ul>
 
       <div className="mt-5 flex items-center justify-between px-5 pb-1">

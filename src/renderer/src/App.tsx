@@ -14,6 +14,9 @@ import { useUi } from "@/state/ui";
 import ScreenBoundary from "@/components/ui/ScreenBoundary";
 import History from "@/screens/History";
 import Home from "@/screens/Home";
+import Inbox from "@/screens/Inbox";
+import Workshop from "@/screens/Workshop";
+import SendSheet from "@/components/social/SendSheet";
 import Feed from "@/screens/Feed";
 import Likes from "@/screens/Likes";
 import Playlist from "@/screens/Playlist";
@@ -48,6 +51,10 @@ function ScreenFor({ route }: { route: Route }) {
       return <History />;
     case "search":
       return <Search />;
+    case "inbox":
+      return <Inbox />;
+    case "workshop":
+      return <Workshop />;
     case "settings":
       return <Settings />;
   }
@@ -68,6 +75,7 @@ export default function App() {
       <TrackMenu />
       <PlaylistPicker />
       <CheckDialog />
+      <SendSheet />
       <div className={`app-grid relative z-10 grid${full ? " full-open" : ""} h-full grid-cols-[232px_minmax(0,1fr)] grid-rows-[40px_minmax(0,1fr)_88px]`}>
         <div className="col-span-2">
           <TitleBar />

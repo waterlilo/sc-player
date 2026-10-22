@@ -53,6 +53,12 @@ export default function Appearance() {
           <Row label={t.bgReact} hint={look.bgReact ? `${look.bgReact}%` : t.bgReactOff}>
             <Slider value={look.bgReact} min={0} max={100} step={1} onChange={(v) => set({ bgReact: v })} label={t.bgReact} />
           </Row>
+          <Row label={t.accent} hint={look.accent ? look.accent : t.accentAuto}>
+            <Choice<"auto" | "fixed"> value={look.accent ? "fixed" : "auto"} onChange={(v) => set({ accent: v === "auto" ? "" : look.accent || "#b2a0e6" })} label={t.accent} options={[["auto", t.accentFromPicture], ["fixed", t.accentFixed]]} />
+            {look.accent && (
+              <input type="color" value={look.accent} onChange={(e) => set({ accent: e.target.value })} aria-label={t.accent} className="h-8 w-10 cursor-pointer rounded-md border border-white/10 bg-transparent p-0.5" />
+            )}
+          </Row>
           <Row label={t.panelOpacity} hint={`${look.panelOpacity}%`}>
             <Slider value={look.panelOpacity} min={10} max={100} step={1} onChange={(v) => set({ panelOpacity: v })} label={t.panelOpacity} />
           </Row>

@@ -3,6 +3,7 @@ import { PREFS_DEFAULTS, type AppInfo, type HotkeyAction, type NetCheck } from "
 import Appearance from "@/components/settings/Appearance";
 import Equalizer from "@/components/settings/Equalizer";
 import HotkeyRecorder from "@/components/settings/HotkeyRecorder";
+import Messenger from "@/components/settings/Messenger";
 import { Choice, Row, Section, Slider, Toggle } from "@/components/settings/Controls";
 import { MarkerButton, PaperButton } from "@/components/ui/Buttons";
 import Icon from "@/components/ui/Icon";
@@ -416,6 +417,8 @@ export default function Settings() {
         </div>
         <Keywords />
       </Section>
+
+      <Messenger />
 
       <Section title={t.secUpdates}>
         <Updates info={info} />
