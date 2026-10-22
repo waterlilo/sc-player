@@ -11,7 +11,7 @@ import { log } from "./system/log";
  * variants are tried. What the user picks by hand is remembered per track.
  */
 const API = "https://lrclib.net/api";
-const UA = () => `sc player/${app.getVersion()} (https://github.com/waterlilo/sky-player)`;
+const UA = () => `sc player/${app.getVersion()} (https://github.com/waterlilo/sc-player)`;
 
 interface Raw {
   id: number;

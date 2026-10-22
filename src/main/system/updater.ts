@@ -7,7 +7,7 @@ const { autoUpdater } = electronUpdater;
 const EVERY = 6 * 3600 * 1000;
 
 /**
- * Updates from GitHub Releases (waterlilo/sky-player). The installed app downloads the new version when asked and
+ * Updates from GitHub Releases (waterlilo/sc-player). The installed app downloads the new version when asked and
  * installs it on restart. A portable .exe can't replace itself, so it is only told that a new version exists (with a
  * link to the release). Off in development.
  */

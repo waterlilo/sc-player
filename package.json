@@ -1,5 +1,5 @@
 {
-  "name": "sky-player",
+  "name": "sc-player",
   "productName": "sc player",
   "version": "2.0.0-beta.11",
   "private": true,
@@ -88,7 +88,7 @@
     "publish": {
       "provider": "github",
       "owner": "waterlilo",
-      "repo": "sky-player"
+      "repo": "sc-player"
     }
   }
 }
