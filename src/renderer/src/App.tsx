@@ -15,6 +15,7 @@ import ScreenBoundary from "@/components/ui/ScreenBoundary";
 import History from "@/screens/History";
 import Home from "@/screens/Home";
 import Inbox from "@/screens/Inbox";
+import { Albums, Following, Stations } from "@/screens/Library";
 import Workshop from "@/screens/Workshop";
 import SendSheet from "@/components/social/SendSheet";
 import Feed from "@/screens/Feed";
@@ -51,6 +52,12 @@ function ScreenFor({ route }: { route: Route }) {
       return <History />;
     case "search":
       return <Search />;
+    case "albums":
+      return <Albums />;
+    case "stations":
+      return <Stations />;
+    case "following":
+      return <Following />;
     case "inbox":
       return <Inbox />;
     case "workshop":

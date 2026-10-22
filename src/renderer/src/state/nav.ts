@@ -10,12 +10,15 @@ export type Route =
   | { name: "profile"; userId: number }
   | { name: "history" }
   | { name: "search" }
+  | { name: "albums" }
+  | { name: "stations" }
+  | { name: "following" }
   | { name: "inbox" }
   | { name: "workshop" }
   | { name: "settings" };
 
 /** A sidebar entry: Home, Likes, Playlists, History, Search, or a saved profile ("profile:<id>"). */
-export type Section = "home" | "likes" | "feed" | "playlists" | "history" | "search" | "inbox" | "workshop" | "settings" | `profile:${number}`;
+export type Section = "home" | "likes" | "feed" | "playlists" | "history" | "search" | "albums" | "stations" | "following" | "inbox" | "workshop" | "settings" | `profile:${number}`;
 
 interface Entry {
   route: Route;

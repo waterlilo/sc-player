@@ -1,3 +1,6 @@
+import { useSettings } from "@/state/settings";
+import { STUDIO_ICONS } from "./studio-icons";
+
 /**
  * Marker-drawn icons: slightly wobbly strokes with round ends, like the site's moon/sun switch. Filled shapes (play,
  * pause, skip) are filled and outlined in the same colour so they read as felt-tip blobs.
@@ -43,14 +46,19 @@ const ICONS = {
   grip: { fill: "M8.5 6 a 1.4 1.4 0 1 0 0.01 0 Z M15.5 6 a 1.4 1.4 0 1 0 0.01 0 Z M8.5 11 a 1.4 1.4 0 1 0 0.01 0 Z M15.5 11 a 1.4 1.4 0 1 0 0.01 0 Z M8.5 16 a 1.4 1.4 0 1 0 0.01 0 Z M15.5 16 a 1.4 1.4 0 1 0 0.01 0 Z" },
 } satisfies Record<string, { fill?: string; stroke?: string }>;
 
-export type IconName = keyof typeof ICONS;
+/** icons only the studio screens use; the og design draws them with its thicker line */
+type StudioOnly = "forward" | "list" | "users" | "bell" | "disc" | "radio" | "device" | "wave" | "image" | "sparkle" | "more";
+export type IconName = keyof typeof ICONS | StudioOnly;
 
 export default function Icon({ name, size = 20, filled = false, className = "" }: { name: IconName; size?: number; filled?: boolean; className?: string }) {
-  const icon: { fill?: string; stroke?: string } = ICONS[name];
+  const studio = useSettings((s) => s.prefs.look.design === "studio");
+  const own = (ICONS as Record<string, { fill?: string; stroke?: string }>)[name];
+  const icon = (studio ? STUDIO_ICONS[name] : own) ?? STUDIO_ICONS[name] ?? own ?? {};
+  const fine = studio || !own;
   return (
     <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true" focusable="false" className={className} style={{ overflow: "visible" }}>
-      {icon.fill && <path d={icon.fill} fill="currentColor" stroke="currentColor" strokeWidth={1.4} strokeLinejoin="round" />}
-      {icon.stroke && <path d={icon.stroke} fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth={2.1} strokeLinecap="round" strokeLinejoin="round" />}
+      {icon.fill && <path d={icon.fill} fill="currentColor" stroke={fine ? "none" : "currentColor"} strokeWidth={1.4} strokeLinejoin="round" />}
+      {icon.stroke && <path d={icon.stroke} fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth={studio ? 1.6 : 2.1} strokeLinecap="round" strokeLinejoin="round" />}
     </svg>
   );
 }

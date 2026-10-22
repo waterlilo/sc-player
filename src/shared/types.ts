@@ -14,6 +14,8 @@ export interface User extends UserRef {
   trackCount: number | null;
   likesCount: number | null;
   playlistCount: number | null;
+  /** how many people this user follows */
+  followingsCount: number | null;
 }
 
 /**

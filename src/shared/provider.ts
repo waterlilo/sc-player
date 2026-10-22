@@ -27,6 +27,8 @@ export interface MusicProvider {
   /** new tracks and reposts from the people the signed-in user follows */
   getFeed(cursor?: string | null): Promise<Page<Track>>;
   getUserPlaylists(userId: number, cursor?: string | null): Promise<Page<Playlist>>;
+  /** the people a user follows ("me" = the signed-in account) */
+  getFollowings(userId: number | "me", cursor?: string | null): Promise<Page<User>>;
   resolve(url: string): Promise<Resolved>;
   /** full tracks by id, in the given order (unavailable ones left out); up to 200 ids */
   getTracks(ids: number[]): Promise<Track[]>;

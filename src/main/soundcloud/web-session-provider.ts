@@ -283,6 +283,12 @@ export class WebSessionProvider implements MusicProvider {
     return { items: this.tracks(collection(res, "user tracks")), next: res.next_href ?? null };
   }
 
+  async getFollowings(userId: number | "me", cursor?: string | null): Promise<Page<User>> {
+    const id = userId === "me" ? await this.myId() : userId;
+    const res = await this.http.json<RawCollection<RawUser>>(cursor ?? `/users/${id}/followings`, cursor ? {} : { limit: PAGE, linked_partitioning: 1 }, { ttl: LIST_TTL });
+    return { items: collection(res, "followings").map(mapUser), next: res.next_href ?? null };
+  }
+
   /** A user's own playlists and albums, then the ones they liked. Pages without any playlist are skipped. */
   async getUserPlaylists(userId: number, cursor?: string | null): Promise<Page<Playlist>> {
     let state: TwoPhaseCursor = cursor ? (JSON.parse(cursor) as TwoPhaseCursor) : { phase: "own", href: null };

@@ -1,4 +1,4 @@
-import type { SavedProfile, User } from "@shared/types";
+import type { Playlist, SavedProfile, User } from "@shared/types";
 import { useNav } from "@/state/nav";
 import { player } from "@/state/player";
 import { useSettings } from "@/state/settings";
@@ -9,6 +9,16 @@ export function saveProfile(user: User) {
   if (savedProfiles.some((p) => p.id === user.id)) return;
   const entry: SavedProfile = { id: user.id, username: user.username, permalinkUrl: user.permalinkUrl, avatarUrl: user.avatarUrl };
   save({ savedProfiles: [...savedProfiles, entry] });
+}
+
+/** Pin a playlist to the sidebar, or unpin it. */
+export function togglePin(p: Playlist) {
+  const { pinnedPlaylists, save } = useSettings.getState();
+  save({
+    pinnedPlaylists: pinnedPlaylists.some((x) => x.id === p.id)
+      ? pinnedPlaylists.filter((x) => x.id !== p.id)
+      : [...pinnedPlaylists, { id: p.id, title: p.title, artworkUrl: p.artworkUrl, trackCount: p.trackCount }],
+  });
 }
 
 export function unsaveProfile(id: number) {

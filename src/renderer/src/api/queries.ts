@@ -50,6 +50,14 @@ export const usePlaylists = (userId: number | "me", enabled = true) =>
     ...pages,
   });
 
+export const useFollowings = (userId: number | "me", enabled = true) =>
+  useInfiniteQuery({
+    queryKey: ["followings", userId],
+    queryFn: ({ pageParam }) => call("data:followings", userId, pageParam),
+    enabled,
+    ...pages,
+  });
+
 export const usePlaylist = (id: string) => useQuery({ queryKey: ["playlist", id], queryFn: () => call("data:playlist", id) });
 
 export const usePlaylistTracks = (id: string) =>

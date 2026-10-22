@@ -176,12 +176,21 @@ export function withPrefDefaults(stored: Partial<Prefs> | undefined): Prefs {
 }
 
 /** State the renderer keeps in main's store (settings.json in userData). */
+export interface PinnedPlaylist {
+  id: string;
+  title: string;
+  artworkUrl: string | null;
+  trackCount: number;
+}
+
 export interface RendererState {
   /** player volume 0..1 and mute, kept between runs */
   volume: number;
   muted: boolean;
   quality: QualityPref;
   savedProfiles: SavedProfile[];
+  /** playlists pinned to the sidebar */
+  pinnedPlaylists: PinnedPlaylist[];
   history: Track[];
   searchHistory: string[];
   prefs: Prefs;
@@ -193,6 +202,7 @@ export const RENDERER_DEFAULTS: RendererState = {
   muted: false,
   quality: "auto",
   savedProfiles: [],
+  pinnedPlaylists: [],
   history: [],
   searchHistory: [],
   prefs: PREFS_DEFAULTS,
@@ -220,6 +230,7 @@ export interface InvokeMap {
   "data:userLikes": (userId: number, cursor: string | null) => Page<Track>;
   "data:userTracks": (userId: number, cursor: string | null) => Page<Track>;
   "data:userPlaylists": (userId: number, cursor: string | null) => Page<Playlist>;
+  "data:followings": (userId: number | "me", cursor: string | null) => Page<User>;
   "data:resolve": (url: string) => Resolved;
   "data:tracks": (ids: number[]) => Track[];
   "data:sourceIds": (source: QueueSource) => number[];
@@ -364,6 +375,7 @@ export const INVOKE_CHANNELS = [
   "data:userLikes",
   "data:userTracks",
   "data:userPlaylists",
+  "data:followings",
   "data:resolve",
   "data:tracks",
   "data:sourceIds",

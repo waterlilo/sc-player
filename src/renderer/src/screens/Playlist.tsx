@@ -10,7 +10,9 @@ import { EmptyState, ErrorState, Loading } from "@/components/ui/States";
 import { useT } from "@/i18n";
 import { duration } from "@/lib/format";
 import { call } from "@/lib/sky";
+import { togglePin } from "@/lib/links";
 import { useNav } from "@/state/nav";
+import { useSettings } from "@/state/settings";
 import { player } from "@/state/player";
 
 export default function Playlist({ id }: { id: string }) {
@@ -23,6 +25,7 @@ export default function Playlist({ id }: { id: string }) {
   const source = useMemo<QueueSource>(() => ({ kind: "playlist", playlistId: id, cursor }), [id, cursor]);
   const f = useListFilter(`playlist:${id}`, tracks, source, { hasMore: !!q.hasNextPage, loadingMore: q.isFetchingNextPage, loadMore: () => void q.fetchNextPage() });
   const p = meta.data;
+  const pinned = useSettings((s) => s.pinnedPlaylists.some((x) => x.id === id));
   const firstPlayable = Math.max(0, f.tracks.findIndex((x) => x.playability === "ok" || x.playability === "preview"));
 
   return (
@@ -66,6 +69,11 @@ export default function Playlist({ id }: { id: string }) {
               <PaperButton disabled={!f.tracks.length} onClick={() => player.shuffleFrom(f.tracks, f.source)}>
                 <Icon name="shuffle" size={18} /> {t.shuffleAll}
               </PaperButton>
+              {p && (
+                <PaperButton aria-pressed={pinned} onClick={() => togglePin(p)}>
+                  {pinned ? t.unpin : t.pin}
+                </PaperButton>
+              )}
               {p?.permalinkUrl && (
                 <PaperButton aria-label={t.openOnSoundCloud} title={t.openOnSoundCloud} onClick={() => void call("shell:open", p.permalinkUrl)}>
                   <Icon name="external" size={18} />

@@ -18,6 +18,7 @@ export interface RawUser {
   track_count?: number;
   likes_count?: number;
   playlist_count?: number;
+  followings_count?: number;
 }
 
 export interface RawTranscoding {
@@ -101,6 +102,7 @@ export function mapUser(raw: RawUser | undefined): User {
     trackCount: raw!.track_count ?? null,
     likesCount: raw!.likes_count ?? null,
     playlistCount: raw!.playlist_count ?? null,
+    followingsCount: raw!.followings_count ?? null,
   };
 }
 

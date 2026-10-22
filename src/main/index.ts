@@ -151,6 +151,7 @@ function registerIpc() {
   handle("data:userLikes", (_e, u, c) => data.getUserLikes(id(u), cursor(c)));
   handle("data:userTracks", (_e, u, c) => data.getUserTracks(id(u), cursor(c)));
   handle("data:userPlaylists", (_e, u, c) => data.getUserPlaylists(id(u), cursor(c)));
+  handle("data:followings", (_e, u, c) => data.getFollowings(u === "me" ? "me" : id(u), cursor(c)));
   handle("data:tracks", (_e, ids) => data.getTracks(Array.isArray(ids) ? ids.map(id) : bad("ids")));
   handle("data:sourceIds", (_e, source) => data.getSourceIds(queueSource(source)));
   handle("data:related", (_e, t) => data.getRelated(id(t)));

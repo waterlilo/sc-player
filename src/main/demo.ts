@@ -33,7 +33,7 @@ function cover(seed: number) {
   return `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}#-large.jpg`;
 }
 
-const me: User = { id: 1, username: "sky", permalink: "skythemontage", permalinkUrl: "https://soundcloud.com/skythemontage", avatarUrl: null, city: "Moscow", followers: 1234, trackCount: 12, likesCount: 320, playlistCount: 9 };
+const me: User = { id: 1, username: "sky", permalink: "skythemontage", permalinkUrl: "https://soundcloud.com/skythemontage", avatarUrl: null, city: "Moscow", followers: 1234, trackCount: 12, likesCount: 320, playlistCount: 9, followingsCount: artists.length };
 
 function track(i: number): Track {
   const r = rand(i + 11);
@@ -144,6 +144,8 @@ export class DemoProvider implements MusicProvider {
   getUserTracks = (_id: number, cursor?: string | null) => delay(page(LIKES.slice(100, 160), cursor));
   getFeed = (cursor?: string | null) => delay(page(LIKES.slice(40, 140), cursor));
   getUserPlaylists = (_id: number, cursor?: string | null) => delay(page(PLAYLISTS.slice(2), cursor));
+  getFollowings = (_id: number | "me", cursor?: string | null) =>
+    delay(page(artists.map((a, i): User => ({ id: 10 + i, username: a, permalink: "demo", permalinkUrl: "https://soundcloud.com/demo", avatarUrl: cover(40 + i), city: null, followers: 120 * (i + 3), trackCount: 8 + i, likesCount: null, playlistCount: null, followingsCount: null })), cursor));
   resolve = async (): Promise<Resolved> => ({ kind: "user", user: { ...me, id: 12, username: "Paper Moon" } });
   search = (query: string, _kind: SearchKind, cursor?: string | null) => delay(page(LIKES.filter((t) => t.title.toLowerCase().includes(query.toLowerCase()) || t.artist.toLowerCase().includes(query.toLowerCase())), cursor, 30));
   searchSuggestions = async (q: string) => words.filter((w) => w.startsWith(q.toLowerCase())).slice(0, 8);
