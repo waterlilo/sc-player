@@ -476,7 +476,8 @@ html[data-quality] .sketch-boil::after {
   background-size: 5px 5px, 5px 5px, 4px 4px;
   background-repeat: no-repeat, no-repeat, repeat;
 }
-.sketch-select option {
-  background: var(--paper);
+/* the open list is a native popup over white: its rows need an opaque colour (--paper is see-through in studio) */
+select option {
+  background: var(--bg-2, #120c24);
   color: var(--text);
 }
