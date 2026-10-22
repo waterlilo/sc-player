@@ -11,6 +11,7 @@ import { useNav } from "@/state/nav";
 import { player, useCurrentTrack, usePlayer, usePosition } from "@/state/player";
 import { useSettings } from "@/state/settings";
 import { useUi } from "@/state/ui";
+import StudioHome from "./StudioHome";
 
 const STATIC = { kind: "static" } as const;
 
@@ -185,7 +186,7 @@ function greeting(t: ReturnType<typeof useT>, name: string | undefined) {
  * Home: what is playing, the likes and a few playlists as tiles, then what was played recently, what is new in the
  * feed and the playlists. Signed out, only what this app keeps itself (the history) is there.
  */
-export default function Home() {
+function OgHome() {
   const t = useT();
   const open = useNav((s) => s.open);
   const status = useAuth((s) => s.status);
@@ -237,4 +238,9 @@ export default function Home() {
       {!signedIn && !recent.length && <p className="mt-10 max-w-md text-sm text-muted">{t.homeEmpty}</p>}
     </Screen>
   );
+}
+
+export default function Home() {
+  const studio = useSettings((s) => s.prefs.look.design === "studio");
+  return studio ? <StudioHome /> : <OgHome />;
 }

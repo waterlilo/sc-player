@@ -9,6 +9,15 @@ interface UiStore {
   lyricsOpen: boolean;
   toggleLyrics(): void;
   closeLyrics(): void;
+  /** studio: the queue panel on the right (remembered on this PC) */
+  sideQueue: boolean;
+  toggleSideQueue(): void;
+  /** studio: the Appearance popover, opened from the sidebar ("side") or the full screen player ("full") */
+  appearance: "side" | "full" | null;
+  setAppearance(where: "side" | "full" | null): void;
+  /** what the full screen player shows on the right */
+  fullTab: FullTab;
+  setFullTab(tab: FullTab): void;
   /** the player over the whole window: big cover with its spectrum, the words sung line by line */
   fullOpen: boolean;
   openFull(): void;
@@ -26,7 +35,17 @@ interface UiStore {
   showToast(text: string): void;
 }
 
+export type FullTab = "lyrics" | "queue" | "visualizer";
+
 let toastTimer = 0;
+const SIDE_QUEUE = "sc.sideQueue";
+const stored = (() => {
+  try {
+    return localStorage.getItem(SIDE_QUEUE);
+  } catch {
+    return null;
+  }
+})();
 
 export const useUi = create<UiStore>((set) => ({
   queueOpen: false,
@@ -35,6 +54,20 @@ export const useUi = create<UiStore>((set) => ({
   toggleLyrics: () => set((s) => ({ lyricsOpen: !s.lyricsOpen, queueOpen: false })),
   closeLyrics: () => set({ lyricsOpen: false }),
   closeQueue: () => set({ queueOpen: false }),
+  sideQueue: stored !== "0",
+  toggleSideQueue: () =>
+    set((s) => {
+      try {
+        localStorage.setItem(SIDE_QUEUE, s.sideQueue ? "0" : "1");
+      } catch {
+        /* only for this run then */
+      }
+      return { sideQueue: !s.sideQueue };
+    }),
+  appearance: null,
+  setAppearance: (appearance) => set({ appearance }),
+  fullTab: "lyrics",
+  setFullTab: (fullTab) => set({ fullTab }),
   fullOpen: false,
   openFull: () => set({ fullOpen: true, queueOpen: false, lyricsOpen: false }),
   closeFull: () => set({ fullOpen: false }),

@@ -60,3 +60,14 @@
 .np-line.on .np-gap {
   color: rgba(var(--accent-rgb, 230, 230, 240), 0.9);
 }
+
+/* studio: the full screen player covers the whole window, title bar too (it has its own) */
+.s-shell > :not(.now-playing) {
+  transition: opacity 0.22s ease-out, visibility 0s linear 0s;
+}
+.s-shell.full-open > :not(.now-playing) {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.22s ease-out, visibility 0s linear 0.22s;
+}

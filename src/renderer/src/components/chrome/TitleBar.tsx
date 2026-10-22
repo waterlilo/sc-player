@@ -10,7 +10,7 @@ import Icon, { type IconName } from "../ui/Icon";
  * buttons sit on top of these drawings — Windows keeps their behaviour, including the Snap Layouts flyout. Without
  * the overlay the drawings are the buttons themselves.
  */
-function WindowButtons() {
+export function WindowButtons() {
   const t = useT();
   const [maximized, setMaximized] = useState(false);
   const overlay = !!(navigator as Navigator & { windowControlsOverlay?: { visible: boolean } }).windowControlsOverlay?.visible;

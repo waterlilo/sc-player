@@ -13,6 +13,13 @@ const typing = (el: Element | null) =>
   !!el && (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement || (el as HTMLElement).isContentEditable || el.getAttribute("role") === "slider" || !!el.closest("[data-keys-own]"));
 
 function focusSearch() {
+  // studio: the box in the title bar
+  const top = document.querySelector<HTMLInputElement>("[data-titlebar-search] input");
+  if (top) {
+    top.focus();
+    top.select();
+    return;
+  }
   useNav.getState().open("search", { name: "search" });
   // the screen mounts on the next frames
   let tries = 0;

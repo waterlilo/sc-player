@@ -298,6 +298,8 @@ export interface InvokeMap {
   /** the conversation with one friend, oldest first; `before` = an older page */
   "social:chat": (code: string, before?: number) => Message[];
   "social:seen": (code: string) => void;
+  /** the newest tracks friends sent (empty without a profile) */
+  "social:recent": () => Message[];
   "social:state": (messageId: number, state: "heard" | "liked" | "queued") => void;
   /** what is playing, for friends (sent only when sharing is on) */
   "social:now": (track: SocialTrack | null) => void;
@@ -348,6 +350,7 @@ export const INVOKE_CHANNELS = [
   "social:send",
   "social:chat",
   "social:seen",
+  "social:recent",
   "social:state",
   "social:now",
   "social:poll",

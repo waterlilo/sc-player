@@ -162,6 +162,11 @@ export async function chat(code: string, before?: number): Promise<Message[]> {
   return r.messages;
 }
 
+export async function recent(): Promise<Message[]> {
+  if (!joined()) return [];
+  return (await api<{ messages: Message[] }>("GET", "/v1/recent")).messages;
+}
+
 export async function seen(code: string) {
   needProfile();
   await api("POST", `/v1/chat/${encodeURIComponent(code)}/seen`);

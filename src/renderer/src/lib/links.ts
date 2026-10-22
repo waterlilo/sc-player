@@ -21,6 +21,11 @@ export function togglePin(p: Playlist) {
   });
 }
 
+export function unpin(id: string) {
+  const { pinnedPlaylists, save } = useSettings.getState();
+  save({ pinnedPlaylists: pinnedPlaylists.filter((x) => x.id !== id) });
+}
+
 export function unsaveProfile(id: number) {
   const { savedProfiles, save } = useSettings.getState();
   save({ savedProfiles: savedProfiles.filter((p) => p.id !== id) });

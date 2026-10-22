@@ -33,10 +33,19 @@ export function outlinePoint(u: number, x: number, y: number, w: number, h: numb
   return parts[0]![1](0);
 }
 
-/** the spectrum in BANDS log-spaced bands (40 Hz – 14 kHz), each 0..1 */
+/** the loudest band lately, per output array: quiet tracks are lifted so the lines still move */
+const peaks = new WeakMap<Float32Array, number>();
+
+/** the spectrum in BANDS log-spaced bands (40 Hz – 14 kHz), each 0..1, relative to the recent loudest (auto gain) */
 export function spectrum(node: AnalyserNode, buf: Uint8Array<ArrayBuffer>, out: Float32Array) {
   node.getByteFrequencyData(buf);
   const hz = node.context.sampleRate / node.fftSize;
+  let loudest = 0;
+  for (let j = 0; j < buf.length; j++) if (buf[j]! > loudest) loudest = buf[j]!;
+  // falls slowly (~10 s to halve at 30 fps), rises at once; never lifts near-silence more than 4×
+  const peak = Math.max((peaks.get(out) ?? 0) * 0.998, loudest / 255, 0.25);
+  peaks.set(out, peak);
+  const gain = 0.9 / peak;
   for (let i = 0; i < out.length; i++) {
     const lo = 40 * Math.pow(14000 / 40, i / out.length);
     const hi = 40 * Math.pow(14000 / 40, (i + 1) / out.length);
@@ -44,7 +53,7 @@ export function spectrum(node: AnalyserNode, buf: Uint8Array<ArrayBuffer>, out: 
     const b = Math.max(a, Math.min(buf.length - 1, Math.ceil(hi / hz)));
     let sum = 0;
     for (let j = a; j <= b; j++) sum += buf[j]!;
-    const v = Math.min(1, (sum / (b - a + 1) / 255) * 1.25);
+    const v = Math.min(1, (sum / (b - a + 1) / 255) * gain);
     // quick up, slower down
     out[i] = v > out[i]! ? v : out[i]! + (v - out[i]!) * 0.25;
   }

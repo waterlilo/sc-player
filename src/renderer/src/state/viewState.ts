@@ -32,5 +32,18 @@ export function useViewState<T>(name: string, initial: T): [T, (value: T) => voi
   return [value, set];
 }
 
+/** Another page's value (the title bar's search box writes what Search shows). */
+export const getViewValue = (route: string, name: string) => values.get(`${route}|${name}`);
+export function setViewValue(route: string, name: string, value: unknown) {
+  values.set(`${route}|${name}`, value);
+  listeners.forEach((l) => l());
+}
+export function subscribeView(fn: () => void) {
+  listeners.add(fn);
+  return () => {
+    listeners.delete(fn);
+  };
+}
+
 export const getScroll = (key: string) => scrolls.get(key) ?? 0;
 export const setScroll = (key: string, top: number) => scrolls.set(key, top);

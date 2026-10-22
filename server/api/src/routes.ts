@@ -248,6 +248,13 @@ function updates(c: Ctx) {
   });
 }
 
+/** The newest tracks friends sent me, across friends (the home screen). */
+function recent(c: Ctx) {
+  const d = me(c);
+  const rows = all("SELECT m.*, s.code FROM messages m JOIN devices s ON s.id = m.sender WHERE m.recipient = ? ORDER BY m.id DESC LIMIT 20", d.id);
+  send(c.res, 200, { messages: rows.map((m) => msgOut(m, false, String(m.code))) });
+}
+
 function chat(c: Ctx) {
   const d = me(c);
   const other = friendOrFail(d, normCode(c.params[0]));
@@ -602,6 +609,7 @@ const ROUTES: [string, RegExp, Handler][] = [
   ["DELETE", new RegExp(`^/v1/friends/${CODE}$`), removeFriend],
   ["POST", /^\/v1\/send$/, sendTrack],
   ["GET", /^\/v1\/updates$/, updates],
+  ["GET", /^\/v1\/recent$/, recent],
   ["GET", new RegExp(`^/v1/chat/${CODE}$`), chat],
   ["POST", new RegExp(`^/v1/chat/${CODE}/seen$`), chatSeen],
   ["POST", /^\/v1\/messages\/(\d{1,15})\/state$/, messageState],

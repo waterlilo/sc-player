@@ -193,6 +193,7 @@ function registerIpc() {
   handle("social:state", (_e, m, state) => social.setState(id(m), state === "heard" || state === "liked" || state === "queued" ? state : bad("state")));
   handle("social:now", (_e, track) => social.now(track === null ? null : socialTrack(track)));
   handle("social:poll", () => social.poll());
+  handle("social:recent", () => social.recent());
   handle("ws:list", (_e, sort, page, q, mine) => social.wsList(sort === "top" ? "top" : "new", typeof page === "number" && page >= 0 && page < 1000 ? Math.floor(page) : 0, str(q ?? "", "query").slice(0, 40), mine === true));
   handle("ws:get", (_e, t) => social.wsGet(themeId(t)));
   handle("ws:publish", (_e, t) => {

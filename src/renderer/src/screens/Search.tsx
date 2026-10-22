@@ -19,6 +19,8 @@ export default function Search() {
   const [text, setText] = useViewState("text", "");
   const [query, setQuery] = useViewState("query", "");
   const [linkError, setLinkError] = useState<string | null>(null);
+  // studio: the box is in the title bar
+  const studio = useSettings((s) => s.prefs.look.design === "studio");
   const input = useRef<HTMLInputElement>(null);
   const q = useSearchTracks(query);
   const tracks = useMemo(() => q.data?.pages.flatMap((p) => p.items) ?? [], [q.data]);
@@ -42,7 +44,9 @@ export default function Search() {
     setQuery(h);
   };
 
-  useEffect(() => input.current?.focus(), []);
+  useEffect(() => {
+    if (!studio) input.current?.focus();
+  }, [studio]);
   useEffect(() => {
     if (looksLikeLink(text)) return;
     const timer = window.setTimeout(() => setQuery(text.trim()), 350);
@@ -63,7 +67,7 @@ export default function Search() {
     <Screen label={t.search}>
       <ScreenTitle>{t.search.toLowerCase()}</ScreenTitle>
       <form
-        className="mb-6 flex max-w-xl items-center gap-3"
+        className={`mb-6 max-w-xl items-center gap-3 ${studio ? "hidden" : "flex"}`}
         onSubmit={(e) => {
           e.preventDefault();
           void onSubmit();

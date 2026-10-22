@@ -3,6 +3,7 @@ import "./styles/globals.css";
 import "./styles/studio.css";
 import "./styles/now-playing.css";
 import "./styles/home.css";
+import "./styles/studio-shell.css";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
@@ -21,7 +22,10 @@ import { initCoverTint } from "@/lib/cover-tint";
 import { initLook } from "@/lib/look";
 import { initSocial } from "@/state/social";
 import { initLikes } from "@/state/likes";
-import { initVolume } from "@/state/player";
+import { initVolume, player, usePlayer } from "@/state/player";
+import { useNav } from "@/state/nav";
+import { useUi } from "@/state/ui";
+import { useSocial } from "@/state/social";
 import { useSettings } from "@/state/settings";
 import App from "./App";
 
@@ -44,6 +48,9 @@ async function boot() {
   initSocial();
   void useAuth.getState().init();
   initLikes();
+
+  // development only: the stores, for driving the page from DevTools (window.__sc)
+  if (import.meta.env.DEV) Object.assign(window, { __sc: { player, usePlayer, useNav, useUi, useSettings, useSocial, queryClient, call } });
 
   createRoot(document.getElementById("root")!).render(
     <StrictMode>

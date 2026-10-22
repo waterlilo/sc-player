@@ -10,6 +10,11 @@ import QueuePanel from "@/components/player/QueuePanel";
 import EdgeGlow from "@/components/deco/EdgeGlow";
 import LyricsPanel from "@/components/player/LyricsPanel";
 import NowPlaying from "@/components/player/NowPlaying";
+import AppearancePopover from "@/components/studio/AppearancePopover";
+import StudioPlayerBar from "@/components/studio/PlayerBar";
+import StudioQueue from "@/components/studio/Queue";
+import StudioSidebar from "@/components/studio/Sidebar";
+import StudioTitleBar from "@/components/studio/TitleBar";
 import { useUi } from "@/state/ui";
 import ScreenBoundary from "@/components/ui/ScreenBoundary";
 import History from "@/screens/History";
@@ -67,18 +72,63 @@ function ScreenFor({ route }: { route: Route }) {
   }
 }
 
+function Page() {
+  const route = useNav((s) => s.route);
+  return (
+    // short screen transition (~180 ms)
+    <motion.div key={JSON.stringify(route)} className="h-full" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18, ease: "easeOut" }}>
+      <ScreenBoundary>
+        <ScreenFor route={route} />
+      </ScreenBoundary>
+    </motion.div>
+  );
+}
+
+/** The studio design's window: title bar with search, sidebar, the page, the queue on the right, the player. */
+function StudioApp() {
+  const full = useUi((s) => s.fullOpen);
+  const sideQueue = useUi((s) => s.sideQueue);
+  return (
+    <>
+      <LivingBackdrop />
+      <TrackMenu />
+      <PlaylistPicker />
+      <CheckDialog />
+      <SendSheet />
+      <div className={`s-shell relative z-10${sideQueue ? " with-queue" : ""}${full ? " full-open" : ""}`}>
+        <StudioTitleBar />
+        <StudioSidebar />
+        <main className="relative min-h-0 overflow-hidden">
+          <Page />
+          <Toast />
+        </main>
+        {sideQueue && <StudioQueue />}
+        <StudioPlayerBar />
+        <NowPlaying />
+      </div>
+      <AppearancePopover />
+    </>
+  );
+}
+
 /**
- * Window layout: title bar, sidebar, the current screen on its sheet, the player along the bottom. The backdrop
- * (stipple, day sky, grain) sits under all of it.
+ * Window layout (og): title bar, sidebar, the current screen on its sheet, the player along the bottom. The backdrop
+ * (stipple, night sky, grain) sits under all of it.
  */
 export default function App() {
-  const route = useNav((s) => s.route);
   const studio = useSettings((s) => s.prefs.look.design === "studio");
   const full = useUi((s) => s.fullOpen);
+  if (studio)
+    return (
+      <>
+        <SvgDefs />
+        <StudioApp />
+      </>
+    );
   return (
     <>
       <SvgDefs />
-      {studio ? <LivingBackdrop /> : <Backdrop />}
+      <Backdrop />
       <TrackMenu />
       <PlaylistPicker />
       <CheckDialog />
@@ -89,13 +139,8 @@ export default function App() {
         </div>
         <Sidebar />
         <main className="relative min-h-0 overflow-hidden">
-          {/* short screen transition (~180 ms) */}
-          <motion.div key={JSON.stringify(route)} className="h-full" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18, ease: "easeOut" }}>
-            <ScreenBoundary>
-              <ScreenFor route={route} />
-            </ScreenBoundary>
-          </motion.div>
-          {!studio && <EdgeGlow />}
+          <Page />
+          <EdgeGlow />
           <QueuePanel />
           <LyricsPanel />
           <Toast />

@@ -9,8 +9,11 @@ import { player, useCurrentTrack, usePlayer, usePosition, useStreamTrack } from 
 import { useNav } from "@/state/nav";
 import { useSettings } from "@/state/settings";
 import { useSocial } from "@/state/social";
-import { useUi } from "@/state/ui";
+import { useUi, type FullTab } from "@/state/ui";
 import { IconButton } from "../ui/Buttons";
+import Icon from "../ui/Icon";
+import { WindowButtons } from "../chrome/TitleBar";
+import { QueueList, useSourceLabel } from "../studio/Queue";
 import { outlinePoint, spectrum } from "./CoverRing";
 import { useLyrics } from "./LyricsPanel";
 import { LikeButton, PlayButton } from "./PlayerBar";
@@ -49,7 +52,7 @@ function usePlayingLoop(fn: () => void, idle: () => void, deps: unknown[]) {
  */
 function Halo({ track, size }: { track: Track; size: number }) {
   const canvas = useRef<HTMLCanvasElement>(null);
-  const reach = Math.round(size * 0.2);
+  const reach = Math.round(size * 0.25);
   const gap = Math.round(size * 0.04);
   const pad = gap + reach + 6;
   const box = size + pad * 2;
@@ -81,7 +84,7 @@ function Halo({ track, size }: { track: Track; size: number }) {
         const m = Math.abs((((i / n) * 2 + 1) % 2) - 1);
         const v = lv[Math.min(BANDS - 1, Math.floor(m * BANDS * 0.85))]!;
         const [px, py, nx, ny] = outlinePoint(i / n, (pad - gap) * s, (pad - gap) * s, (size + gap * 2) * s, (size + gap * 2) * s, (8 + gap) * s);
-        const len = Math.min(reach, 3 + v * v * reach * 0.8) * s;
+        const len = Math.min(reach, 3 + v * v * reach * 0.9) * s;
         g.strokeStyle = v > 0.55 ? `rgba(${accent}, ${0.55 + v * 0.35})` : `rgba(255,255,255,${0.14 + v * 0.4})`;
         g.beginPath();
         g.moveTo(px, py);
@@ -112,8 +115,19 @@ function Elapsed() {
   return <span className="font-type text-xs tabular-nums text-muted">{duration(position * 1000)}</span>;
 }
 
+function StudioPlay() {
+  const t = useT();
+  const status = usePlayer((s) => s.status);
+  const active = status === "playing" || status === "loading";
+  return (
+    <button type="button" onClick={player.toggle} aria-label={active ? t.pause : t.play} title={active ? t.pause : t.play} className="s-pp h-[52px] w-[52px]">
+      <Icon name={active ? "pause" : "play"} size={22} />
+    </button>
+  );
+}
+
 /** Cover, title, waveform and transport, sized to the space they have. */
-function Stage({ track, sound }: { track: Track; sound: Track | null }) {
+function Stage({ track, sound, studio = false, big = false }: { track: Track; sound: Track | null; studio?: boolean; big?: boolean }) {
   const t = useT();
   const go = useNav((s) => s.go);
   const close = useUi((s) => s.closeFull);
@@ -130,25 +144,25 @@ function Stage({ track, sound }: { track: Track; sound: Track | null }) {
     const fit = () => {
       const { width, height } = el.getBoundingClientRect();
       // the halo needs ~0.24 of the cover on each side; title, waveform and buttons ~210 px under it
-      setSize(Math.round(Math.max(150, Math.min(400, (height - 214) / 1.36, width / 1.5))));
+      setSize(Math.round(Math.max(150, Math.min(big ? 520 : 400, (height - 214) / 1.5, width / 1.6))));
     };
     fit();
     const ro = new ResizeObserver(fit);
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [big]);
 
   const repeatLabel = repeat === "off" ? t.repeatOff : repeat === "all" ? t.repeatAll : t.repeatOne;
   const width = Math.max(300, Math.min(440, size + 80));
 
   return (
     <div ref={box} className="flex min-h-0 min-w-0 flex-col items-center justify-center">
-      <div style={{ margin: `${Math.round(size * 0.18)}px 0` }}>
+      <div style={{ margin: `${Math.round(size * 0.24)}px 0` }}>
         <Halo track={track} size={size} />
       </div>
       <div className="flex items-end gap-3" style={{ width }}>
         <div className="min-w-0 flex-1">
-          <p className="np-title truncate text-[1.45rem] font-semibold leading-tight text-text" title={track.title}>
+          <p className={`np-title truncate font-semibold leading-tight text-text ${studio ? "text-[22px] tracking-[-0.015em]" : "text-[1.45rem]"}`} title={track.title}>
             {track.title}
           </p>
           <button
@@ -162,7 +176,7 @@ function Stage({ track, sound }: { track: Track; sound: Track | null }) {
             {track.artist}
           </button>
         </div>
-        {canSend && <IconButton icon="send" label={t.sendToFriends} onClick={() => openSend(track)} />}
+        {canSend && !studio && <IconButton icon="send" label={t.sendToFriends} onClick={() => openSend(track)} />}
         <LikeButton track={track} />
       </div>
       <div className="mt-3" style={{ width }}>
@@ -175,7 +189,7 @@ function Stage({ track, sound }: { track: Track; sound: Track | null }) {
       <div className="mt-2 flex items-center justify-between" style={{ width }}>
         <IconButton icon="shuffle" label={t.shuffle} on={shuffle} aria-pressed={shuffle} onClick={player.toggleShuffle} />
         <IconButton icon="prev" label={t.previous} onClick={player.prev} />
-        <PlayButton />
+        {studio ? <StudioPlay /> : <PlayButton />}
         <IconButton icon="next" label={t.next} onClick={player.next} />
         <IconButton icon={repeat === "one" ? "repeatOne" : "repeat"} label={repeatLabel} on={repeat !== "off"} onClick={player.cycleRepeat} />
       </div>
@@ -203,6 +217,8 @@ function sweep(words: string[], start: number, next: number, now: number) {
  * click on a line jumps there.
  */
 function SweepLines({ lines }: { lines: NonNullable<Lyrics["synced"]> }) {
+  const t = useT();
+  const studioWords = useSettings((s) => s.prefs.look.design === "studio");
   const box = useRef<HTMLDivElement>(null);
   const userScroll = useRef(0);
   const [at, setAt] = useState(-1);
@@ -260,7 +276,7 @@ function SweepLines({ lines }: { lines: NonNullable<Lyrics["synced"]> }) {
                 </span>
               ))
             ) : (
-              <span className="np-gap">♪</span>
+              <span className="np-gap">{studioWords ? t.instrumentalShort : "♪"}</span>
             )}
           </button>
         );
@@ -290,7 +306,102 @@ function hasWords(l: Lyrics | null | undefined) {
   return !!(l?.synced?.length || l?.plain);
 }
 
+const TABS: { id: FullTab; icon: "lyrics" | "queue" | "wave" }[] = [
+  { id: "lyrics", icon: "lyrics" },
+  { id: "queue", icon: "queue" },
+  { id: "visualizer", icon: "wave" },
+];
+
+/**
+ * Studio: the full screen player over the whole window — its own top bar ("Playing from …", Send to friends, back,
+ * window buttons), the cover with its spectrum on the left, and on the right the words, the queue or nothing but the
+ * picture (Visualizer); a dock at the bottom right switches them and opens Background.
+ */
+function StudioFull() {
+  const t = useT();
+  const close = useUi((s) => s.closeFull);
+  const tab = useUi((s) => s.fullTab);
+  const setTab = useUi((s) => s.setFullTab);
+  const appearance = useUi((s) => s.appearance);
+  const setAppearance = useUi((s) => s.setAppearance);
+  const track = useCurrentTrack();
+  const sound = useStreamTrack(track);
+  const from = useSourceLabel();
+  const canSend = useSocial((s) => !!s.status?.profile);
+  const openSend = useSocial((s) => s.openSend);
+  const words = useLyrics(track);
+  const hasLyrics = words.isPending || hasWords(words.data);
+  const right = !!track && (tab === "queue" || (tab === "lyrics" && hasLyrics));
+  const label = (id: FullTab) => (id === "lyrics" ? t.lyrics : id === "queue" ? t.queue : t.visualizer);
+
+  return (
+    <motion.section
+      aria-label={t.nowPlaying}
+      initial={{ opacity: 0, scale: 0.985 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.985 }}
+      transition={{ duration: 0.24, ease: "easeOut" }}
+      className="now-playing absolute inset-0 z-40 overflow-hidden"
+    >
+      <div className="absolute inset-0 bg-[rgba(4,4,7,0.22)]" />
+      <header className="s-ftb">
+        {track && from && (
+          <div className="s-from s-glass">
+            <span className="h-5 w-5 shrink-0 overflow-hidden rounded-[3px] bg-white/10">{track.artworkUrl && <img src={artwork(track.artworkUrl, "large") ?? undefined} alt="" className="h-full w-full object-cover" draggable={false} />}</span>
+            {t.playingFrom} <b className="truncate">{from}</b>
+          </div>
+        )}
+        <div className="ml-auto flex h-full items-center gap-1.5">
+          {canSend && track && (
+            <button type="button" className="s-btn s-glass" onClick={() => openSend(track)}>
+              <Icon name="send" size={14} />
+              {t.sendToFriends}
+            </button>
+          )}
+          <button type="button" className="s-ib s-glass !h-[30px] !w-[30px]" onClick={close} aria-label={t.fullPlayerClose} title={t.fullPlayerClose}>
+            <Icon name="collapse" size={14} />
+          </button>
+          <div className="ml-1 h-full">
+            <WindowButtons />
+          </div>
+        </div>
+      </header>
+      {track ? (
+        <div className={`absolute inset-x-0 bottom-0 top-12 grid min-h-0 gap-6 pb-14 pl-6 pr-14 ${right ? "grid-cols-[minmax(0,620px)_minmax(0,1fr)]" : "grid-cols-1"}`}>
+          <Stage track={track} sound={sound} studio big={!right} />
+          {right && <div className="flex min-h-0 min-w-0 pt-4">{tab === "queue" ? <div className="s-fullq min-h-0 w-full max-w-[460px] overflow-y-auto"><QueueList /></div> : <Words key={track.id} track={track} />}</div>}
+        </div>
+      ) : (
+        <p className="relative grid h-full place-items-center text-sm text-muted">{t.nothingPlaying}</p>
+      )}
+      {tab === "lyrics" && right && (
+        <p className="absolute bottom-5 left-6 flex items-center gap-1.5 text-[11px] text-[var(--s-dim)]">
+          <Icon name="lyrics" size={14} />
+          {t.syncedCredit}
+        </p>
+      )}
+      <div className="s-dock s-glass" role="tablist">
+        {TABS.map((x) => (
+          <button key={x.id} type="button" role="tab" aria-selected={tab === x.id} className={tab === x.id ? "on" : ""} onClick={() => setTab(x.id)}>
+            <Icon name={x.icon} size={14} />
+            {label(x.id)}
+          </button>
+        ))}
+        <button type="button" className={appearance === "full" ? "on" : ""} onClick={() => setAppearance(appearance === "full" ? null : "full")} aria-expanded={appearance === "full"} data-appearance-toggle>
+          <Icon name="image" size={14} />
+          {t.background}
+        </button>
+      </div>
+    </motion.section>
+  );
+}
+
 function Full() {
+  const studioFull = useSettings((s) => s.prefs.look.design === "studio");
+  return studioFull ? <StudioFull /> : <OgFull />;
+}
+
+function OgFull() {
   const t = useT();
   const close = useUi((s) => s.closeFull);
   const track = useCurrentTrack();
