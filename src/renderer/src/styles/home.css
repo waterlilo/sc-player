@@ -1,0 +1,34 @@
+/* Home (both designs). */
+
+.home-tile {
+  transition: transform 0.18s ease-out, background-color 0.18s;
+}
+.home-tile:hover {
+  transform: translateY(-1px);
+}
+.home-play {
+  background: var(--glow);
+  color: var(--on-glow);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+  transition: transform 0.15s, opacity 0.15s;
+}
+.home-play:hover {
+  transform: scale(1.06);
+}
+.home-card-cover {
+  transition: transform 0.2s ease-out;
+}
+.group:hover .home-card-cover {
+  transform: translateY(-2px);
+}
+
+html[data-design="studio"] .home-play {
+  background: var(--text);
+  color: #0b0b0d;
+}
+html[data-design="studio"] .home-tile:hover {
+  background: rgba(255, 255, 255, 0.09);
+}
+html[data-design="studio"] .home-greeting {
+  font-size: 2rem;
+}

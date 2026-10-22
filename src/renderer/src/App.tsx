@@ -13,6 +13,7 @@ import NowPlaying from "@/components/player/NowPlaying";
 import { useUi } from "@/state/ui";
 import ScreenBoundary from "@/components/ui/ScreenBoundary";
 import History from "@/screens/History";
+import Home from "@/screens/Home";
 import Feed from "@/screens/Feed";
 import Likes from "@/screens/Likes";
 import Playlist from "@/screens/Playlist";
@@ -29,6 +30,8 @@ import { useNav, type Route } from "@/state/nav";
 
 function ScreenFor({ route }: { route: Route }) {
   switch (route.name) {
+    case "home":
+      return <Home />;
     case "likes":
       return <Likes />;
     case "feed":

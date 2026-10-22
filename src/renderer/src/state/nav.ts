@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 export type Route =
+  | { name: "home" }
   | { name: "likes" }
   | { name: "feed" }
   | { name: "playlists" }
@@ -11,8 +12,8 @@ export type Route =
   | { name: "search" }
   | { name: "settings" };
 
-/** A sidebar entry: Likes, Playlists, History, Search, or a saved profile ("profile:<id>"). */
-export type Section = "likes" | "feed" | "playlists" | "history" | "search" | "settings" | `profile:${number}`;
+/** A sidebar entry: Home, Likes, Playlists, History, Search, or a saved profile ("profile:<id>"). */
+export type Section = "home" | "likes" | "feed" | "playlists" | "history" | "search" | "settings" | `profile:${number}`;
 
 interface Entry {
   route: Route;
@@ -37,8 +38,8 @@ const same = (a: Route, b: Route) => JSON.stringify(a) === JSON.stringify(b);
  * belong to it. One back stack across sections. No URLs — there's nothing to deep-link into.
  */
 export const useNav = create<NavStore>((set, get) => ({
-  route: { name: "likes" },
-  section: "likes",
+  route: { name: "home" },
+  section: "home",
   stack: [],
   last: {},
   go: (route) => {
