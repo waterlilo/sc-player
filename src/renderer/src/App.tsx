@@ -23,6 +23,7 @@ import Inbox from "@/screens/Inbox";
 import { Albums, Following, Stations } from "@/screens/Library";
 import Workshop from "@/screens/Workshop";
 import SendSheet from "@/components/social/SendSheet";
+import SkipNotice from "@/components/player/SkipNotice";
 import Feed from "@/screens/Feed";
 import Likes from "@/screens/Likes";
 import Playlist from "@/screens/Playlist";
@@ -95,6 +96,7 @@ function StudioApp() {
       <PlaylistPicker />
       <CheckDialog />
       <SendSheet />
+      <SkipNotice />
       <div className={`s-shell relative z-10${sideQueue ? " with-queue" : ""}${full ? " full-open" : ""}`}>
         <StudioTitleBar />
         <StudioSidebar />
@@ -133,6 +135,7 @@ export default function App() {
       <PlaylistPicker />
       <CheckDialog />
       <SendSheet />
+      <SkipNotice />
       <div className={`app-grid relative z-10 grid${full ? " full-open" : ""} h-full grid-cols-[232px_minmax(0,1fr)] grid-rows-[40px_minmax(0,1fr)_88px]`}>
         <div className="col-span-2">
           <TitleBar />

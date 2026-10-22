@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { normalize, primaryArtist, rankCandidates, repairMojibake, searchQueries, soundScore, strictTextScore, versionMarks, waveSimilarity, type Candidate, type MatchInput } from "./match.ts";
+import { consensusMatches, normalize, primaryArtist, rankCandidates, repairMojibake, searchQueries, soundScore, strictTextScore, versionMarks, waveSimilarity, type Candidate, type MatchInput } from "./match.ts";
 
 const original: MatchInput = { title: "Midnight (Official Audio) [feat. Someone]", artist: "Paper Moon", uploader: "Paper Moon Official", durationMs: 187_000 };
 const cand = (over: Partial<Candidate>): Candidate => ({ id: 1, title: "Paper Moon - Midnight", artist: "", uploader: "random fan", durationMs: 187_500, plays: 1000, ...over });
@@ -134,4 +134,23 @@ test("by sound: a close curve with the right words passes, a cover's does not", 
   // an instrumental never passes, however close its curve
   const inst: Candidate = { ...reupload, id: 2, title: "red eyes instrumental" };
   assert.equal(soundScore(o, inst, { corr: 0.99, mad: 0.01, shiftMs: 0 }, 3), 0);
+});
+
+test("the same file uploaded by two people counts, a lone or a different-length one does not", () => {
+  const o: MatchInput = { title: "Runaway", artist: "DJ Babyboi", uploader: "DJ Babyboi", durationMs: 288_000 };
+  const wave = sine(1800, 40);
+  const other = sine(1800, 40, 30);
+  const fit = waveSimilarity(other, 288_000, wave, 288_000);
+  const a: Candidate = { id: 1, title: "DJ Babyboi - Runaway", artist: "", uploader: "micheal2106", durationMs: 288_000, plays: 100 };
+  const b: Candidate = { id: 2, title: "Tr12 - Runaway", artist: "", uploader: "Buklon", durationMs: 288_000, plays: 100 };
+  // the original's curve is only somewhat like theirs; theirs coincide
+  const heard = [
+    { c: a, wave, fit: { ...fit, corr: 0.64 } },
+    { c: b, wave, fit: { ...fit, corr: 0.64 } },
+  ];
+  assert.deepEqual(consensusMatches(o, heard, 3).map((c) => c.id), [1]);
+  // alone it is not enough
+  assert.equal(consensusMatches(o, heard.slice(0, 1), 3).length, 0);
+  // two seconds longer: another version
+  assert.equal(consensusMatches(o, heard.map((h) => ({ ...h, c: { ...h.c, durationMs: 290_000 } })), 3).length, 0);
 });

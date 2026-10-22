@@ -64,3 +64,14 @@ html[data-activity="hidden"] .social-eq i,
 html[data-activity="blurred"] .social-eq i {
   animation-play-state: paused;
 }
+
+/* the "plays only on SoundCloud" card: glass in studio, a paper card in og */
+.skip-notice {
+  background: rgba(16, 16, 20, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(18px);
+}
+html:not([data-design="studio"]) .skip-notice {
+  background: var(--card, #1a1530);
+  border-color: var(--card-edge, rgba(255, 255, 255, 0.15));
+}

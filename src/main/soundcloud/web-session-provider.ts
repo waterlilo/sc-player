@@ -7,7 +7,7 @@ import { scSession } from "./session";
 import { prefs } from "../store";
 import { pickTranscoding } from "./stream";
 import { cachedAlternatives, rememberAlternatives } from "./alternatives";
-import { rankBySound, rankCandidates, searchQueries, shortlist, waveSimilarity, type Candidate, type MatchInput, type WaveFit } from "./match";
+import { consensusMatches, rankBySound, rankCandidates, searchQueries, shortlist, waveSimilarity, type Candidate, type Heard, type MatchInput } from "./match";
 
 const PAGE = 50;
 const TRACK_META_LIMIT = 4000;
@@ -162,7 +162,7 @@ export class WebSessionProvider implements MusicProvider {
     const seen = new Map<number, Candidate>();
     const waves = new Map<number, string>();
     // uploads already compared by sound (a waveform is fetched once per upload)
-    const compared = new Map<number, { c: Candidate; fit: WaveFit } | null>();
+    const compared = new Map<number, Heard | null>();
     const rank = async (): Promise<Candidate[]> => {
       if (!originalWave) return rankCandidates(original, [...seen.values()], tolerance);
       // the closest-worded uploads, compared by sound
@@ -171,14 +171,13 @@ export class WebSessionProvider implements MusicProvider {
         fresh.map(async (c) => {
           const url = waves.get(c.id);
           const wave = url ? await this.getWaveform(url).catch(() => null) : null;
-          compared.set(c.id, wave ? { c, fit: waveSimilarity(originalWave, original.durationMs, wave, c.durationMs) } : null);
+          compared.set(c.id, wave ? { c, wave, fit: waveSimilarity(originalWave, original.durationMs, wave, c.durationMs) } : null);
         }),
       );
-      return rankBySound(
-        original,
-        [...compared.values()].filter((x): x is NonNullable<typeof x> => !!x),
-        tolerance,
-      );
+      const heard = [...compared.values()].filter((x): x is Heard => !!x);
+      const bySound = rankBySound(original, heard, tolerance);
+      // nothing like the original's curve: the same file uploaded by several people
+      return bySound.length ? bySound : consensusMatches(original, heard, tolerance);
     };
     let ranked: Candidate[] = [];
     // fans' re-uploads often rank below the original, its remixes and covers: up to two pages of each query, until

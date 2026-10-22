@@ -30,6 +30,10 @@ interface UiStore {
   picker: Track | null;
   openPicker(track: Track): void;
   closePicker(): void;
+  /** a protected track with no other upload was skipped: say so, with a link to it on SoundCloud */
+  skipped: Track | null;
+  noteSkipped(track: Track): void;
+  clearSkipped(): void;
   /** a short message at the bottom ("Link copied") */
   toast: { id: number; text: string } | null;
   showToast(text: string): void;
@@ -38,6 +42,7 @@ interface UiStore {
 export type FullTab = "lyrics" | "queue" | "visualizer";
 
 let toastTimer = 0;
+let skippedTimer = 0;
 const SIDE_QUEUE = "sc.sideQueue";
 const stored = (() => {
   try {
@@ -77,6 +82,16 @@ export const useUi = create<UiStore>((set) => ({
   picker: null,
   openPicker: (track) => set({ picker: track }),
   closePicker: () => set({ picker: null }),
+  skipped: null,
+  noteSkipped: (track) => {
+    window.clearTimeout(skippedTimer);
+    set({ skipped: track });
+    skippedTimer = window.setTimeout(() => set({ skipped: null }), 9000);
+  },
+  clearSkipped: () => {
+    window.clearTimeout(skippedTimer);
+    set({ skipped: null });
+  },
   toast: null,
   showToast: (text) => {
     window.clearTimeout(toastTimer);

@@ -2,6 +2,7 @@ import { memo, type KeyboardEvent } from "react";
 import { artwork, type Track } from "@shared/types";
 import { useT } from "@/i18n";
 import { duration } from "@/lib/format";
+import { call } from "@/lib/sky";
 import { useNav } from "@/state/nav";
 import { player, useSubs } from "@/state/player";
 import { useSettings } from "@/state/settings";
@@ -40,7 +41,7 @@ function TrackRow({ track, index, current, playing, onPlay }: Props) {
   const sub = useSubs((s) => (track.playability === "ok" ? undefined : s.byTrack[track.id]));
   const alt = subOn && sub?.state === "found" ? sub.candidates[sub.pick] : undefined;
   const unplayable = (track.playability === "blocked" || track.playability === "drm") && (!subOn || sub?.state === "none");
-  const badge = track.playability === "ok" ? null : alt ? t.alt : t[track.playability];
+  const badge = track.playability === "ok" ? null : alt ? t.alt : unplayable ? t.soundcloudOnly : t[track.playability];
   const preview = track.playability === "preview";
   const hint = unplayable
     ? t.unplayable
@@ -118,6 +119,11 @@ function TrackRow({ track, index, current, playing, onPlay }: Props) {
         </div>
       </div>
       <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+        {unplayable && (
+          <button type="button" aria-label={t.openOnSoundCloud} title={t.openOnSoundCloud} className="grid h-8 w-8 place-items-center rounded-full text-muted hover:text-text" onClick={() => void call("shell:open", track.permalinkUrl)}>
+            <Icon name="external" size={17} />
+          </button>
+        )}
         <button type="button" aria-label={t.playNext} title={t.playNext} className="grid h-8 w-8 place-items-center rounded-full text-muted hover:text-text" onClick={() => player.playNext(track)}>
           <Icon name="playNext" size={18} />
         </button>

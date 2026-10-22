@@ -139,7 +139,7 @@ const VERSION_WORDS = [
 const FILLER = ["official", "audio", "video", "music", "lyrics", "lyric", "hq", "hd", "full", "song", "by", "with", "and", "the", "original", "mp3", "m4a", "wav", "x", "feat", "ft", "prod", "new", "single", "album", "track", "high", "quality", "explicit", "clean", "unreleased", "kbps", "128k", "320k"];
 
 /** Bump when the rules change: answers remembered under older rules are not reused. */
-export const MATCH_VERSION = 7;
+export const MATCH_VERSION = 8;
 
 // ---- text ---------------------------------------------------------------------------------------------------------
 
@@ -423,6 +423,37 @@ export function rankCandidates(original: MatchInput, candidates: Candidate[], to
     .filter((x) => x.s >= minScore)
     .sort((a, b) => b.s - a.s)
     .map((x) => x.c);
+}
+
+export interface Heard {
+  c: Candidate;
+  /** its waveform */
+  wave: number[];
+  /** against the original's */
+  fit: WaveFit;
+}
+
+/**
+ * When nothing matches the original's waveform closely: two uploads by different people that are the very same file
+ * (their curves coincide) are the recording, even if the original's curve differs more (another master, another
+ * loudness) — covers by different people never coincide like that. Only uploads with the right title by the artist,
+ * the same length (±1 s) and a curve still like the original's count. Best first.
+ */
+export function consensusMatches(original: MatchInput, heard: Heard[], toleranceSec: number): Candidate[] {
+  const ok = (h: Heard) =>
+    h.fit.corr >= 0.6 && Math.abs(original.durationMs - h.c.durationMs) <= 1000 && strictTextScore(original, h.c, toleranceSec) > 0;
+  const picked = new Map<number, Heard>();
+  for (let i = 0; i < heard.length; i++)
+    for (let j = i + 1; j < heard.length; j++) {
+      const a = heard[i]!;
+      const b = heard[j]!;
+      if (normalize(a.c.uploader) === normalize(b.c.uploader)) continue;
+      if (!ok(a) && !ok(b)) continue;
+      const same = waveSimilarity(a.wave, a.c.durationMs, b.wave, b.c.durationMs);
+      if (same.corr < 0.97 || same.mad > 0.025 || Math.abs(same.shiftMs) > 500) continue;
+      for (const h of [a, b]) if (ok(h)) picked.set(h.c.id, h);
+    }
+  return [...picked.values()].sort((x, y) => y.fit.corr - x.fit.corr).map((h) => h.c);
 }
 
 /** With waveforms: the candidates that sound like the original, best first. */

@@ -6,6 +6,7 @@ import { getActivity, subscribeActivity } from "@/lib/activity";
 import { isHidden } from "@/lib/hidden";
 import { call } from "@/lib/sky";
 import { useSettings } from "./settings";
+import { useUi } from "./ui";
 
 export type PlayerStatus = "idle" | "loading" | "playing" | "paused" | "error";
 
@@ -189,6 +190,8 @@ function start(index: number, opts: { autoplay?: boolean; startAt?: number } = {
       void engine.load(track, { autoplay, startAt: opts.startAt });
     } else {
       set({ status: "error", error: "unavailable" });
+      // not a silent skip: it plays on SoundCloud itself
+      useUi.getState().noteSkipped(track);
       window.clearTimeout(skipTimer);
       skipTimer = window.setTimeout(() => void advance(true), 600);
       return;
