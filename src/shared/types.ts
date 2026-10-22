@@ -117,15 +117,28 @@ export function artwork(url: string | null, size: "t500x500" | "t300x300" | "lar
 }
 
 /** Words of a song from LRCLIB: time-synced lines when there are some, otherwise plain text. */
+/** One sung word (or syllable) with its own timing, seconds; the text keeps its trailing space when one follows. */
+export interface LyricWord {
+  t: number;
+  end: number;
+  text: string;
+  /** a background vocal (an echo, an ad-lib) */
+  bg?: boolean;
+}
+
+export type LyricsSource = "lrclib" | "betterlyrics" | "unison";
+
 export interface Lyrics {
-  /** LRCLIB's id of the record */
+  /** the record's id at its source (LRCLIB's for picks by hand; 0 when the source has none) */
   id: number;
   artist: string;
   title: string;
-  /** lines with their start time in seconds, in order */
-  synced: { t: number; text: string }[] | null;
+  /** lines with their start time in seconds, in order; with words when the source times each word */
+  synced: { t: number; text: string; words?: LyricWord[] }[] | null;
   plain: string | null;
   instrumental: boolean;
+  /** where the words came from (shown with them); LRCLIB when missing (older answers) */
+  source?: LyricsSource;
 }
 
 /** A search result when looking for the words by hand. */

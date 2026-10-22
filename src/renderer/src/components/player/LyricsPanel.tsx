@@ -13,6 +13,39 @@ import Icon from "../ui/Icon";
 
 const key = (id: number) => ["lyrics", id] as const;
 
+const SOURCES = {
+  lrclib: { name: "LRCLIB", url: "https://lrclib.net" },
+  betterlyrics: { name: "Better Lyrics", url: "https://betterlyrics.org" },
+  unison: { name: "Unison · Better Lyrics", url: "https://betterlyrics.org" },
+} as const;
+
+/** Where the words came from, with a link to it (Better Lyrics asked for one), and how they are timed. */
+export function LyricsSource({ lyrics }: { lyrics: Lyrics | null | undefined }) {
+  const t = useT();
+  const src = SOURCES[lyrics?.source ?? "lrclib"];
+  const byWord = !!lyrics?.synced?.some((l) => (l.words?.length ?? 0) > 1);
+  return (
+    <>
+      {lyrics?.synced?.length ? (byWord ? t.syncedByWord : t.syncedByLine) : t.lyricsWord}
+      {" · "}
+      <button type="button" className="underline-offset-2 hover:text-text hover:underline" onClick={() => void call("shell:open", src.url)}>
+        {src.name}
+      </button>
+    </>
+  );
+}
+
+/** The panel's footer: the source of the words on show. */
+function PanelCredit({ track }: { track: Track }) {
+  const q = useLyrics(track);
+  if (!q.data) return null;
+  return (
+    <p className="px-4 py-2 font-type text-[0.65rem] text-muted/70">
+      <LyricsSource lyrics={q.data} />
+    </p>
+  );
+}
+
 /** The words of a track (cached for the session; the panel and the full screen player share them). */
 export function useLyrics(track: Track | null) {
   return useQuery({
@@ -190,7 +223,7 @@ export default function LyricsPanel() {
             <IconButton icon="close" label={t.close} onClick={close} size={16} />
           </div>
           {track ? <Body key={track.id} track={track} /> : <p className="px-4 font-type text-sm text-muted">{t.nothingPlaying}</p>}
-          <p className="px-4 py-2 font-type text-[0.65rem] text-muted/70">{t.lyricsCredit}</p>
+          {track && <PanelCredit track={track} />}
         </motion.aside>
       )}
     </AnimatePresence>

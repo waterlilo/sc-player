@@ -82,3 +82,9 @@
     background: rgba(255, 255, 255, 0.11);
   }
 }
+
+/* a background vocal (an echo, an ad-lib) in word-timed lyrics */
+.np-line .w.bg {
+  font-size: 0.78em;
+  opacity: 0.8;
+}

@@ -15,7 +15,7 @@ import Icon from "../ui/Icon";
 import { WindowButtons } from "../chrome/TitleBar";
 import { QueueList, useSourceLabel } from "../studio/Queue";
 import { outlinePoint, spectrum } from "./CoverRing";
-import { ManualSearch, useLyrics } from "./LyricsPanel";
+import { LyricsSource, ManualSearch, useLyrics } from "./LyricsPanel";
 import { BottomSpectrum, SpectrumPopover } from "./Spectrum";
 import { LikeButton, PlayButton } from "./PlayerBar";
 import Waveform from "./Waveform";
@@ -255,7 +255,11 @@ function SweepLines({ lines }: { lines: NonNullable<Lyrics["synced"]> }) {
     const row = box.current?.querySelector<HTMLElement>(`[data-line="${cur}"]`);
     const spans = row?.querySelectorAll<HTMLElement>(".w");
     if (!spans?.length) return;
-    const k = sweep(words[cur]!, lines[cur]!.t, lines[cur + 1]?.t ?? lines[cur]!.t + 5, now);
+    const timed = lines[cur]!.words;
+    // the source's own word times when it has them (a small lead only), else shared out by word length
+    const k = timed
+      ? timed.map((w) => Math.max(0, Math.min(1, (now - 0.15 - w.t) / Math.max(0.05, w.end - w.t))))
+      : sweep(words[cur]!, lines[cur]!.t, lines[cur + 1]?.t ?? lines[cur]!.t + 5, now);
     spans.forEach((s, i) => s.style.setProperty("--k", `${(k[i] ?? 0) * 100}%`));
   };
   usePlayingLoop(paint, paint, [lines]);
@@ -289,7 +293,13 @@ function SweepLines({ lines }: { lines: NonNullable<Lyrics["synced"]> }) {
             }}
             className={`np-line ${i === at ? "on" : d === 1 ? "near" : d > 2 ? "far" : ""}`}
           >
-            {words[i]!.length ? (
+            {l.words?.length ? (
+              l.words.map((w, j) => (
+                <span key={j} className={w.bg ? "w bg" : "w"}>
+                  {w.text}
+                </span>
+              ))
+            ) : words[i]!.length ? (
               words[i]!.map((w, j) => (
                 <span key={j}>
                   {j > 0 && " "}
@@ -475,7 +485,7 @@ function StudioFull() {
             </button>
           ) : hasWords(words.data) ? (
             <>
-              {t.syncedCredit} ·
+              <LyricsSource lyrics={words.data} /> ·
               <button type="button" className="hover:text-text" onClick={() => setSearchFor(track.id)}>
                 {t.lyricsWrong}
               </button>
@@ -591,7 +601,11 @@ function OgFull() {
       ) : (
         <p className="relative grid h-full place-items-center font-type text-sm text-muted">{t.nothingPlaying}</p>
       )}
-      {split && <p className="absolute bottom-3 left-5 font-type text-[0.65rem] text-muted/60">{t.lyricsCredit}</p>}
+      {split && words.data && (
+        <p className="absolute bottom-3 left-5 font-type text-[0.65rem] text-muted/60">
+          <LyricsSource lyrics={words.data} />
+        </p>
+      )}
     </motion.section>
   );
 }
