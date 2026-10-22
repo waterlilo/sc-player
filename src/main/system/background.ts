@@ -17,11 +17,12 @@ const NAME = /^bg-\d+\.(png|jpe?g|webp|gif|mp4|webm)$/i;
 const folder = () => join(app.getPath("userData"), "backgrounds");
 
 /**
- * Before the app is ready: the scheme may stream (video seeking) and is treated like https. corsEnabled: the installed
- * app's page is a file:// one, and Chromium refuses <video> from a scheme without it ("URL safety check").
+ * Before the app is ready: the scheme may stream (video seeking) and is treated like https. corsEnabled + bypassCSP:
+ * the installed app's page is a file:// one, and Chromium refuses <video> from a scheme without them ("URL safety
+ * check").
  */
 export function registerBackgroundScheme() {
-  protocol.registerSchemesAsPrivileged([{ scheme: BG_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true } }]);
+  protocol.registerSchemesAsPrivileged([{ scheme: BG_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true, bypassCSP: true } }]);
 }
 
 export function serveBackgrounds() {
