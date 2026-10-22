@@ -34,17 +34,37 @@ export interface LyricsQuery {
 /** LRCLIB said "busy" (503): that step is skipped, and a search that found nothing is not remembered. */
 class Busy extends Error {}
 
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * One LRCLIB request. Busy (503 / 429) or a dropped connection is tried twice more after a pause (LRCLIB sits behind
+ * Cloudflare, which is slow and flaky from some networks) before the step gives up.
+ */
 async function get<T>(path: string, params: Record<string, string | number>): Promise<T | null> {
   const url = new URL(`${API}${path}`);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, String(v));
-  const res = await net.fetch(url.href, { headers: { "User-Agent": UA(), Accept: "application/json" }, signal: AbortSignal.timeout(10_000) });
-  if (res.status === 404) return null;
-  // a miss by artist and title makes LRCLIB ask other sources, and it answers 503 when they don't come through in
-  // time: a miss all the same (only the free-text search's 503 means LRCLIB itself is busy)
-  if (res.status === 503 && (path === "/get" || "artist_name" in params)) return null;
-  if (res.status === 503 || res.status === 429) throw new Busy(`LRCLIB is busy (${res.status})`);
-  if (!res.ok) throw new Error(`LRCLIB answered ${res.status}`);
-  return (await res.json()) as T;
+  for (let attempt = 0; ; attempt++) {
+    const last = attempt === 2;
+    let res: Response;
+    try {
+      res = await net.fetch(url.href, { headers: { "User-Agent": UA(), Accept: "application/json" }, signal: AbortSignal.timeout(15_000) });
+    } catch (err) {
+      if (last) throw err;
+      await wait(1500 * (attempt + 1));
+      continue;
+    }
+    if (res.status === 404) return null;
+    // a miss by artist and title makes LRCLIB ask other sources, and it answers 503 when they don't come through in
+    // time: a miss all the same (only the free-text search's 503 means LRCLIB itself is busy)
+    if (res.status === 503 && (path === "/get" || "artist_name" in params)) return null;
+    if (res.status === 503 || res.status === 429) {
+      if (last) throw new Busy(`LRCLIB is busy (${res.status})`);
+      await wait(2000 * (attempt + 1));
+      continue;
+    }
+    if (!res.ok) throw new Error(`LRCLIB answered ${res.status}`);
+    return (await res.json()) as T;
+  }
 }
 
 /** "[01:02.34] words" lines; a line may carry several times. */
@@ -94,6 +114,8 @@ function variants(q: LyricsQuery): { artist: string; title: string }[] {
   if (dash) out.push({ artist: dash[1]!.trim(), title: cleanTitle(dash[2]!) });
   out.push({ artist: q.artist, title }, { artist: primaryArtist(q.artist), title });
   if (dash) out.push({ artist: q.artist, title: cleanTitle(dash[2]!) });
+  // "Title - Artist" (the uploader's own name last): "pls dont die. - overtonight"
+  if (dash && normalize(dash[2]!).includes(normalize(primaryArtist(q.artist)))) out.push({ artist: dash[2]!.trim(), title: cleanTitle(dash[1]!) });
   const seen = new Set<string>();
   return out.filter((v) => v.artist && v.title && !seen.has(`${v.artist}|${v.title}`) && seen.add(`${v.artist}|${v.title}`));
 }
