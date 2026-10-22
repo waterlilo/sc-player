@@ -1,0 +1,2 @@
+# files that run on the Linux server keep LF line ends even on a Windows checkout
+server/** text eol=lf
