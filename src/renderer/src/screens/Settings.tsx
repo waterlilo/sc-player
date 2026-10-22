@@ -15,7 +15,7 @@ import { useAuth } from "@/state/auth";
 import { useSettings } from "@/state/settings";
 import { useUi } from "@/state/ui";
 
-const RELEASES = "https://github.com/waterlilo/sky-player/releases/latest";
+const RELEASES = "https://github.com/waterlilo/sc-player/releases/latest";
 
 function OutputDevice() {
   const t = useT();
@@ -133,7 +133,7 @@ function Updates({ info }: { info: AppInfo | null }) {
 }
 
 const ZAPRET_GUIDE = "https://github.com/Flowseal/zapret-discord-youtube/issues/7449";
-const REPO = "https://github.com/waterlilo/sky-player";
+const REPO = "https://github.com/waterlilo/sc-player";
 const PROXY_RE = /^(?:(https?|socks[45]?):\/\/)?(?:[^@/\s]*@)?([\w.-]+|\[[0-9a-f:]+\]):(\d{1,5})\/?$/i;
 
 /** Proxy: Windows settings / none / an address; an HTTP proxy's username and password (kept encrypted by main). */

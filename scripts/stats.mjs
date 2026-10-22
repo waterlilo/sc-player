@@ -3,7 +3,7 @@
 // GitHub counts downloads, not people: the installer counts include in-app updates and test downloads, and
 // latest.yml is fetched by every update check (on start and every few hours), so it only hints at how often
 // the app is running.
-const REPO = "waterlilo/sky-player";
+const REPO = "waterlilo/sc-player";
 
 const headers = { Accept: "application/vnd.github+json", "User-Agent": "sc-player-stats" };
 if (process.env.GITHUB_TOKEN) headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;

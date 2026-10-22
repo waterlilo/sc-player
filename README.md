@@ -11,8 +11,8 @@
 [Install](#install) •
 [Good to know](#good-to-know)
 
-[![Latest release](https://img.shields.io/github/v/release/waterlilo/sky-player?style=flat-square&label=release&labelColor=111114&color=3a3a41)](../../releases/latest)
-[![Downloads](https://img.shields.io/github/downloads/waterlilo/sky-player/total?style=flat-square&labelColor=111114&color=3a3a41)](../../releases)
+[![Latest release](https://img.shields.io/github/v/release/waterlilo/sc-player?style=flat-square&label=release&labelColor=111114&color=3a3a41)](../../releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/waterlilo/sc-player/total?style=flat-square&labelColor=111114&color=3a3a41)](../../releases)
 ![Windows](https://img.shields.io/badge/Windows-10%20%2F%2011-3a3a41?style=flat-square&labelColor=111114)
 
 <br/>
