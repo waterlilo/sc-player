@@ -8,7 +8,7 @@ import { getSecret } from "../store/secrets";
  * page's session) and updates. "system" follows Windows, "direct" uses none, "custom" an address like
  * socks5://127.0.0.1:1080 or http://host:8080 (http when no scheme is given). A username and password are answered
  * when the proxy asks (HTTP proxies; Chromium can't log in to SOCKS proxies); the password is kept encrypted.
- * "builtin" is sc player's own proxy (proxy/README.md), for SoundCloud only.
+ * "builtin" is sc player's own proxy (server/README.md), for SoundCloud only.
  */
 export function proxyRules(url: string): string | null {
   const m = url.trim().match(/^(?:(https?|socks[45]?):\/\/)?(?:[^@/\s]*@)?([\w.-]+|\[[0-9a-f:]+\]):(\d{1,5})\/?$/i);

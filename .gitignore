@@ -5,6 +5,8 @@ dist/
 node_modules/
 out/
 
-# the built-in proxy's address and password (proxy/README.md); the server's secrets
+# the built-in proxy's address and password (server/README.md); the server's address and secrets
 proxy.local.json
-proxy/.env
+server/.env
+server/api/data*/
+server.local.json

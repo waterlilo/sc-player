@@ -1,0 +1,30 @@
+services:
+  caddy:
+    build: ./caddy
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - api
+
+  api:
+    build: ./api
+    restart: unless-stopped
+    environment:
+      ADMIN_TOKEN: ${ADMIN_TOKEN}
+    volumes:
+      - api-data:/data
+    # reachable only through Caddy
+    expose:
+      - "8080"
+
+volumes:
+  caddy-data:
+  caddy-config:
+  api-data:

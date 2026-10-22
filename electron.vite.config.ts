@@ -36,7 +36,7 @@ function shortVersion() {
 }
 
 /**
- * The built-in proxy (proxy/README.md): proxy.local.json next to package.json, kept out of git —
+ * The built-in proxy (server/README.md): proxy.local.json next to package.json, kept out of git —
  * { "host": "scp.example.com", "port": 443, "username": "…", "password": "…" } ("scheme": "http" only for a local test).
  * Without the file the build has no built-in proxy and the setting doesn't show.
  */

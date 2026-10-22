@@ -1,0 +1,38 @@
+# sc player's server, one name for everything (values from .env via docker-compose):
+#  - the proxy: only SoundCloud (site, API, audio, artwork) and its bot protection go through; anything else is
+#    refused, so it can't be used as an open proxy;
+#  - /v1/*: the API (messenger, workshop, user count), passed to the api container.
+{
+	order forward_proxy first
+	email {$SCP_EMAIL}
+}
+
+{$SCP_DOMAIN} {
+	forward_proxy {
+		basic_auth {$SCP_USER} {$SCP_PASS}
+		hide_ip
+		hide_via
+		# without the right password the server answers like an ordinary web site
+		probe_resistance
+		ports 443 80
+		acl {
+			allow soundcloud.com *.soundcloud.com *.sndcdn.com *.soundcloud.cloud *.datadome.co *.captcha-delivery.com
+			deny all
+		}
+	}
+
+	handle /v1/* {
+		# theme backgrounds are the biggest uploads (25 MB)
+		request_body {
+			max_size 26MB
+		}
+		reverse_proxy api:8080
+	}
+
+	handle {
+		respond "OK" 200
+	}
+
+	encode zstd gzip
+	header -Server
+}
