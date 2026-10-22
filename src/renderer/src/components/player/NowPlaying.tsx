@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { artwork, type Lyrics, type Track } from "@shared/types";
 import { analyser, currentTime } from "@/audio/engine";
 import { useT } from "@/i18n";
@@ -15,7 +15,7 @@ import Icon from "../ui/Icon";
 import { WindowButtons } from "../chrome/TitleBar";
 import { QueueList, useSourceLabel } from "../studio/Queue";
 import { outlinePoint, spectrum } from "./CoverRing";
-import { useLyrics } from "./LyricsPanel";
+import { ManualSearch, useLyrics } from "./LyricsPanel";
 import { LikeButton, PlayButton } from "./PlayerBar";
 import Waveform from "./Waveform";
 
@@ -127,7 +127,7 @@ function StudioPlay() {
 }
 
 /** Cover, title, waveform and transport, sized to the space they have. */
-function Stage({ track, sound, studio = false, big = false }: { track: Track; sound: Track | null; studio?: boolean; big?: boolean }) {
+function Stage({ track, sound, studio = false }: { track: Track; sound: Track | null; studio?: boolean }) {
   const t = useT();
   const go = useNav((s) => s.go);
   const close = useUi((s) => s.closeFull);
@@ -144,19 +144,19 @@ function Stage({ track, sound, studio = false, big = false }: { track: Track; so
     const fit = () => {
       const { width, height } = el.getBoundingClientRect();
       // the halo needs ~0.24 of the cover on each side; title, waveform and buttons ~210 px under it
-      setSize(Math.round(Math.max(150, Math.min(big ? 520 : 400, (height - 214) / 1.5, width / 1.6))));
+      setSize(Math.round(Math.max(150, Math.min(400, (height - 214) / 1.5, width / 1.6))));
     };
     fit();
     const ro = new ResizeObserver(fit);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [big]);
+  }, []);
 
   const repeatLabel = repeat === "off" ? t.repeatOff : repeat === "all" ? t.repeatAll : t.repeatOne;
   const width = Math.max(300, Math.min(440, size + 80));
 
   return (
-    <div ref={box} className="flex min-h-0 min-w-0 flex-col items-center justify-center">
+    <div ref={box} className="flex h-full min-h-0 w-full min-w-0 flex-col items-center justify-center">
       <div style={{ margin: `${Math.round(size * 0.24)}px 0` }}>
         <Halo track={track} size={size} />
       </div>
@@ -288,10 +288,9 @@ function SweepLines({ lines }: { lines: NonNullable<Lyrics["synced"]> }) {
 
 /** The right side: synced words, plain words, or nothing (then the stage takes the middle). */
 function Words({ track }: { track: Track }) {
-  const t = useT();
   const q = useLyrics(track);
   const l = q.data;
-  if (q.isPending) return <p className="self-center font-type text-sm text-muted">{t.loadingMore}</p>;
+  if (q.isPending) return <LyricsSkeleton />;
   if (l?.synced?.length) return <SweepLines lines={l.synced} />;
   if (l?.plain)
     return (
@@ -317,6 +316,60 @@ const TABS: { id: FullTab; icon: "lyrics" | "queue" | "wave" }[] = [
  * window buttons), the cover with its spectrum on the left, and on the right the words, the queue or nothing but the
  * picture (Visualizer); a dock at the bottom right switches them and opens Background.
  */
+/**
+ * The stage keeps its width; without a right side it glides to the middle (and grows a little for Visualizer) instead
+ * of jumping there, and the right side fades in and out.
+ */
+function StudioBody({ track, sound, right, scale, children }: { track: Track; sound: Track | null; right: boolean; scale: number; children: ReactNode }) {
+  const box = useRef<HTMLDivElement>(null);
+  const [inner, setInner] = useState(0);
+  useLayoutEffect(() => {
+    const el = box.current!;
+    const fit = () => {
+      const cs = getComputedStyle(el);
+      setInner(el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight));
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const width = Math.round(Math.min(620, Math.max(360, inner * 0.45)));
+  const x = right ? 0 : Math.max(0, (inner - width) / 2);
+  return (
+    <div ref={box} className="absolute inset-x-0 bottom-0 top-12 flex min-h-0 gap-6 pb-14 pl-6 pr-14">
+      <motion.div className="flex min-h-0 shrink-0" style={{ width }} initial={false} animate={{ x, scale }} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}>
+        <Stage track={track} sound={sound} studio />
+      </motion.div>
+      <AnimatePresence initial={false}>
+        {right && (
+          <motion.div
+            key="right"
+            className="flex min-h-0 min-w-0 flex-1 justify-center pt-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1, transition: { delay: 0.15, duration: 0.4 } }}
+            exit={{ opacity: 0, transition: { duration: 0.2 } }}
+          >
+            {children}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+/** Waiting for the words: a few quiet lines where they will be. */
+function LyricsSkeleton() {
+  const t = useT();
+  return (
+    <div className="flex w-full flex-col justify-center gap-6 pb-[8vh]" aria-label={t.loadingMore} role="status">
+      {[72, 58, 84, 46, 66].map((w, i) => (
+        <span key={i} className="np-skel block h-[26px] rounded-md" style={{ width: `${w}%`, animationDelay: `${i * 0.12}s` }} />
+      ))}
+    </div>
+  );
+}
+
 function StudioFull() {
   const t = useT();
   const close = useUi((s) => s.closeFull);
@@ -331,7 +384,10 @@ function StudioFull() {
   const openSend = useSocial((s) => s.openSend);
   const words = useLyrics(track);
   const hasLyrics = words.isPending || hasWords(words.data);
-  const right = !!track && (tab === "queue" || (tab === "lyrics" && hasLyrics));
+  // looking for the words by hand (for this track only)
+  const [searchFor, setSearchFor] = useState<number | null>(null);
+  const searching = !!track && searchFor === track.id;
+  const right = !!track && (tab === "queue" || (tab === "lyrics" && (hasLyrics || searching)));
   const label = (id: FullTab) => (id === "lyrics" ? t.lyrics : id === "queue" ? t.queue : t.visualizer);
 
   return (
@@ -367,17 +423,53 @@ function StudioFull() {
         </div>
       </header>
       {track ? (
-        <div className={`absolute inset-x-0 bottom-0 top-12 grid min-h-0 gap-6 pb-14 pl-6 pr-14 ${right ? "grid-cols-[minmax(0,620px)_minmax(0,1fr)]" : "grid-cols-1"}`}>
-          <Stage track={track} sound={sound} studio big={!right} />
-          {right && <div className="flex min-h-0 min-w-0 pt-4">{tab === "queue" ? <div className="s-fullq min-h-0 w-full max-w-[460px] overflow-y-auto"><QueueList /></div> : <Words key={track.id} track={track} />}</div>}
-        </div>
+        <StudioBody track={track} sound={sound} right={right} scale={tab === "visualizer" ? 1.16 : 1}>
+          {tab === "queue" ? (
+            <div className="s-fullq min-h-0 w-full max-w-[460px] overflow-y-auto">
+              <QueueList />
+            </div>
+          ) : searching ? (
+            <div className="w-full max-w-[560px] overflow-y-auto pt-[12vh]" data-keys-own>
+              <ManualSearch track={track} onDone={() => setSearchFor(null)} />
+            </div>
+          ) : (
+            <div className="flex min-h-0 w-full max-w-[640px]">
+              <Words key={track.id} track={track} />
+            </div>
+          )}
+        </StudioBody>
       ) : (
         <p className="relative grid h-full place-items-center text-sm text-muted">{t.nothingPlaying}</p>
       )}
-      {tab === "lyrics" && right && (
+      {track && tab === "lyrics" && !words.isPending && (
         <p className="absolute bottom-5 left-6 flex items-center gap-1.5 text-[11px] text-[var(--s-dim)]">
           <Icon name="lyrics" size={14} />
-          {t.syncedCredit}
+          {searching ? (
+            <button type="button" className="hover:text-text" onClick={() => setSearchFor(null)}>
+              {t.cancel}
+            </button>
+          ) : hasWords(words.data) ? (
+            <>
+              {t.syncedCredit} ·
+              <button type="button" className="hover:text-text" onClick={() => setSearchFor(track.id)}>
+                {t.lyricsWrong}
+              </button>
+            </>
+          ) : words.isError ? (
+            <>
+              {t.lyricsOffline}
+              <button type="button" className="text-muted hover:text-text" onClick={() => void words.refetch()}>
+                {t.tryAgain}
+              </button>
+            </>
+          ) : (
+            <>
+              {t.noLyricsShort} ·
+              <button type="button" className="text-muted hover:text-text" onClick={() => setSearchFor(track.id)}>
+                {t.lyricsSearch}
+              </button>
+            </>
+          )}
         </p>
       )}
       <div className="s-dock s-glass" role="tablist">

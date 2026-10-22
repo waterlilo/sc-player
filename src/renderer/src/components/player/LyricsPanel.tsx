@@ -58,7 +58,7 @@ function SyncedLines({ lines }: { lines: NonNullable<Lyrics["synced"]> }) {
 }
 
 /** Looking for the words by hand when none (or the wrong ones) were found. */
-function ManualSearch({ track, onDone }: { track: Track; onDone: () => void }) {
+export function ManualSearch({ track, onDone }: { track: Track; onDone: () => void }) {
   const t = useT();
   const client = useQueryClient();
   const [text, setText] = useState(`${track.artist} ${track.title}`.replace(/[([{].*?[)\]}]/g, " ").replace(/\s+/g, " ").trim());

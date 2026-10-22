@@ -694,3 +694,18 @@ html[data-design="studio"] .np-gap {
   color: var(--s-dim);
   opacity: 1;
 }
+
+/* settings groups are glass like the panels: the same opacity and blur knobs */
+html[data-design="studio"] .settings-card {
+  background: var(--glass);
+  backdrop-filter: blur(var(--pblur)) saturate(1.2);
+  border-color: var(--s-line);
+  box-shadow: none;
+}
+html[data-design="studio"].lite .settings-card {
+  backdrop-filter: none;
+  background: rgba(14, 14, 17, max(var(--glass-a), 0.86));
+}
+html[data-design="studio"].thin-glass .settings-card {
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+}

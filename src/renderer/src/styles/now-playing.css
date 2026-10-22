@@ -71,3 +71,14 @@
   pointer-events: none;
   transition: opacity 0.22s ease-out, visibility 0s linear 0.22s;
 }
+
+/* lines that stand in for the words while they load */
+.np-skel {
+  background: rgba(255, 255, 255, 0.06);
+  animation: np-skel 1.4s ease-in-out infinite alternate;
+}
+@keyframes np-skel {
+  to {
+    background: rgba(255, 255, 255, 0.11);
+  }
+}

@@ -243,6 +243,7 @@ export const en = {
   following: "Following",
   noFollowing: "You don't follow anyone yet.",
   // the studio shell
+  noLyricsShort: "No lyrics for this track",
   instrumentalShort: "Instrumental",
   playingShort: "Playing",
   basedOnTrack: "Based on a track",
