@@ -465,6 +465,14 @@ export class WebSessionProvider implements MusicProvider {
     this.http.clearCache();
   }
 
+  /** A new private playlist of these tracks (a listening room's history). */
+  async createPlaylist(title: string, trackIds: number[]): Promise<Playlist> {
+    const raw = await this.http.json<RawPlaylist>("/playlists", {}, { method: "POST", auth: "required", body: { playlist: { title, sharing: "private", tracks: trackIds } } });
+    // the library lists show it at once
+    this.http.clearCache();
+    return mapPlaylist(raw, "own");
+  }
+
   async addToPlaylist(playlistId: string, trackId: number): Promise<void> {
     const { ids } = await this.loadPlaylist(playlistId);
     if (ids.includes(trackId)) return;

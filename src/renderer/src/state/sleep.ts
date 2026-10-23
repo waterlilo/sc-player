@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import * as engine from "@/audio/engine";
-import { player, stopAfterTrack, usePlayer } from "./player";
+import { fallAsleep, stopAfterTrack, usePlayer } from "./player";
 
 /**
  * The sleep timer: pause after some minutes (the sound fades out over the last few seconds) or at the end of the
@@ -37,7 +37,7 @@ function fadeOutAndPause() {
     if (k < 1) return;
     window.clearInterval(fade);
     fade = 0;
-    player.pause();
+    fallAsleep();
     engine.setVolume(volume, muted);
     useSleep.setState({ endsAt: null, endOfTrack: false });
   }, 100);

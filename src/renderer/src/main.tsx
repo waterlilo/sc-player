@@ -10,6 +10,7 @@ import { createRoot } from "react-dom/client";
 import { queryClient } from "@/api/queries";
 import { initActivity, subscribeActivity } from "@/lib/activity";
 import { watchLyricsSync } from "@/lib/lyricsSync";
+import { initRoom, useRoom } from "@/state/room";
 import { initAnimationClock } from "@/lib/animClock";
 import { applyQuality } from "@/lib/quality";
 import { call } from "@/lib/sky";
@@ -23,7 +24,7 @@ import { initCoverTint } from "@/lib/cover-tint";
 import { initLook } from "@/lib/look";
 import { initSocial } from "@/state/social";
 import { initLikes } from "@/state/likes";
-import { initVolume, player, usePlayer } from "@/state/player";
+import { initVolume, player, roomPlayer, usePlayer } from "@/state/player";
 import { useNav } from "@/state/nav";
 import { useUi } from "@/state/ui";
 import { useSocial } from "@/state/social";
@@ -33,6 +34,7 @@ import App from "./App";
 async function boot() {
   initActivity();
   watchLyricsSync();
+  initRoom();
   try {
     useSettings.getState().hydrate(await call("store:get"));
   } catch {
@@ -52,7 +54,7 @@ async function boot() {
   initLikes();
 
   // development (or a profiling run from the sources): the stores, for driving the page from DevTools (window.__sc)
-  if (import.meta.env.DEV || location.search === "?sc-debug") Object.assign(window, { __sc: { player, usePlayer, useNav, useUi, useSettings, useSocial, queryClient, call } });
+  if (import.meta.env.DEV || location.search === "?sc-debug") Object.assign(window, { __sc: { player, usePlayer, useNav, useUi, useSettings, useSocial, queryClient, call, useRoom, roomPlayer } });
 
   createRoot(document.getElementById("root")!).render(
     <StrictMode>

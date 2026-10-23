@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import type { Friends, Message } from "@shared/social";
+import { InviteCard } from "@/components/room/Invites";
 import { Avatar, Cover, Eq, when } from "@/components/social/bits";
 import { IconButton } from "@/components/ui/Buttons";
 import Icon from "@/components/ui/Icon";
@@ -8,6 +9,7 @@ import { useT } from "@/i18n";
 import { duration } from "@/lib/format";
 import { call } from "@/lib/sky";
 import { usePlayer } from "@/state/player";
+import { useRoom } from "@/state/room";
 import { playShared, refreshSocial, useSocial } from "@/state/social";
 import { useUi } from "@/state/ui";
 
@@ -222,6 +224,10 @@ function Chat({ code }: { code: string }) {
   const t = useT();
   const friend = useSocial((s) => s.friends?.friends.find((f) => f.code === code));
   const live = useSocial((s) => s.now[code]);
+  const allInvites = useSocial((s) => s.invites);
+  const inRoom = useRoom((s) => s.room?.id);
+  // this friend's invitations to a listening room (not the one I'm in)
+  const invites = useMemo(() => allInvites.filter((i) => i.by === code && i.room !== inRoom), [allInvites, code, inRoom]);
   const arrived = useSocial((s) => s.arrived);
   const setFriends = useSocial((s) => s.setFriends);
   const openChat = useSocial((s) => s.openChat);
@@ -308,6 +314,9 @@ function Chat({ code }: { code: string }) {
         />
       </header>
       <div ref={box} className="min-h-0 flex-1 space-y-2 overflow-y-auto px-4 py-4">
+        {invites.map((inv) => (
+          <InviteCard key={`${inv.room}:${inv.at}`} inv={inv} />
+        ))}
         {failed && <p className="text-sm text-muted">{t.serverOffline}</p>}
         {all?.length === 0 && <p className="pt-10 text-center text-sm text-muted">{t.chatEmpty}</p>}
         {all?.map((m, i) => <Bubble key={m.id} m={m} playing={currentId === m.track.id} onPlay={() => play(i)} />)}

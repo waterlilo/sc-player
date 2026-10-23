@@ -154,6 +154,33 @@ function remember(track: Track) {
   save({ history: [track, ...history.filter((t) => t.id !== track.id)].slice(0, HISTORY_LIMIT) });
 }
 
+/**
+ * A listening room (state/room.ts) takes the controls while this app is in one: the buttons, keys and track menus
+ * send their wish to the room, and the room plays it back here through `roomPlayer`. Meanwhile the queue doesn't grow
+ * by itself (no autopilot, no crossfade) and a track's end waits for the room's next one.
+ */
+export interface Remote {
+  playFrom(tracks: Track[], index: number): void;
+  toggle(): void;
+  play(): void;
+  pause(): void;
+  next(): void;
+  prev(): void;
+  seek(seconds: number): void;
+  playNext(track: Track): void;
+  addToQueue(track: Track): void;
+  /** the sleep timer ran out: this app leaves the room (the others play on) */
+  sleep(): void;
+}
+let remote: Remote | null = null;
+export const inRoom = () => !!remote;
+
+/** The sleep timer's end: pause — or, in a room, leave it rather than pause everyone. */
+export function fallAsleep() {
+  if (remote) remote.sleep();
+  else engine.pause();
+}
+
 /** the sleep timer's "stop at the end of this track": no crossfade, no next track */
 let stopAtEnd = false;
 let onStopAtEnd: (() => void) | null = null;
@@ -193,7 +220,8 @@ function start(index: number, opts: { autoplay?: boolean; startAt?: number } = {
       // not a silent skip: it plays on SoundCloud itself
       useUi.getState().noteSkipped(track);
       window.clearTimeout(skipTimer);
-      skipTimer = window.setTimeout(() => void advance(true), 600);
+      // in a room: quiet here until the room's next track
+      if (!remote) skipTimer = window.setTimeout(() => void advance(true), 600);
       return;
     }
     prefetchNextSub();
@@ -279,7 +307,7 @@ const append = (tracks: Track[]) => {
  * repeat off the autopilot continues with similar tracks. The autopilot never steps in while any of the list is left.
  */
 async function topUp(force = false) {
-  if (toppingUp) return;
+  if (toppingUp || remote) return;
   if (!force && get().queue.length - get().index > AHEAD) return;
   toppingUp = true;
   const gen = rebuild;
@@ -357,10 +385,13 @@ engine.bindEngine({
       // the sleep timer's "end of track"
       stopAtEnd = false;
       onStopAtEnd?.();
+      if (remote) return remote.sleep();
       engine.seek(0);
       set({ status: "paused" });
       return;
     }
+    // in a room the next track is the room's (it starts it for everyone when this one's time is up)
+    if (remote) return;
     if (get().repeat === "one") {
       engine.seek(0);
       engine.play();
@@ -370,7 +401,7 @@ engine.bindEngine({
   },
   peekNext: () => {
     const { repeat, index, queue } = get();
-    if (repeat === "one" || stopAtEnd) return null;
+    if (repeat === "one" || stopAtEnd || remote) return null;
     const t = queue[nextIndex(index, repeat === "all")];
     if (!t) return null;
     if (!needsSub(t)) return { track: t, streamId: t.id };
@@ -405,8 +436,9 @@ engine.bindEngine({
   },
   error: (code) => {
     set({ status: "error", error: code });
-    // a track SoundCloud won't stream to us (DRM, region): skip it; network trouble waits for "retry"
-    if (code === "unavailable" || code === "not_found") {
+    // a track SoundCloud won't stream to us (DRM, region): skip it; network trouble waits for "retry" (in a room it
+    // just stays quiet here until the room's next track)
+    if (!remote && (code === "unavailable" || code === "not_found")) {
       window.clearTimeout(skipTimer);
       skipTimer = window.setTimeout(() => void advance(true), 1200);
     }
@@ -436,6 +468,7 @@ export const player = {
   playFrom(tracks: Track[], index: number, source: QueueSource) {
     const target = tracks[index];
     if (!target) return;
+    if (remote) return remote.playFrom(tracks, index);
     rebuild++;
     if (get().shuffle) {
       const rest = shuffled(tracks.filter((t, i) => i !== index && playable(t)));
@@ -449,6 +482,12 @@ export const player = {
   },
   /** The Shuffle button of a list: shuffle on, a random first track from the whole list when it's known. */
   async shuffleFrom(tracks: Track[], source: QueueSource) {
+    // in a room: a random track of the list, as the room's next
+    if (remote) {
+      const pick = shuffled(tracks.filter(playable))[0];
+      if (pick) remote.playFrom([pick], 0);
+      return;
+    }
     const gen = ++rebuild;
     set({ shuffle: true });
     let first = shuffled(tracks.filter(playable))[0];
@@ -470,20 +509,23 @@ export const player = {
     player.playFrom(index >= 0 ? tracks : [chosen, ...tracks], index >= 0 ? index : 0, source);
   },
   jumpTo(index: number) {
+    if (remote) return;
     if (playable(get().queue[index])) start(index);
   },
   toggle() {
+    if (remote) return remote.toggle();
     const { status, index } = get();
     if (index < 0) return;
     if (status === "playing" || status === "loading") engine.pause();
     else if (status === "error") start(index);
     else engine.play();
   },
-  play: () => engine.play(),
-  pause: () => engine.pause(),
-  next: () => void advance(false),
+  play: () => (remote ? remote.play() : engine.play()),
+  pause: () => (remote ? remote.pause() : engine.pause()),
+  next: () => (remote ? remote.next() : void advance(false)),
   /** Back to the start if more than 3 s in, otherwise the previous playable track. */
   prev() {
+    if (remote) return remote.prev();
     const { index, queue } = get();
     if (engine.currentTime() > 3) {
       engine.seek(0);
@@ -493,6 +535,7 @@ export const player = {
     engine.seek(0);
   },
   seek(seconds: number) {
+    if (remote) return remote.seek(seconds);
     engine.seek(seconds);
     usePosition.setState({ position: seconds });
   },
@@ -516,6 +559,8 @@ export const player = {
    * that is playing.
    */
   toggleShuffle() {
+    // the room's order is the host's
+    if (remote) return;
     const s = get();
     const current = s.queue[s.index];
     const played = s.queue.slice(0, s.index + 1);
@@ -541,10 +586,12 @@ export const player = {
     void topUp(true);
   },
   cycleRepeat() {
+    if (remote) return;
     const order: RepeatMode[] = ["off", "all", "one"];
     set({ repeat: order[(order.indexOf(get().repeat) + 1) % order.length] });
   },
   playNext(track: Track) {
+    if (remote) return remote.playNext(track);
     const { queue, index, autoFrom } = get();
     if (index < 0) return player.playFrom([track], 0, { kind: "static" });
     const item = { ...track };
@@ -557,6 +604,7 @@ export const player = {
     set({ queue: q, autoFrom: autoFrom >= at ? autoFrom + 1 : autoFrom });
   },
   addToQueue(track: Track) {
+    if (remote) return remote.addToQueue(track);
     const { queue, index, autoFrom } = get();
     if (index < 0) return player.playFrom([track], 0, { kind: "static" });
     const item = { ...track };
@@ -569,19 +617,20 @@ export const player = {
   },
   removeAt(i: number) {
     const { queue, index, autoFrom } = get();
-    if (i === index || i < 0 || i >= queue.length) return;
+    if (remote || i === index || i < 0 || i >= queue.length) return;
     set({ queue: queue.filter((_, k) => k !== i), index: i < index ? index - 1 : index, autoFrom: autoFrom > i ? autoFrom - 1 : autoFrom });
   },
   /** Drag in the queue panel: move upcoming item `from` to `to` (queue indexes). */
   move(from: number, to: number) {
     const { queue, index } = get();
-    if (from === to || from === index || to <= index) return;
+    if (remote || from === to || from === index || to <= index) return;
     const q = [...queue];
     const [item] = q.splice(from, 1);
     q.splice(to, 0, item!);
     set({ queue: q });
   },
   clearUpcoming() {
+    if (remote) return;
     rebuild++;
     const { queue, index } = get();
     set({ queue: queue.slice(0, index + 1), pending: [], source: { kind: "static" }, autoFrom: -1 });
@@ -621,6 +670,56 @@ export const player = {
     const { queue, index } = get();
     if (queue[index]?.id === track.id) start(index);
   },
+};
+
+// ---- a listening room drives the player ---------------------------------------------------------------------------
+
+type Saved = Pick<PlayerStore, "queue" | "index" | "source" | "original" | "pending" | "autoFrom" | "shuffle" | "repeat"> & { position: number };
+let beforeRoom: Saved | null = null;
+
+/** What state/room.ts plays with while the app is in a room (the actions above go to the room instead). */
+export const roomPlayer = {
+  /** In a room from now on: what played before is kept, to come back to after. */
+  enter(r: Remote) {
+    if (!remote) {
+      const s = get();
+      beforeRoom = { queue: s.queue, index: s.index, source: s.source, original: s.original, pending: s.pending, autoFrom: s.autoFrom, shuffle: s.shuffle, repeat: s.repeat, position: engine.currentTime() };
+    }
+    remote = r;
+  },
+  /** Out of the room: back to what played before (paused where it was). */
+  leave() {
+    if (!remote) return;
+    remote = null;
+    engine.setRate(1);
+    const b = beforeRoom;
+    beforeRoom = null;
+    rebuild++;
+    engine.pause();
+    if (!b || b.index < 0) {
+      set({ queue: [], index: -1, original: null, pending: [], source: { kind: "static" }, autoFrom: -1, status: "idle" });
+      engine.stop();
+      return;
+    }
+    set({ queue: b.queue, index: b.index, source: b.source, original: b.original, pending: b.pending, autoFrom: b.autoFrom, shuffle: b.shuffle, repeat: b.repeat });
+    start(b.index, { autoplay: false, startAt: b.position });
+  },
+  /** The room's track, from `at` seconds, playing or waiting. */
+  load(track: Track, at: number, playing: boolean) {
+    rebuild++;
+    set({ queue: [track], index: -1, original: null, pending: [], source: { kind: "static" }, autoFrom: -1 });
+    start(0, { autoplay: playing, startAt: at });
+  },
+  play: () => engine.play(),
+  pause: () => engine.pause(),
+  seek(seconds: number) {
+    engine.seek(seconds);
+    usePosition.setState({ position: seconds });
+  },
+  /** a touch faster or slower for a few seconds, to meet the room without a jump */
+  setRate: (rate: number) => engine.setRate(rate),
+  /** where this app is in the track, seconds */
+  time: () => engine.currentTime(),
 };
 
 // ---- persistence (phase 2 restores this on start) -----------------------------------------------------------------

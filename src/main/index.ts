@@ -3,13 +3,14 @@ import { join } from "node:path";
 import { app, BrowserWindow, clipboard, ipcMain, session, shell, type IpcMainInvokeEvent } from "electron";
 import { RENDERER_DEFAULTS, type AuthStatus, type InvokeChannel, type InvokeMap, type PlayerCommand, type PlayerInfo, type RendererState, type Result } from "@shared/ipc";
 import type { MusicProvider, SearchKind } from "@shared/provider";
-import type { SocialTrack } from "@shared/social";
+import type { RoomOp, SocialTrack } from "@shared/social";
 import type { QueueSource, SyncRequest } from "@shared/types";
 import { DemoProvider } from "./demo";
 import { flushLyrics, lyricsFor, pickLyrics, searchLyrics } from "./lyrics";
 import { deleteModel, downloadModel, flushLyricsSync, onSyncStatus, syncedBefore, syncStatus, syncWords } from "./lyrics-sync";
 import { auth, authStatus, chromeUserAgent, provider, ScError, scSession, startBrowserSignIn, stopBrowserSignIn, toErrorInfo, tokenFromArgs, waitingForBrowser } from "./soundcloud";
 import { flushAlternatives } from "./soundcloud/alternatives";
+import * as rooms from "./rooms";
 import * as social from "./social";
 import { patchRenderer, prefs, store } from "./store";
 import { getSecret, setSecret } from "./store/secrets";
@@ -93,6 +94,36 @@ function syncRequest(v: unknown): SyncRequest {
   const plain = typeof q.plain === "string" && q.plain.length < 50_000 ? q.plain : bad("words");
   const times = q.times === undefined ? undefined : Array.isArray(q.times) && q.times.length <= 2000 && q.times.every((t) => typeof t === "number" && Number.isFinite(t)) ? (q.times as number[]) : bad("times");
   return { trackId: id(q.trackId), source, lyricsId: typeof q.lyricsId === "number" && Number.isSafeInteger(q.lyricsId) && q.lyricsId >= 0 ? q.lyricsId : bad("lyrics id"), plain, ...(times ? { times } : {}) };
+}
+/** a command for the room: only the known ones, with their arguments checked (the server checks again) */
+function roomOp(v: unknown): RoomOp {
+  const o = (typeof v === "object" && v !== null ? v : bad("op")) as Record<string, unknown>;
+  const num = (x: unknown, what: string) => (typeof x === "number" && Number.isFinite(x) ? x : bad(what));
+  const item = () => str(o.item, "item").slice(0, 16);
+  switch (o.op) {
+    case "play":
+      return { op: "play", track: socialTrack(o.track), position: o.position === undefined ? 0 : Math.max(0, num(o.position, "position")) };
+    case "playing":
+      return { op: "playing", playing: o.playing === true };
+    case "seek":
+      return { op: "seek", position: Math.max(0, num(o.position, "position")) };
+    case "next":
+      return { op: "next" };
+    case "queueAdd":
+      return { op: "queueAdd", track: socialTrack(o.track), next: o.next === true };
+    case "queueRemove":
+      return { op: "queueRemove", item: item() };
+    case "queueMove":
+      return { op: "queueMove", item: item(), to: Math.max(0, Math.floor(num(o.to, "to"))) };
+    case "suggest":
+      return { op: "suggest", track: socialTrack(o.track) };
+    case "decide":
+      return { op: "decide", item: item(), take: o.take === true };
+    case "ready":
+      return { op: "ready", trackId: id(o.trackId) };
+    default:
+      return bad("op");
+  }
 }
 const themeId = (v: unknown) => (typeof v === "string" && /^[\w-]{10}$/.test(v) ? v : bad("theme id"));
 /** a track to send or show to friends: the fields the server keeps */
@@ -182,6 +213,7 @@ function registerIpc() {
   handle("data:setLiked", (_e, t, on) => (on === true ? data.like(id(t)) : data.unlike(id(t))));
   handle("data:myPlaylists", () => data.getMyPlaylists());
   handle("data:addToPlaylist", (_e, p, t) => data.addToPlaylist(str(p, "playlist id"), id(t)));
+  handle("data:createPlaylist", (_e, title, ids) => data.createPlaylist(str(title, "title").slice(0, 100), Array.isArray(ids) ? ids.slice(0, 500).map(id) : bad("ids")));
   handle("data:resolve", (_e, url) => data.resolve(str(url, "url")));
   handle("data:search", (_e, q, kind, c) => data.search(str(q, "query"), kinds.includes(kind) ? kind : bad("kind"), cursor(c)));
   handle("data:suggest", (_e, q) => data.searchSuggestions(str(q, "query")));
@@ -207,6 +239,22 @@ function registerIpc() {
   handle("social:state", (_e, m, state) => social.setState(id(m), state === "heard" || state === "liked" || state === "queued" ? state : bad("state")));
   handle("social:now", (_e, track) => social.now(track === null ? null : socialTrack(track)));
   handle("social:poll", () => social.poll());
+  handle("room:state", () => rooms.roomState());
+  handle("room:create", (_e, o) => {
+    const v = (typeof o === "object" && o !== null ? o : bad("room")) as Record<string, unknown>;
+    return rooms.createRoom({
+      startTogether: v.startTogether === true,
+      invite: Array.isArray(v.invite) ? v.invite.slice(0, 20).map((c) => str(c, "code").slice(0, 16)) : [],
+      track: v.track ? socialTrack(v.track) : null,
+      position: typeof v.position === "number" && Number.isFinite(v.position) ? Math.max(0, v.position) : 0,
+      playing: v.playing !== false,
+    });
+  });
+  handle("room:invite", (_e, codes) => rooms.invite(Array.isArray(codes) ? codes.slice(0, 20).map((c) => str(c, "code").slice(0, 16)) : bad("codes")));
+  handle("room:join", (_e, id) => rooms.joinRoom(typeof id === "string" && /^[\w-]{8}$/.test(id) ? id : bad("room id")));
+  handle("room:leave", () => rooms.leaveRoom());
+  handle("room:do", (_e, op) => rooms.act(roomOp(op)));
+  handle("room:history", () => rooms.history());
   handle("social:recent", () => social.recent());
   handle("ws:list", (_e, sort, page, q, mine) => social.wsList(sort === "top" ? "top" : "new", typeof page === "number" && page >= 0 && page < 1000 ? Math.floor(page) : 0, str(q ?? "", "query").slice(0, 40), mine === true));
   handle("ws:get", (_e, t) => social.wsGet(themeId(t)));
@@ -372,6 +420,7 @@ void app.whenReady().then(async () => {
   applyAutostart(p.startWithWindows);
   updater.initUpdater(() => main, () => prefs().checkUpdates);
   social.initSocial(() => main);
+  rooms.initRooms(() => main);
   // back in front: the messenger catches up at once
   main.on("focus", () => void social.poll());
 });

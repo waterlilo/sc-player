@@ -3,7 +3,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { join as joinPath } from "node:path";
 import { app, nativeImage, net, Notification, type BrowserWindow } from "electron";
 import type { Look } from "@shared/ipc";
-import type { Friends, Message, SocialProfile, SocialStatus, SocialTrack, SocialUpdate, ThemeLook, WsPage, WsSort, WsThemeFull } from "@shared/social";
+import type { Friends, Message, RoomInvite, SocialProfile, SocialStatus, SocialTrack, SocialUpdate, ThemeLook, WsPage, WsSort, WsThemeFull } from "@shared/social";
 import { ScError } from "./soundcloud";
 import { prefs } from "./store";
 import { getSecret, setSecret } from "./store/secrets";
@@ -58,9 +58,10 @@ function saveLocal() {
 
 // ---- requests -----------------------------------------------------------------------------------------------------
 
-async function api<T>(method: string, path: string, opts: { body?: unknown; raw?: Buffer; auth?: boolean; timeout?: number } = {}): Promise<T> {
+export async function api<T>(method: string, path: string, opts: { body?: unknown; raw?: Buffer; auth?: boolean; timeout?: number } = {}): Promise<T> {
   if (!BASE) throw new ScError("unavailable", "no server in this build");
-  const headers: Record<string, string> = { "user-agent": `scplayer/${app.getVersion()}` };
+  // what this app can do: the server sends room invitations only to apps that can join
+  const headers: Record<string, string> = { "user-agent": `scplayer/${app.getVersion()}`, "x-sc-features": "rooms" };
   const secret = getSecret("socialSecret");
   if (opts.auth !== false && secret) headers.authorization = `Bearer ${secret}`;
   if (opts.body !== undefined) headers["content-type"] = "application/json";
@@ -87,7 +88,11 @@ async function api<T>(method: string, path: string, opts: { body?: unknown; raw?
   throw new ScError(res.status === 401 ? "unauthorized" : res.status === 429 ? "rate_limited" : res.status === 404 ? "not_found" : "unknown", message);
 }
 
-const joined = () => !!BASE && !!getSecret("socialSecret");
+export const joined = () => !!BASE && !!getSecret("socialSecret");
+/** the server's address and the device's secret, for a room's event stream (main/rooms.ts) */
+export const serverBase = () => BASE;
+export const myCode = () => profile?.code ?? "";
+export const friendName = (code: string) => friends?.friends.find((f) => f.code === code)?.name || code;
 const needProfile = () => {
   if (!joined()) throw new ScError("unauthorized", "no profile yet");
 };
@@ -206,6 +211,11 @@ export async function poll() {
       // the very first poll after joining or reinstalling only catches up, without pop-ups
       if (!first) void popups(u.messages);
     }
+    for (const inv of u.invites ?? []) {
+      if (shownInvites.has(`${inv.room}:${inv.at}`)) continue;
+      shownInvites.add(`${inv.room}:${inv.at}`);
+      if (!first) invitePopup(inv);
+    }
     saveLocal();
     send(win(), "social:update", u);
   } catch (e) {
@@ -244,6 +254,29 @@ async function popups(messages: Message[]) {
     });
     n.show();
   }
+}
+
+/** invitations already announced (this run): each pops up once */
+const shownInvites = new Set<string>();
+
+function invitePopup(inv: RoomInvite) {
+  const w = win();
+  if (!prefs().socialPopups || !Notification.isSupported() || (w?.isVisible() && w.isFocused())) return;
+  const n = new Notification({
+    title: `${inv.name || inv.by} invites you to listen together`,
+    body: inv.track ? `Now: ${inv.track.title} — ${inv.track.artist}` : "Open sc player to join",
+    icon: appIcon(),
+  });
+  n.on("click", () => {
+    showWindow(win());
+    send(win(), "social:open", inv.by);
+  });
+  n.show();
+}
+
+/** Polls a little sooner when something is expected (an invitation just sent, a room just left). */
+export function pollSoon() {
+  setTimeout(() => void poll(), 1500);
 }
 
 function startPolling() {

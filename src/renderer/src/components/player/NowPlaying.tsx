@@ -7,9 +7,12 @@ import { usePlayingLoop } from "@/lib/playingLoop";
 import { duration } from "@/lib/format";
 import { player, useCurrentTrack, usePlayer, usePosition, useStreamTrack } from "@/state/player";
 import { useNav } from "@/state/nav";
+import { useRoom } from "@/state/room";
 import { useSettings } from "@/state/settings";
 import { useSocial } from "@/state/social";
 import { useUi, type FullTab } from "@/state/ui";
+import RoomPanel from "../room/RoomPanel";
+import { Avatar } from "../social/bits";
 import { IconButton } from "../ui/Buttons";
 import Icon from "../ui/Icon";
 import { WindowButtons } from "../chrome/TitleBar";
@@ -439,6 +442,8 @@ function StudioFull() {
   const spec = useSettings((s) => s.prefs.spectrum);
   const bottomBand = spec.place === "bottom" || spec.place === "both";
   const [specOpen, setSpecOpen] = useState(false);
+  // in a listening room: who's here (the queue tab shows the room)
+  const listeners = useRoom((s) => s.room?.members ?? null);
 
   return (
     <motion.section
@@ -458,6 +463,16 @@ function StudioFull() {
           </div>
         )}
         <div className="ml-auto flex h-full items-center gap-1.5">
+          {listeners && (
+            <button type="button" className="s-btn s-glass" onClick={() => setTab("queue")} title={t.listenTogether}>
+              <span className="flex -space-x-1.5">
+                {listeners.slice(0, 4).map((m) => (
+                  <Avatar key={m.code} name={m.name} code={m.code} size={18} />
+                ))}
+              </span>
+              {t.roomListeners(listeners.length)}
+            </button>
+          )}
           {canSend && track && (
             <button type="button" className="s-btn s-glass" onClick={() => openSend(track)}>
               <Icon name="send" size={14} />
@@ -475,9 +490,7 @@ function StudioFull() {
       {track ? (
         <StudioBody track={track} sound={sound} right={right} scale={tab === "visualizer" ? 1.08 : 1} bottom={bottomBand ? spec.height + 72 : 56}>
           {tab === "queue" ? (
-            <div className="s-fullq min-h-0 w-full max-w-[460px] overflow-y-auto">
-              <QueueList />
-            </div>
+            <div className="s-fullq flex min-h-0 w-full max-w-[460px] flex-col overflow-y-auto">{listeners ? <RoomPanel /> : <QueueList />}</div>
           ) : searching ? (
             <div className="w-full max-w-[560px] overflow-y-auto pt-[12vh]" data-keys-own>
               <ManualSearch track={track} onDone={() => setSearchFor(null)} />

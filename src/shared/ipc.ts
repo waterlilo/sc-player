@@ -1,5 +1,5 @@
 import type { SearchKind } from "./provider";
-import type { Friends, Message, SocialStatus, SocialTrack, SocialUpdate, WsPage, WsSort, WsThemeFull } from "./social";
+import type { Friends, Message, Room, RoomOp, RoomState, SocialStatus, SocialTrack, SocialUpdate, WsPage, WsSort, WsThemeFull } from "./social";
 import type { AppErrorInfo, Lyrics, LyricsHit, LyricsSyncStatus, Page, Playlist, QueueSource, Resolved, SavedProfile, StreamInfo, SyncRequest, SyncResult, Track, TrackDetails, User } from "./types";
 
 /**
@@ -278,6 +278,7 @@ export interface InvokeMap {
   "data:setLiked": (trackId: number, liked: boolean) => void;
   "data:myPlaylists": () => Playlist[];
   "data:addToPlaylist": (playlistId: string, trackId: number) => void;
+  "data:createPlaylist": (title: string, trackIds: number[]) => Playlist;
   "data:search": (query: string, kind: SearchKind, cursor: string | null) => Page<Track> | Page<Playlist> | Page<User>;
   "data:suggest": (query: string) => string[];
   "data:stream": (trackId: number) => StreamInfo;
@@ -334,6 +335,17 @@ export interface InvokeMap {
   "social:now": (track: SocialTrack | null) => void;
   /** poll now (the inbox opened) */
   "social:poll": () => void;
+  /** listening rooms (main/rooms.ts): the state now (after a reload of the page) */
+  "room:state": () => RoomState;
+  /** a room of my own, playing what plays now, and invitations to these friends */
+  "room:create": (o: { startTogether: boolean; invite: string[]; track: SocialTrack | null; position: number; playing: boolean }) => Room;
+  "room:invite": (codes: string[]) => void;
+  "room:join": (roomId: string) => Room;
+  "room:leave": () => void;
+  /** what happens in the room; "suggest" answers whether it was new */
+  "room:do": (op: RoomOp) => { result?: "suggested" | "already" };
+  /** everything that played in the room (the room carries only the latest few) */
+  "room:history": () => SocialTrack[];
   /** the theme workshop */
   "ws:list": (sort: WsSort, page: number, q: string, mine: boolean) => WsPage;
   "ws:get": (id: string) => WsThemeFull;
@@ -361,6 +373,7 @@ export interface EventMap {
   "social:update": SocialUpdate;
   /** a pop-up about a sent track was clicked: open the inbox (at this friend) */
   "social:open": string;
+  "room:state": RoomState;
   "lyricsSync:status": LyricsSyncStatus;
 }
 
@@ -384,6 +397,13 @@ export const INVOKE_CHANNELS = [
   "social:state",
   "social:now",
   "social:poll",
+  "room:state",
+  "room:create",
+  "room:invite",
+  "room:join",
+  "room:leave",
+  "room:do",
+  "room:history",
   "ws:list",
   "ws:get",
   "ws:publish",
@@ -428,6 +448,7 @@ export const INVOKE_CHANNELS = [
   "data:setLiked",
   "data:myPlaylists",
   "data:addToPlaylist",
+  "data:createPlaylist",
   "data:search",
   "data:suggest",
   "data:stream",
@@ -453,7 +474,7 @@ export const INVOKE_CHANNELS = [
   "update:download",
   "update:install",
 ] as const satisfies readonly InvokeChannel[];
-export const EVENT_CHANNELS = ["win:activity", "win:maximized", "auth:changed", "auth:browserRefused", "player:command", "hotkeys:failed", "update:status", "social:update", "social:open", "lyricsSync:status"] as const satisfies readonly (keyof EventMap)[];
+export const EVENT_CHANNELS = ["win:activity", "win:maximized", "auth:changed", "auth:browserRefused", "player:command", "hotkeys:failed", "update:status", "social:update", "social:open", "lyricsSync:status", "room:state"] as const satisfies readonly (keyof EventMap)[];
 
 type MissingInvoke = Exclude<InvokeChannel, (typeof INVOKE_CHANNELS)[number]>;
 type MissingEvent = Exclude<keyof EventMap, (typeof EVENT_CHANNELS)[number]>;

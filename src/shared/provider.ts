@@ -50,6 +50,8 @@ export interface MusicProvider {
   like(trackId: number): Promise<void>;
   unlike(trackId: number): Promise<void>;
   addToPlaylist(playlistId: string, trackId: number): Promise<void>;
+  /** a new private playlist of these tracks */
+  createPlaylist(title: string, trackIds: number[]): Promise<Playlist>;
 }
 
 export const MAX_SOURCE_IDS = 10_000;

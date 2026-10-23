@@ -7,6 +7,8 @@ import { duration } from "@/lib/format";
 import { useNav } from "@/state/nav";
 import { call } from "@/lib/sky";
 import { player, useCurrentTrack, usePlayer, usePosition, useStreamTrack } from "@/state/player";
+import { useRoom, useRoomSheet } from "@/state/room";
+import { useSocial } from "@/state/social";
 import { useUi } from "@/state/ui";
 import { useAuth } from "@/state/auth";
 import { toggleLike, useLiked } from "@/state/likes";
@@ -117,6 +119,10 @@ export default function PlayerBar() {
   const toggleLyrics = useUi((s) => s.toggleLyrics);
   const studio = useSettings((s) => s.prefs.look.design === "studio");
   const openFull = useUi((s) => s.openFull);
+  // listening rooms: with sc player's server in this build
+  const rooms = useSocial((s) => !!s.status?.available);
+  const inRoom = useRoom((s) => !!s.room);
+  const roomMember = useRoom((s) => !!s.room && s.room.host !== s.me);
 
   const repeatLabel = repeat === "off" ? t.repeatOff : repeat === "all" ? t.repeatAll : t.repeatOne;
 
@@ -151,11 +157,12 @@ export default function PlayerBar() {
       {/* transport + waveform */}
       <div className="flex min-w-0 flex-col items-stretch gap-1">
         <div className="flex items-center justify-center gap-2">
-          <IconButton icon="shuffle" label={t.shuffle} on={shuffle} aria-pressed={shuffle} onClick={player.toggleShuffle} />
-          <IconButton icon="prev" label={t.previous} onClick={player.prev} />
+          {/* in a listening room: no shuffle or repeat (the host's queue), tracks changed by the host only */}
+          <IconButton icon="shuffle" label={t.shuffle} on={shuffle && !inRoom} aria-pressed={shuffle} onClick={player.toggleShuffle} disabled={inRoom} />
+          <IconButton icon="prev" label={t.previous} onClick={player.prev} disabled={roomMember} />
           <PlayButton />
-          <IconButton icon="next" label={t.next} onClick={player.next} />
-          <IconButton icon={repeat === "one" ? "repeatOne" : "repeat"} label={repeatLabel} on={repeat !== "off"} onClick={player.cycleRepeat} />
+          <IconButton icon="next" label={t.next} onClick={player.next} disabled={roomMember} />
+          <IconButton icon={repeat === "one" ? "repeatOne" : "repeat"} label={repeatLabel} on={repeat !== "off" && !inRoom} onClick={player.cycleRepeat} disabled={inRoom} />
         </div>
         <div className="flex items-center gap-2">
           <Time />
@@ -175,6 +182,7 @@ export default function PlayerBar() {
           </button>
         )}
         <SleepTimer />
+        {rooms && <IconButton icon="users" label={t.listenTogether} on={inRoom} aria-pressed={inRoom} onClick={() => (inRoom ? !queueOpen && toggleQueue() : useRoomSheet.setState({ open: true }))} />}
         <Volume />
         <IconButton icon="lyrics" label={t.lyrics} on={lyricsOpen} aria-pressed={lyricsOpen} onClick={toggleLyrics} />
         <IconButton icon="queue" label={t.queue} on={queueOpen} aria-pressed={queueOpen} onClick={toggleQueue} />

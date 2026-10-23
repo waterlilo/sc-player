@@ -4,9 +4,11 @@ import { artwork, type Track } from "@shared/types";
 import { useT } from "@/i18n";
 import { duration } from "@/lib/format";
 import { player, usePlayer } from "@/state/player";
+import { useRoom } from "@/state/room";
 import { useUi } from "@/state/ui";
 import { IconButton } from "../ui/Buttons";
 import MarkerEdge from "../deco/MarkerEdge";
+import RoomPanel from "../room/RoomPanel";
 import Icon from "../ui/Icon";
 
 const SHOWN = 200;
@@ -82,6 +84,7 @@ export default function QueuePanel() {
   const pending = usePlayer((s) => s.pending.length);
   const autoFrom = usePlayer((s) => s.autoFrom);
   const shuffle = usePlayer((s) => s.shuffle);
+  const inRoom = useRoom((s) => !!s.room);
   const [drag, setDrag] = useState<number | null>(null);
   const [over, setOver] = useState<number | null>(null);
   const current = queue[index];
@@ -91,8 +94,25 @@ export default function QueuePanel() {
 
   return (
     <AnimatePresence>
-      {open && (
+      {open && inRoom && (
+        // in a listening room its panel takes the queue's place (the room's queue is in it)
         <motion.aside
+          key="room"
+          aria-label={t.listenTogether}
+          initial={{ x: 24, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          exit={{ x: 24, opacity: 0 }}
+          transition={{ duration: 0.18, ease: "easeOut" }}
+          onKeyDown={(e) => e.key === "Escape" && close()}
+          className="panel absolute bottom-0 right-0 top-0 z-40 flex w-[360px] flex-col px-3 pb-4 pt-4 shadow-[-8px_0_24px_rgba(0,0,0,0.45)]"
+        >
+          <MarkerEdge side="left" seed="b" />
+          <RoomPanel />
+        </motion.aside>
+      )}
+      {open && !inRoom && (
+        <motion.aside
+          key="queue"
           aria-label={t.queue}
           initial={{ x: 24, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}

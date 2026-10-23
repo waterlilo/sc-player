@@ -335,6 +335,17 @@ export function seek(seconds: number) {
   active.audio.currentTime = Math.max(0, seconds);
 }
 
+/**
+ * A touch faster or slower (a listening room catching up with the others), the pitch kept; a new track starts at 1.
+ */
+export function setRate(rate: number) {
+  const r = Math.max(0.9, Math.min(1.1, rate));
+  for (const d of decks) {
+    d.audio.preservesPitch = true;
+    if (d.audio.playbackRate !== r) d.audio.playbackRate = r;
+  }
+}
+
 /** 0..1 slider → a curve that feels even to the ear */
 export function setVolume(v: number, m: boolean) {
   volume = Math.max(0, Math.min(1, v));

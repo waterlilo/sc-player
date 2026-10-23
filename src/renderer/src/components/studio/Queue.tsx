@@ -5,7 +5,9 @@ import { queryClient } from "@/api/queries";
 import { useT } from "@/i18n";
 import { duration } from "@/lib/format";
 import { player, usePlayer } from "@/state/player";
+import { useRoom } from "@/state/room";
 import { useSettings } from "@/state/settings";
+import RoomPanel from "../room/RoomPanel";
 import Icon from "../ui/Icon";
 
 const SHOWN = 200;
@@ -189,6 +191,15 @@ export default function StudioQueue() {
   const autopilot = useSettings((s) => s.prefs.autopilot);
   const setPref = useSettings((s) => s.setPref);
   const hasUpcoming = usePlayer((s) => s.queue.length > s.index + 1);
+  const inRoom = useRoom((s) => !!s.room);
+
+  // in a listening room its panel takes the queue's place (the room's queue is in it)
+  if (inRoom)
+    return (
+      <aside aria-label={t.listenTogether} className="s-queue s-glass">
+        <RoomPanel />
+      </aside>
+    );
 
   return (
     <aside aria-label={t.queue} className="s-queue s-glass">

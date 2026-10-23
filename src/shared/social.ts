@@ -34,6 +34,8 @@ export interface Friend {
   since: number;
   /** playing right now (when they share it) */
   now: SocialTrack | null;
+  /** their app can join listening rooms (older ones can't) */
+  rooms?: boolean;
 }
 
 export interface FriendRequest {
@@ -69,6 +71,79 @@ export interface SocialUpdate {
   states: Record<string, MessageState>;
   now: Record<string, SocialTrack>;
   friends?: Friends;
+  /** invitations to listening rooms waiting for me */
+  invites?: RoomInvite[];
+}
+
+// ---- listening rooms ------------------------------------------------------------------------------------------------
+
+/** An invitation to a friend's listening room. */
+export interface RoomInvite {
+  room: string;
+  /** who invited (their code and name) */
+  by: string;
+  name: string;
+  at: number;
+  /** the host now (may have changed since) */
+  host: string;
+  track: SocialTrack | null;
+  members: number;
+}
+
+export interface RoomItem {
+  uid: string;
+  track: SocialTrack;
+  /** who put it there (a code) */
+  by: string;
+}
+
+/**
+ * A listening room as the server sends it, whole, after every change: what plays from which second (`position` at
+ * the server time `at`, moving on while `playing`), who is in it, the host's queue, suggestions waiting, what played.
+ */
+export interface Room {
+  id: string;
+  version: number;
+  /** the server's time when this was sent */
+  now: number;
+  host: string;
+  startTogether: boolean;
+  members: { code: string; name: string; here: boolean }[];
+  track: SocialTrack | null;
+  position: number;
+  at: number;
+  playing: boolean;
+  /** who paused or resumed last */
+  by: string;
+  /** "start together": waiting for everyone to have the track loaded, until `until` at most */
+  waiting: { until: number; ready: string[] } | null;
+  queue: RoomItem[];
+  suggestions: (RoomItem & { at: number })[];
+  history: { track: SocialTrack; at: number }[];
+}
+
+export type RoomOp =
+  | { op: "play"; track: SocialTrack; position?: number }
+  | { op: "playing"; playing: boolean }
+  | { op: "seek"; position: number }
+  | { op: "next" }
+  | { op: "queueAdd"; track: SocialTrack; next?: boolean }
+  | { op: "queueRemove"; item: string }
+  | { op: "queueMove"; item: string; to: number }
+  | { op: "suggest"; track: SocialTrack }
+  | { op: "decide"; item: string; take: boolean }
+  | { op: "ready"; trackId: number };
+
+/** Where this app stands with rooms: in one (and connected or reconnecting), or not; why the last one ended. */
+export interface RoomState {
+  room: Room | null;
+  /** my code */
+  me: string;
+  /** server time − this machine's time, ms */
+  offset: number;
+  connected: boolean;
+  /** the room ended by itself (the server closed it, or I was dropped) rather than by my leaving */
+  closed: boolean;
 }
 
 /** The appearance a workshop theme sets (the Settings → Appearance knobs that travel). */

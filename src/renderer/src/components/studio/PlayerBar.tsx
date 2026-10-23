@@ -6,6 +6,7 @@ import { useAuth } from "@/state/auth";
 import { toggleLike, useLiked } from "@/state/likes";
 import { useNav } from "@/state/nav";
 import { player, useCurrentTrack, usePlayer, usePosition, useStreamTrack } from "@/state/player";
+import { useRoom, useRoomSheet } from "@/state/room";
 import { useSettings } from "@/state/settings";
 import { useSocial } from "@/state/social";
 import { useUi } from "@/state/ui";
@@ -129,6 +130,10 @@ export default function StudioPlayerBar() {
   const setFullTab = useUi((s) => s.setFullTab);
   const canSend = useSocial((s) => !!s.status?.profile);
   const openSend = useSocial((s) => s.openSend);
+  // listening rooms: with sc player's server in this build
+  const rooms = useSocial((s) => !!s.status?.available);
+  const inRoom = useRoom((s) => !!s.room);
+  const roomMember = useRoom((s) => !!s.room && s.room.host !== s.me);
   const active = status === "playing" || status === "loading";
   const repeatLabel = repeat === "off" ? t.repeatOff : repeat === "all" ? t.repeatAll : t.repeatOne;
 
@@ -160,13 +165,14 @@ export default function StudioPlayerBar() {
 
       <div className="flex min-w-0 flex-col items-center gap-1">
         <div className="flex items-center gap-[18px]">
-          <Btn icon="shuffle" label={t.shuffle} on={shuffle} onClick={player.toggleShuffle} size={15} />
-          <Btn icon="prev" label={t.previous} onClick={player.prev} />
+          {/* in a listening room: no shuffle or repeat (the host's queue), tracks changed by the host only */}
+          <Btn icon="shuffle" label={t.shuffle} on={shuffle && !inRoom} onClick={player.toggleShuffle} size={15} disabled={inRoom} />
+          <Btn icon="prev" label={t.previous} onClick={player.prev} disabled={roomMember} />
           <button type="button" onClick={player.toggle} disabled={!hasTrack} aria-label={active ? t.pause : t.play} title={active ? t.pause : t.play} className="s-pp h-[34px] w-[34px]">
             <Icon name={active ? "pause" : "play"} size={15} />
           </button>
-          <Btn icon="next" label={t.next} onClick={player.next} />
-          <Btn icon={repeat === "one" ? "repeatOne" : "repeat"} label={repeatLabel} on={repeat !== "off"} onClick={player.cycleRepeat} size={15} />
+          <Btn icon="next" label={t.next} onClick={player.next} disabled={roomMember} />
+          <Btn icon={repeat === "one" ? "repeatOne" : "repeat"} label={repeatLabel} on={repeat !== "off" && !inRoom} onClick={player.cycleRepeat} size={15} disabled={inRoom} />
         </div>
         <div className="flex w-full max-w-[560px] items-center gap-2.5">
           <Elapsed />
@@ -182,6 +188,7 @@ export default function StudioPlayerBar() {
           </button>
         )}
         {canSend && track && <Btn icon="send" label={t.sendToFriends} onClick={() => openSend(track)} />}
+        {rooms && <Btn icon="users" label={t.listenTogether} on={inRoom} onClick={() => (inRoom ? !sideQueue && toggleSideQueue() : useRoomSheet.setState({ open: true }))} />}
         <Btn
           icon="lyrics"
           label={t.lyrics}

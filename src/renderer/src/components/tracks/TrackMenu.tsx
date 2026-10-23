@@ -7,6 +7,7 @@ import type { Track } from "@shared/types";
 import { useAuth } from "@/state/auth";
 import { toggleLike, useLikes } from "@/state/likes";
 import { player, substituteFor, useSubs } from "@/state/player";
+import { useRoom } from "@/state/room";
 import { useSettings } from "@/state/settings";
 import { useSocial } from "@/state/social";
 import { useUi } from "@/state/ui";
@@ -55,6 +56,8 @@ export default function TrackMenu() {
   const openPicker = useUi((s) => s.openPicker);
   const canSend = useSocial((s) => !!s.status?.profile);
   const openSend = useSocial((s) => s.openSend);
+  /** null out of a room; in one, whether this app is its host */
+  const roomHost = useRoom((s) => (s.room ? s.room.host === s.me : null));
 
   /** For a protected track: try another found upload, open the one that plays, or switch substitution for it. */
   const substituteItems = (tr: Track): { icon: IconName; label: string; run: () => void }[] => {
@@ -72,10 +75,23 @@ export default function TrackMenu() {
       { icon: "block", label: t.dontSubstitute, run: () => player.setSubstitute(tr, false) },
     ];
   };
+  // in a listening room the queue is the room's: the host adds to it, the others suggest
+  const queueItems: { icon: IconName; label: string; run: () => void }[] = !track
+    ? []
+    : roomHost === null
+      ? [
+          { icon: "playNext", label: t.playNext, run: () => player.playNext(track) },
+          { icon: "queue", label: t.addToQueue, run: () => player.addToQueue(track) },
+        ]
+      : roomHost
+        ? [
+            { icon: "playNext", label: t.roomPlayNext, run: () => player.playNext(track) },
+            { icon: "queue", label: t.roomAddToQueue, run: () => player.addToQueue(track) },
+          ]
+        : [{ icon: "users", label: t.roomSuggest, run: () => player.addToQueue(track) }];
   const items: { icon: IconName; label: string; run: () => void; danger?: boolean }[] = track
     ? [
-        { icon: "playNext", label: t.playNext, run: () => player.playNext(track) },
-        { icon: "queue", label: t.addToQueue, run: () => player.addToQueue(track) },
+        ...queueItems,
         ...(signedIn
           ? [
               { icon: "heart" as IconName, label: likes.has(track.id) ? t.unlike : t.like, run: () => void toggleLike(track) },

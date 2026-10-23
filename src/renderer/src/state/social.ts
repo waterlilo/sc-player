@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Friends, Message, MessageState, SocialStatus, SocialTrack } from "@shared/social";
+import type { Friends, Message, MessageState, RoomInvite, SocialStatus, SocialTrack } from "@shared/social";
 import type { Track } from "@shared/types";
 import { call, on } from "@/lib/sky";
 import { useNav } from "./nav";
@@ -22,6 +22,8 @@ interface SocialStore {
   open: string | null;
   /** the "Send to friends" sheet, for this track */
   sending: SocialTrack | null;
+  /** invitations to friends' listening rooms */
+  invites: RoomInvite[];
   setStatus(s: SocialStatus): void;
   setFriends(f: Friends): void;
   openChat(code: string | null): void;
@@ -38,6 +40,7 @@ export const useSocial = create<SocialStore>((set) => ({
   arrived: [],
   open: null,
   sending: null,
+  invites: [],
   setStatus: (status) => set({ status }),
   setFriends: (friends) => set({ friends }),
   openChat: (open) => set((s) => ({ open, unread: open ? { ...s.unread, [open]: 0 } : s.unread })),
@@ -79,6 +82,7 @@ export function initSocial() {
       now: u.now,
       states: { ...s.states, ...u.states },
       arrived: u.messages.length ? [...s.arrived, ...u.messages].slice(-500) : s.arrived,
+      invites: u.invites ?? [],
     }));
     const open = useSocial.getState().open;
     if (open && u.messages.some((m) => m.from === open) && useNav.getState().route.name === "inbox") void call("social:seen", open).catch(() => undefined);
