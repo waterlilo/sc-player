@@ -1,10 +1,9 @@
 import { AutoProcessor, AutoTokenizer, env, Tensor, WhisperForConditionalGeneration, type PreTrainedTokenizer, type Processor } from "@huggingface/transformers";
 import { align, heardTimes, languageOf, SAMPLE_RATE, type Model, type WindowResult } from "./align";
-import { MODEL_ID } from "./model-files";
 import { tokenTimes, type Attention } from "./timing";
 
 /**
- * The words-to-song worker (an Electron utility process, started for the job and closed when idle): Whisper base on
+ * The words-to-song worker (an Electron utility process, started for the job and closed when idle): Whisper (base, or small in the accurate mode) on
  * the CPU, four threads, from the files main downloaded. It never writes words, only places the known ones (align.ts):
  * all of them (plain words), or a few to check a source's timing (`times`).
  */
@@ -13,6 +12,8 @@ export interface Job {
   id: number;
   /** the folder the model files are in (userData/models) */
   root: string;
+  /** which of them (model-files.ts) */
+  model: string;
   /** mono, 16 kHz */
   pcm: Float32Array;
   lines: string[];
@@ -30,16 +31,16 @@ interface Whisper {
 }
 let loading: Promise<Whisper> | null = null;
 
-function load(root: string): Promise<Whisper> {
+function load(root: string, id: string): Promise<Whisper> {
   env.allowRemoteModels = false;
   env.allowLocalModels = true;
   env.localModelPath = root;
   // memory pools off: the worker is short-lived, and they kept twice the memory it needs
   const session_options = { intraOpNumThreads: 4, interOpNumThreads: 1, enableCpuMemArena: false, enableMemPattern: false };
   return (loading ??= (async () => ({
-    model: (await WhisperForConditionalGeneration.from_pretrained(MODEL_ID, { dtype: "q8", device: "cpu", session_options, local_files_only: true })) as WhisperForConditionalGeneration,
-    processor: await AutoProcessor.from_pretrained(MODEL_ID, { local_files_only: true }),
-    tokenizer: await AutoTokenizer.from_pretrained(MODEL_ID, { local_files_only: true }),
+    model: (await WhisperForConditionalGeneration.from_pretrained(id, { dtype: "q8", device: "cpu", session_options, local_files_only: true })) as WhisperForConditionalGeneration,
+    processor: await AutoProcessor.from_pretrained(id, { local_files_only: true }),
+    tokenizer: await AutoTokenizer.from_pretrained(id, { local_files_only: true }),
   }))());
 }
 
@@ -129,7 +130,8 @@ async function run(w: Whisper, job: Job) {
 process.parentPort.on("message", (e) => {
   const job = e.data as Job;
   const started = Date.now();
-  void load(job.root)
+  // main starts a fresh worker for the other model: one model per worker
+  void load(job.root, job.model)
     .then((w) => run(w, job))
     .then((r) => process.parentPort.postMessage({ id: job.id, ok: true, ...r, ms: Date.now() - started } satisfies Reply))
     .catch((err: unknown) => process.parentPort.postMessage({ id: job.id, ok: false, error: err instanceof Error ? err.message : String(err) } satisfies Reply));

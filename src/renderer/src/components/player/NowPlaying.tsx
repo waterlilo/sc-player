@@ -3,7 +3,6 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperti
 import { artwork, type Lyrics, type Track } from "@shared/types";
 import { analyser, currentTime } from "@/audio/engine";
 import { useT } from "@/i18n";
-import { getActivity } from "@/lib/activity";
 import { usePlayingLoop } from "@/lib/playingLoop";
 import { duration } from "@/lib/format";
 import { player, useCurrentTrack, usePlayer, usePosition, useStreamTrack } from "@/state/player";
@@ -263,13 +262,14 @@ function SweepLines({ lines }: { lines: NonNullable<Lyrics["synced"]> }) {
       : sweep(words[cur]!, lines[cur]!.t, lines[cur + 1]?.t ?? lines[cur]!.t + 5, now);
     spans.forEach((s, i) => s.style.setProperty("--k", `${(k[i] ?? 0) * 100}%`));
   };
-  usePlayingLoop(paint, paint, [lines]);
-  // without the loop (paused, or the window visible but not in front) the light moves with the player's time updates,
-  // a few a second: a seek, and the song going on behind another window; new times (a pin) show at once
+  // 15 times a second while the window is visible behind another one (a second screen): fast rap changes lines more
+  // often than the player's time updates come
+  usePlayingLoop(paint, paint, [lines], 66);
+  // paused, a seek still moves the light; new times show at once
   useEffect(
     () => {
       const first = requestAnimationFrame(paint);
-      const off = usePosition.subscribe(() => (usePlayer.getState().status !== "playing" || getActivity() !== "active") && paint());
+      const off = usePosition.subscribe(() => usePlayer.getState().status !== "playing" && paint());
       return () => {
         cancelAnimationFrame(first);
         off();
@@ -279,15 +279,21 @@ function SweepLines({ lines }: { lines: NonNullable<Lyrics["synced"]> }) {
     [lines],
   );
 
+  // lines coming quicker than every 1.5 s (fast rap): the easing would keep them behind the voice
+  const fast = useMemo(() => {
+    const gaps = lines.slice(1).map((l, i) => l.t - lines[i]!.t).filter((g) => g > 0).sort((a, b) => a - b);
+    return gaps.length > 4 && gaps[gaps.length >> 1]! < 1.5;
+  }, [lines]);
+
   useEffect(() => {
     const el = box.current;
     if (!el || Date.now() - userScroll.current < 4000) return;
     const row = el.querySelector<HTMLElement>(`[data-line="${Math.max(0, at)}"]`);
-    if (row) el.scrollTo({ top: row.offsetTop - el.clientHeight * 0.4 + row.offsetHeight / 2, behavior: "smooth" });
-  }, [at]);
+    if (row) el.scrollTo({ top: row.offsetTop - el.clientHeight * 0.4 + row.offsetHeight / 2, behavior: fast ? "instant" : "smooth" });
+  }, [at, fast]);
 
   return (
-    <div ref={box} onWheel={() => (userScroll.current = Date.now())} className="np-lines relative h-full overflow-y-auto pr-10" data-keys-own>
+    <div ref={box} onWheel={() => (userScroll.current = Date.now())} className={`np-lines relative h-full overflow-y-auto pr-10${fast ? " fast" : ""}`} data-keys-own>
       <div className="h-[40%]" />
       {lines.map((l, i) => {
         const d = Math.abs(i - at);

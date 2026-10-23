@@ -33,6 +33,10 @@
   text-shadow: 0 1px 12px rgba(0, 0, 0, 0.25);
   transition: color 0.4s, filter 0.4s, opacity 0.4s;
 }
+/* fast rap: lines change in a blink, not with a 0.4 s fade */
+.np-lines.fast .np-line {
+  transition-duration: 0.1s;
+}
 .np-line.near {
   filter: blur(0.5px);
 }

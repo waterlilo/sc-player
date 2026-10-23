@@ -163,6 +163,8 @@ export type SyncResult = { lines: SyncedLine[] } | { scale: number; shift: numbe
 
 /** Auto-sync: the model on disk and whether a song is being worked out. */
 export interface LyricsSyncStatus {
+  /** which model the settings ask for (base; small in the accurate mode) and whether it is on disk */
+  name: "base" | "small";
   model: "missing" | "downloading" | "ready" | "error";
   /** of the download, 0..1 */
   progress: number;

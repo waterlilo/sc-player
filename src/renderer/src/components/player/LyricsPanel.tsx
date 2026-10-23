@@ -71,7 +71,7 @@ function syncRequest(l: Lyrics | null | undefined, soundId: number): SyncRequest
   if (!words) return null;
   return { trackId: soundId, source: l.source ?? "lrclib", lyricsId: l.id, plain: words, ...(timed.length ? { times: timed.map((x) => x.t) } : {}) };
 }
-const syncKey = (q: SyncRequest | null) => ["lyricsSync", q?.trackId, q?.source, q?.lyricsId, q?.plain] as const;
+const syncKey = (q: SyncRequest | null, model: string | undefined) => ["lyricsSync", model, q?.trackId, q?.source, q?.lyricsId, q?.plain] as const;
 
 /**
  * The words as shown, with Auto-sync on (Settings → Lyrics; lib/lyricsSync), matched against the track that is streamed
@@ -83,16 +83,17 @@ export function useShownLyrics(track: Track | null) {
   const sound = useStreamTrack(track);
   const on = useSettings((s) => s.prefs.autoSyncLyrics);
   const ready = useLyricsSync((s) => s.status?.model === "ready");
+  const model = useLyricsSync((s) => s.status?.name);
   const l = q.data;
   const req = on && ready && sound ? syncRequest(l, sound.id) : null;
   const sync = useQuery({
     enabled: !!req,
-    queryKey: syncKey(req),
+    queryKey: syncKey(req, model),
     queryFn: ({ signal }) => syncLyrics(req!, signal),
     staleTime: Infinity,
     retry: false,
   });
-  useSyncNext(on && ready && !!req && !sync.isFetching);
+  useSyncNext(on && ready && !!req && !sync.isFetching, model);
   let data = l;
   const r = req ? sync.data : null;
   if (l && r && "lines" in r) data = { ...l, synced: r.lines, aligned: true };
@@ -108,7 +109,7 @@ export function useShownLyrics(track: Track | null) {
  * While the words are on screen and this track is done, the next one in the queue is prepared: its words fetched and
  * synced, so they are ready when it starts. Not for a replacement upload (which one plays is decided when it starts).
  */
-function useSyncNext(go: boolean) {
+function useSyncNext(go: boolean, model: string | undefined) {
   const qc = useQueryClient();
   const next = usePlayer((s) => s.queue[s.index + 1] ?? null);
   useEffect(() => {
@@ -117,10 +118,10 @@ function useSyncNext(go: boolean) {
     void (async () => {
       const l = await qc.fetchQuery({ queryKey: key(next.id), queryFn: () => lyricsOf(next), staleTime: Infinity });
       const req = syncRequest(l, next.id);
-      if (req && !stop.signal.aborted) await qc.prefetchQuery({ queryKey: syncKey(req), queryFn: ({ signal }) => syncLyrics(req, signal), staleTime: Infinity });
+      if (req && !stop.signal.aborted) await qc.prefetchQuery({ queryKey: syncKey(req, model), queryFn: ({ signal }) => syncLyrics(req, signal), staleTime: Infinity });
     })().catch(() => undefined);
     return () => stop.abort();
-  }, [go, next, qc]);
+  }, [go, next, qc, model]);
 }
 
 /** Synced words: the line being sung is lit and kept in view; a click on a line jumps there. */

@@ -141,6 +141,8 @@ export interface Prefs {
   countMe: boolean;
   /** plain words (no times anywhere) are matched to the song on this computer (Whisper; the model is downloaded once) */
   autoSyncLyrics: boolean;
+  /** Auto-sync with Whisper small instead of base: hears fast and mumbled rap better, about three times slower */
+  accurateSync: boolean;
 }
 
 export const EQ_BANDS = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000] as const;
@@ -173,6 +175,7 @@ export const PREFS_DEFAULTS: Prefs = {
   socialPopups: true,
   countMe: true,
   autoSyncLyrics: false,
+  accurateSync: false,
 };
 
 /** Fills in anything missing from stored prefs (new options in a newer version). */

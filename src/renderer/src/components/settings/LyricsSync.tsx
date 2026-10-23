@@ -11,6 +11,7 @@ export default function LyricsSync() {
   const on = useSettings((s) => s.prefs.autoSyncLyrics);
   const setPref = useSettings((s) => s.setPref);
   const status = useLyricsSync((s) => s.status);
+  const accurate = useSettings((s) => s.prefs.accurateSync);
   const download = () => void call("lyricsSync:download").then((s) => useLyricsSync.setState({ status: s }));
 
   const state =
@@ -47,6 +48,19 @@ export default function LyricsSync() {
           }}
         />
       </Row>
+      {on && (
+        <Row label={t.accurateSync} hint={t.accurateSyncHint}>
+          <Toggle
+            on={accurate}
+            label={t.accurateSync}
+            onChange={(v) => {
+              setPref("accurateSync", v);
+              // the settings reach main first: then the status (and the download) is of the model just chosen
+              download();
+            }}
+          />
+        </Row>
+      )}
       {!on && status?.model === "ready" && (
         <Row label={t.syncRemove}>
           <PaperButton onClick={() => void call("lyricsSync:deleteModel").then((s) => useLyricsSync.setState({ status: s }))}>{t.syncRemove}</PaperButton>

@@ -156,6 +156,8 @@ export const en = {
   syncReady: "The model is ready",
   syncFailed: (why: string) => `Couldn't download the model: ${why}`,
   syncRemove: "Remove the model",
+  accurateSync: "Accurate mode",
+  accurateSyncHint: "A larger speech model (Whisper small, about 250 MB more): hears fast and mumbled rap better, but takes about three times longer to sync a song.",
   findInList: "Find in this list",
   clear: "Clear",
   sortBy: "Sort",
