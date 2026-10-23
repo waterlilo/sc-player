@@ -1,11 +1,13 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import type { Lyrics, LyricsHit, Track } from "@shared/types";
+import type { Lyrics, LyricsHit, SyncRequest, Track } from "@shared/types";
 import { useT } from "@/i18n";
 import { duration } from "@/lib/format";
+import { syncLyrics, useLyricsSync } from "@/lib/lyricsSync";
 import { call } from "@/lib/sky";
-import { player, useCurrentTrack, usePosition } from "@/state/player";
+import { player, useCurrentTrack, usePosition, useStreamTrack } from "@/state/player";
+import { useSettings } from "@/state/settings";
 import { useUi } from "@/state/ui";
 import { IconButton } from "../ui/Buttons";
 import MarkerEdge from "../deco/MarkerEdge";
@@ -20,13 +22,13 @@ const SOURCES = {
 } as const;
 
 /** Where the words came from, with a link to it (Better Lyrics asked for one), and how they are timed. */
-export function LyricsSource({ lyrics, rough = false }: { lyrics: Lyrics | null | undefined; rough?: boolean }) {
+export function LyricsSource({ lyrics, syncing = false }: { lyrics: Lyrics | null | undefined; syncing?: boolean }) {
   const t = useT();
   const src = SOURCES[lyrics?.source ?? "lrclib"];
   const byWord = !!lyrics?.synced?.some((l) => (l.words?.length ?? 0) > 1);
   return (
     <>
-      {lyrics?.synced?.length ? (byWord ? t.syncedByWord : t.syncedByLine) : rough ? t.lyricsRough : t.lyricsWord}
+      {syncing ? t.lyricsSyncing : lyrics?.aligned ? t.lyricsAligned : lyrics?.synced?.length ? (byWord ? t.syncedByWord : t.syncedByLine) : t.lyricsWord}
       {" · "}
       <button type="button" className="underline-offset-2 hover:text-text hover:underline" onClick={() => void call("shell:open", src.url)}>
         {src.name}
@@ -37,11 +39,11 @@ export function LyricsSource({ lyrics, rough = false }: { lyrics: Lyrics | null 
 
 /** The panel's footer: the source of the words on show. */
 function PanelCredit({ track }: { track: Track }) {
-  const q = useLyrics(track);
+  const q = useShownLyrics(track);
   if (!q.data) return null;
   return (
     <p className="px-4 py-2 font-type text-[0.65rem] text-muted/70">
-      <LyricsSource lyrics={q.data} />
+      <LyricsSource lyrics={q.data} syncing={q.syncing} />
     </p>
   );
 }
@@ -55,6 +57,28 @@ export function useLyrics(track: Track | null) {
     staleTime: Infinity,
     retry: 1,
   });
+}
+
+/**
+ * The words as shown: plain words become synced lines once they are matched to the song (Auto-sync, Settings → Lyrics;
+ * lib/lyricsSync). Matched against the track that is streamed — a replacement upload when there is one.
+ */
+export function useShownLyrics(track: Track | null) {
+  const q = useLyrics(track);
+  const sound = useStreamTrack(track);
+  const on = useSettings((s) => s.prefs.autoSyncLyrics);
+  const ready = useLyricsSync((s) => s.status?.model === "ready");
+  const l = q.data;
+  const req: SyncRequest | null = on && ready && sound && l && !l.synced?.length && l.plain ? { trackId: sound.id, source: l.source ?? "lrclib", lyricsId: l.id, plain: l.plain } : null;
+  const sync = useQuery({
+    enabled: !!req,
+    queryKey: ["lyricsSync", req?.trackId, req?.source, req?.lyricsId, req?.plain],
+    queryFn: ({ signal }) => syncLyrics(req!, signal),
+    staleTime: Infinity,
+    retry: false,
+  });
+  const data = l && req && sync.data ? { ...l, synced: sync.data, aligned: true } : l;
+  return { ...q, data, syncing: !!req && sync.isFetching };
 }
 
 /** Synced words: the line being sung is lit and kept in view; a click on a line jumps there. */
@@ -161,7 +185,7 @@ export function ManualSearch({ track, onDone }: { track: Track; onDone: () => vo
 function Body({ track }: { track: Track }) {
   const t = useT();
   const [searching, setSearching] = useState(false);
-  const q = useLyrics(track);
+  const q = useShownLyrics(track);
   const l = q.data;
 
   return (

@@ -139,6 +139,28 @@ export interface Lyrics {
   instrumental: boolean;
   /** where the words came from (shown with them); LRCLIB when missing (older answers) */
   source?: LyricsSource;
+  /** the plain words were matched to the song on this computer (Settings → Lyrics → Auto-sync) */
+  aligned?: boolean;
+}
+
+export type SyncedLine = NonNullable<Lyrics["synced"]>[number];
+
+/** Plain words to match to a track's sound: the track that is streamed (a replacement upload, when there is one). */
+export interface SyncRequest {
+  trackId: number;
+  source: LyricsSource;
+  lyricsId: number;
+  plain: string;
+}
+
+/** Auto-sync: the model on disk and whether a song is being worked out. */
+export interface LyricsSyncStatus {
+  model: "missing" | "downloading" | "ready" | "error";
+  /** of the download, 0..1 */
+  progress: number;
+  error: string;
+  sizeMb: number;
+  busy: boolean;
 }
 
 /** A search result when looking for the words by hand. */

@@ -4,9 +4,10 @@ import { app, BrowserWindow, clipboard, ipcMain, session, shell, type IpcMainInv
 import { RENDERER_DEFAULTS, type AuthStatus, type InvokeChannel, type InvokeMap, type PlayerCommand, type PlayerInfo, type RendererState, type Result } from "@shared/ipc";
 import type { MusicProvider, SearchKind } from "@shared/provider";
 import type { SocialTrack } from "@shared/social";
-import type { QueueSource } from "@shared/types";
+import type { QueueSource, SyncRequest } from "@shared/types";
 import { DemoProvider } from "./demo";
 import { flushLyrics, lyricsFor, pickLyrics, searchLyrics } from "./lyrics";
+import { deleteModel, downloadModel, flushLyricsSync, onSyncStatus, syncedBefore, syncStatus, syncWords } from "./lyrics-sync";
 import { auth, authStatus, chromeUserAgent, provider, ScError, scSession, startBrowserSignIn, stopBrowserSignIn, toErrorInfo, tokenFromArgs, waitingForBrowser } from "./soundcloud";
 import { flushAlternatives } from "./soundcloud/alternatives";
 import * as social from "./social";
@@ -86,6 +87,12 @@ const str = (v: unknown, what: string) => (typeof v === "string" && v.length < 4
 const cursor = (v: unknown) => (v === null || v === undefined ? null : str(v, "cursor"));
 const id = (v: unknown) => (typeof v === "number" && Number.isSafeInteger(v) && v > 0 ? v : bad("id"));
 const kinds: SearchKind[] = ["tracks", "playlists", "users"];
+function syncRequest(v: unknown): SyncRequest {
+  const q = (typeof v === "object" && v !== null ? v : bad("request")) as Record<string, unknown>;
+  const source = q.source === "lrclib" || q.source === "betterlyrics" || q.source === "unison" ? q.source : bad("source");
+  const plain = typeof q.plain === "string" && q.plain.length < 50_000 ? q.plain : bad("words");
+  return { trackId: id(q.trackId), source, lyricsId: typeof q.lyricsId === "number" && Number.isSafeInteger(q.lyricsId) && q.lyricsId >= 0 ? q.lyricsId : bad("lyrics id"), plain };
+}
 const themeId = (v: unknown) => (typeof v === "string" && /^[\w-]{10}$/.test(v) ? v : bad("theme id"));
 /** a track to send or show to friends: the fields the server keeps */
 function socialTrack(v: unknown): SocialTrack {
@@ -163,6 +170,12 @@ function registerIpc() {
   });
   handle("lyrics:search", (_e, text) => searchLyrics(str(text, "text")));
   handle("lyrics:pick", (_e, t, l) => pickLyrics(id(t), id(l)));
+  handle("lyricsSync:status", () => syncStatus());
+  handle("lyricsSync:download", () => downloadModel());
+  handle("lyricsSync:deleteModel", () => deleteModel());
+  handle("lyricsSync:before", (_e, q) => syncedBefore(syncRequest(q)));
+  // up to 20 minutes of 16 kHz sound
+  handle("lyricsSync:run", (_e, q, pcm) => syncWords(syncRequest(q), pcm instanceof Float32Array && pcm.length > 0 && pcm.length <= 20 * 60 * 16000 ? pcm : bad("sound")));
   handle("data:feed", (_e, c) => data.getFeed(cursor(c)));
   handle("data:likedIds", (_e, refresh) => data.getLikedIds(refresh === true));
   handle("data:setLiked", (_e, t, on) => (on === true ? data.like(id(t)) : data.unlike(id(t))));
@@ -326,6 +339,7 @@ app.on("before-quit", () => {
   store().flush();
   flushAlternatives();
   flushLyrics();
+  flushLyricsSync();
 });
 process.on("uncaughtException", (err) => log("main", `uncaught: ${err.stack ?? err.message}`));
 
@@ -339,6 +353,7 @@ void app.whenReady().then(async () => {
   await auth.restore();
   const p = prefs();
   main = createMainWindow({ startHidden: startedHidden() && p.startMinimized, closeToTray: () => prefs().closeToTray, quitting: () => quitting });
+  onSyncStatus((s) => send(main, "lyricsSync:status", s));
   main.on("closed", () => (main = null));
   // Windows forgets the taskbar buttons while the window is hidden
   main.on("show", () => updateThumbar(main, playerInfo, command, true));

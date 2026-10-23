@@ -3,6 +3,7 @@ import { PREFS_DEFAULTS, type AppInfo, type HotkeyAction, type NetCheck } from "
 import Appearance from "@/components/settings/Appearance";
 import Equalizer from "@/components/settings/Equalizer";
 import HotkeyRecorder from "@/components/settings/HotkeyRecorder";
+import LyricsSync from "@/components/settings/LyricsSync";
 import Messenger from "@/components/settings/Messenger";
 import { Choice, Row, Section, Slider, Toggle } from "@/components/settings/Controls";
 import { MarkerButton, PaperButton } from "@/components/ui/Buttons";
@@ -332,6 +333,8 @@ export default function Settings() {
           />
         </Row>
       </Section>
+
+      <LyricsSync />
 
       <Section title={t.secSound}>
         <Equalizer />

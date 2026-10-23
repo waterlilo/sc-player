@@ -1,6 +1,6 @@
 import type { SearchKind } from "./provider";
 import type { Friends, Message, SocialStatus, SocialTrack, SocialUpdate, WsPage, WsSort, WsThemeFull } from "./social";
-import type { AppErrorInfo, Lyrics, LyricsHit, Page, Playlist, QueueSource, Resolved, SavedProfile, StreamInfo, Track, TrackDetails, User } from "./types";
+import type { AppErrorInfo, Lyrics, LyricsHit, LyricsSyncStatus, Page, Playlist, QueueSource, Resolved, SavedProfile, StreamInfo, SyncRequest, SyncedLine, Track, TrackDetails, User } from "./types";
 
 /**
  * The one contract between main and renderer. main registers a handler for every InvokeMap channel, preload exposes
@@ -139,6 +139,8 @@ export interface Prefs {
   socialPopups: boolean;
   /** once a day: an anonymous "one more app is running" to sc player's server (a random install id + the version) */
   countMe: boolean;
+  /** plain words (no times anywhere) are matched to the song on this computer (Whisper; the model is downloaded once) */
+  autoSyncLyrics: boolean;
 }
 
 export const EQ_BANDS = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000] as const;
@@ -170,6 +172,7 @@ export const PREFS_DEFAULTS: Prefs = {
   spectrum: { place: "cover", style: "bars", height: 120, color: "accent", mirror: true },
   socialPopups: true,
   countMe: true,
+  autoSyncLyrics: false,
 };
 
 /** Fills in anything missing from stored prefs (new options in a newer version). */
@@ -258,6 +261,14 @@ export interface InvokeMap {
   "lyrics:search": (text: string) => LyricsHit[];
   /** use this LRCLIB record for the track from now on */
   "lyrics:pick": (trackId: number, lyricsId: number) => Lyrics | null;
+  "lyricsSync:status": () => LyricsSyncStatus;
+  /** starts the model download (progress comes as lyricsSync:status events) */
+  "lyricsSync:download": () => LyricsSyncStatus;
+  "lyricsSync:deleteModel": () => LyricsSyncStatus;
+  /** a song worked out before: its lines, null when the words didn't fit it, undefined when not done yet */
+  "lyricsSync:before": (q: SyncRequest) => SyncedLine[] | null | undefined;
+  /** matches the words to the sound (mono, 16 kHz); null when they don't fit it */
+  "lyricsSync:run": (q: SyncRequest, pcm: Float32Array) => SyncedLine[] | null;
   "data:feed": (cursor: string | null) => Page<Track>;
   /** `refresh`: read them again from SoundCloud (after liking on the site) */
   "data:likedIds": (refresh?: boolean) => number[];
@@ -347,6 +358,7 @@ export interface EventMap {
   "social:update": SocialUpdate;
   /** a pop-up about a sent track was clicked: open the inbox (at this friend) */
   "social:open": string;
+  "lyricsSync:status": LyricsSyncStatus;
 }
 
 export type InvokeChannel = keyof InvokeMap;
@@ -403,6 +415,11 @@ export const INVOKE_CHANNELS = [
   "lyrics:get",
   "lyrics:search",
   "lyrics:pick",
+  "lyricsSync:status",
+  "lyricsSync:download",
+  "lyricsSync:deleteModel",
+  "lyricsSync:before",
+  "lyricsSync:run",
   "data:feed",
   "data:likedIds",
   "data:setLiked",
@@ -433,7 +450,7 @@ export const INVOKE_CHANNELS = [
   "update:download",
   "update:install",
 ] as const satisfies readonly InvokeChannel[];
-export const EVENT_CHANNELS = ["win:activity", "win:maximized", "auth:changed", "auth:browserRefused", "player:command", "hotkeys:failed", "update:status", "social:update", "social:open"] as const satisfies readonly (keyof EventMap)[];
+export const EVENT_CHANNELS = ["win:activity", "win:maximized", "auth:changed", "auth:browserRefused", "player:command", "hotkeys:failed", "update:status", "social:update", "social:open", "lyricsSync:status"] as const satisfies readonly (keyof EventMap)[];
 
 type MissingInvoke = Exclude<InvokeChannel, (typeof INVOKE_CHANNELS)[number]>;
 type MissingEvent = Exclude<keyof EventMap, (typeof EVENT_CHANNELS)[number]>;

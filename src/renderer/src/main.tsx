@@ -9,6 +9,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { queryClient } from "@/api/queries";
 import { initActivity, subscribeActivity } from "@/lib/activity";
+import { watchLyricsSync } from "@/lib/lyricsSync";
 import { initAnimationClock } from "@/lib/animClock";
 import { applyQuality } from "@/lib/quality";
 import { call } from "@/lib/sky";
@@ -31,6 +32,7 @@ import App from "./App";
 
 async function boot() {
   initActivity();
+  watchLyricsSync();
   try {
     useSettings.getState().hydrate(await call("store:get"));
   } catch {

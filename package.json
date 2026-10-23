@@ -1,7 +1,7 @@
 {
   "name": "sc-player",
   "productName": "sc player",
-  "version": "2.0.0-beta.14",
+  "version": "2.0.0-beta.15",
   "private": true,
   "description": "sc player — a SoundCloud desktop client for Windows",
   "author": "sky (@skythemontage)",
@@ -27,6 +27,7 @@
     "@fontsource/rubik-wet-paint": "5.3.0",
     "@fontsource/space-grotesk": "5.3.0",
     "@fontsource/special-elite": "5.3.0",
+    "@huggingface/transformers": "4.3.1",
     "@tailwindcss/vite": "4.3.3",
     "@tanstack/react-query": "5.104.2",
     "@tanstack/react-virtual": "3.14.19",
@@ -63,9 +64,16 @@
     "files": [
       "out/**/*",
       "resources/**/*",
-      "package.json"
+      "package.json",
+      "!node_modules/onnxruntime-node/bin/napi-v6/{darwin,linux}/**",
+      "!node_modules/onnxruntime-node/bin/napi-v6/win32/arm64/**",
+      "!node_modules/onnxruntime-node/bin/napi-v6/win32/x64/{DirectML.dll,dxcompiler.dll,dxil.dll}",
+      "!node_modules/onnxruntime-node/{lib,script}/**"
     ],
     "asar": true,
+    "asarUnpack": [
+      "node_modules/onnxruntime-node/bin/**"
+    ],
     "win": {
       "icon": "build/icon.png",
       "target": [
@@ -90,5 +98,8 @@
       "owner": "waterlilo",
       "repo": "sc-player"
     }
+  },
+  "dependencies": {
+    "onnxruntime-node": "1.30.0"
   }
 }

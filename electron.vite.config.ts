@@ -62,8 +62,11 @@ function serverApi() {
 
 export default defineConfig({
   main: {
-    resolve: { alias: shared },
+    // sharp: transformers.js reads images with it; the lyrics worker only hears sound
+    resolve: { alias: { ...shared, sharp: resolve("src/main/lyrics-sync/no-sharp.ts") } },
     define: { __SC_PROXY__: JSON.stringify(builtinProxy()), __SC_API__: JSON.stringify(serverApi()) },
+    // the words-to-song worker is its own process (src/main/lyrics-sync); onnxruntime-node stays outside (native)
+    build: { rolldownOptions: { input: { index: resolve("src/main/index.ts"), "lyrics-worker": resolve("src/main/lyrics-sync/worker.ts") } } },
   },
   preload: {
     resolve: { alias: shared },
