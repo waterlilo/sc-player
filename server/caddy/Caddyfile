@@ -21,6 +21,13 @@
 		}
 	}
 
+	# a room's event stream stays open for as long as the app is in the room: no time limit, written out at once
+	handle /v1/rooms/*/events {
+		reverse_proxy api:8080 {
+			flush_interval -1
+		}
+	}
+
 	handle /v1/* {
 		# theme backgrounds are the biggest uploads (25 MB)
 		request_body {
@@ -33,6 +40,15 @@
 		respond "OK" 200
 	}
 
-	encode zstd gzip
+	# compressed: the API's JSON and text only — a listening room's event stream (text/event-stream) must go out as it
+	# is written, not held back by a compressor
+	encode {
+		zstd
+		gzip
+		match {
+			header Content-Type application/json*
+			header Content-Type text/plain*
+		}
+	}
 	header -Server
 }

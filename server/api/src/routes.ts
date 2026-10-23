@@ -4,6 +4,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { join } from "node:path";
 import { all, DATA, one, run, tx, type Row } from "./db.ts";
 import { fail, HttpError, int, limit, readBody, readJson, send, text, url } from "./http.ts";
+import { roomRoutes, rooms } from "./room-routes.ts";
 
 const MIN = 60_000;
 const HOUR = 60 * MIN;
@@ -45,6 +46,16 @@ function me(c: Ctx): Row {
   const d = one("SELECT * FROM devices WHERE secret = ?", sha(secret));
   if (!d) return fail(401, "who are you");
   if (Date.now() - Number(d.seen) > MIN) run("UPDATE devices SET seen = ? WHERE id = ?", Date.now(), d.id);
+  // what this app can do (an update may add to it): only words from a short list are kept
+  const features = String(c.req.headers["x-sc-features"] ?? "")
+    .split(",")
+    .map((f) => f.trim())
+    .filter((f) => f === "rooms")
+    .join(",");
+  if (features !== d.features) {
+    run("UPDATE devices SET features = ? WHERE id = ?", features, d.id);
+    d.features = features;
+  }
   limit(`dev:${d.id}`, 600, MIN);
   return d;
 }
@@ -111,6 +122,8 @@ async function putNow(c: Ctx) {
 /** Forget this device and everything it sent or shared. */
 function deleteMe(c: Ctx) {
   const d = me(c);
+  const room = rooms.roomOf(Number(d.id));
+  if (room) rooms.leave(room.id, Number(d.id));
   for (const t of all("SELECT id FROM themes WHERE author = ?", d.id)) removeThemeFiles(String(t.id));
   const friends = all("SELECT a, b FROM friends WHERE a = ? OR b = ?", d.id, d.id).map((f) => (f.a === d.id ? Number(f.b) : Number(f.a)));
   run("DELETE FROM devices WHERE id = ?", d.id);
@@ -128,7 +141,7 @@ const LIVE_MS = 10 * MIN;
 
 function friendsOf(d: Row) {
   const rows = all(
-    `SELECT f.asked_by, f.accepted, f.created, o.id, o.code, o.name, o.share_now, o.now_track, o.now_at
+    `SELECT f.asked_by, f.accepted, f.created, o.id, o.code, o.name, o.share_now, o.now_track, o.now_at, o.features
        FROM friends f JOIN devices o ON o.id = CASE WHEN f.a = ? THEN f.b ELSE f.a END
       WHERE f.a = ? OR f.b = ? ORDER BY o.name COLLATE NOCASE`,
     d.id,
@@ -138,7 +151,7 @@ function friendsOf(d: Row) {
   const live = (r: Row) => (r.share_now && r.now_track && Date.now() - Number(r.now_at) < LIVE_MS ? JSON.parse(String(r.now_track)) : null);
   return {
     v: Number(d.friends_v),
-    friends: rows.filter((r) => r.accepted).map((r) => ({ code: r.code, name: r.name, since: r.created, now: live(r) })),
+    friends: rows.filter((r) => r.accepted).map((r) => ({ code: r.code, name: r.name, since: r.created, now: live(r), rooms: String(r.features).split(",").includes("rooms") })),
     incoming: rows.filter((r) => !r.accepted && r.asked_by !== d.id).map((r) => ({ code: r.code, name: r.name, at: r.created })),
     outgoing: rows.filter((r) => !r.accepted && r.asked_by === d.id).map((r) => ({ code: r.code, name: r.name, at: r.created })),
   };
@@ -239,8 +252,12 @@ function updates(c: Ctx) {
   // states my friends set on what I sent (heard / liked / queued) change too: the newest few
   const states = all("SELECT id, state FROM messages WHERE sender = ? AND state != '' ORDER BY id DESC LIMIT 200", d.id);
   const f = friendsOf(d);
+  // invitations to listening rooms (a field older apps don't read)
+  const names = new Map(f.friends.map((x) => [x.code, x.name]));
+  const invites = rooms.invitesFor(Number(d.id)).map((i) => ({ ...i, name: names.get(i.by) ?? "" }));
   send(c.res, 200, {
     messages,
+    invites,
     unread,
     states: Object.fromEntries(states.map((s) => [s.id, s.state])),
     now: Object.fromEntries(f.friends.filter((x) => x.now).map((x) => [x.code, x.now])),
@@ -629,6 +646,7 @@ const ROUTES: [string, RegExp, Handler][] = [
   ["GET", /^\/v1\/admin\/themes$/, adminThemes],
   ["POST", new RegExp(`^/v1/admin/themes/${TID}/hide$`), (c) => adminSet(c, true)],
   ["POST", new RegExp(`^/v1/admin/themes/${TID}/keep$`), (c) => adminSet(c, false)],
+  ...roomRoutes({ me, friend: friendOrFail, code: normCode, track }),
 ];
 
 export async function route(c: Omit<Ctx, "params" | "query">) {

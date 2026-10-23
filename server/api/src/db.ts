@@ -76,6 +76,11 @@ CREATE TABLE IF NOT EXISTS theme_votes (
 );
 `);
 
+// columns added after the first release (CREATE TABLE IF NOT EXISTS leaves existing tables as they were)
+const columns = (table: string) => (db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).map((c) => c.name);
+// what the app on this device can do, from its X-SC-Features header ("rooms"): invitations go only to apps that can join
+if (!columns("devices").includes("features")) db.exec("ALTER TABLE devices ADD COLUMN features TEXT NOT NULL DEFAULT ''");
+
 export type Row = Record<string, string | number | null>;
 
 export const one = (sql: string, ...args: (string | number | null)[]) => db.prepare(sql).get(...args) as Row | undefined;
