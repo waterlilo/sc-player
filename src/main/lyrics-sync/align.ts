@@ -117,7 +117,7 @@ export async function align(audio: Float32Array, lines: string[], model: Model):
       });
       return { r, starts, p, here };
     };
-    let placed = await place(seek);
+    const placed = await place(seek);
 
     // the first line isn't heard here: maybe it comes a little later (after a chorus, a break)
     if (!last && placed.here[0]!.p < 0.15 && lookedFor !== next) {
@@ -132,7 +132,6 @@ export async function align(audio: Float32Array, lines: string[], model: Model):
         seek += best.shift;
         continue;
       }
-      placed = await place(seek);
     }
     const { r, starts } = placed;
     take.forEach((w, i) => (w.p = placed.p[i]));
@@ -212,6 +211,44 @@ export function fillGaps(lines: string[], found: (AlignedLine | null)[], duratio
       out.push({ t: words[0]?.t ?? at, end: at, text: ws.join(" "), words });
     }
     i = j;
+  }
+  return out;
+}
+
+/**
+ * A source's synced lines checked against this upload's sound, quickly: a few lines at three places in the song
+ * (a fifth, the middle, four fifths in), each placed in a window from 12 s before the source's time. What comes back
+ * is the source's time and the heard time of each line the model is fairly sure of — main finds the shift they share
+ * (shared/fitOffset). Three passes instead of a whole song's worth.
+ */
+// a line counts from a fairly low certainty: the lines must still agree on one shift (fitOffset) to move anything
+const MIN_P = 0.08;
+export async function heardTimes(audio: Float32Array, lines: string[], times: number[], model: Model): Promise<{ source: number; heard: number }[]> {
+  const duration = audio.length / SAMPLE_RATE;
+  const anchors = [...new Set((lines.length >= 8 ? [0.2, 0.5, 0.8] : [0.3]).map((f) => Math.floor(f * lines.length)))];
+  const out: { source: number; heard: number }[] = [];
+  for (const first of anchors) {
+    const block = lines.slice(first, first + 4).map((text, k) => ({ line: first + k, words: text.split(/\s+/).filter(Boolean).map((w) => ({ text: w, ids: model.encode(` ${w}`) })) }));
+    const from = Math.max(0, Math.min(times[first]! - 12, duration - WINDOW_S));
+    const start = Math.floor(from * SAMPLE_RATE);
+    const ids = block.flatMap((b) => b.words.flatMap((w) => w.ids));
+    if (!ids.length || ids.length > MAX_TOKENS) continue;
+    const r = await model.forward(audio.subarray(start, Math.min(audio.length, start + WINDOW_S * SAMPLE_RATE)), ids);
+    let k = 0;
+    for (const b of block) {
+      let p = 0;
+      let lineStart = NaN;
+      for (const [i, w] of b.words.entries()) {
+        if (i === 0) {
+          const end = r.starts[k + w.ids.length] ?? r.end;
+          lineStart = Math.max(r.starts[k]!, end - longestWord(w.ids.length));
+        }
+        p += w.ids.reduce((n, _, j) => n + Math.log(Math.max(1e-9, r.p[k + j] ?? 0)), 0) / w.ids.length;
+        k += w.ids.length;
+      }
+      // the line's certainty: the geometric mean over its words
+      if (b.words.length && Math.exp(p / b.words.length) >= MIN_P) out.push({ source: times[b.line]!, heard: from + lineStart });
+    }
   }
   return out;
 }

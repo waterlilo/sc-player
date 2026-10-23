@@ -1,10 +1,12 @@
 import { AutoProcessor, AutoTokenizer, env, Tensor, WhisperForConditionalGeneration, type PreTrainedTokenizer, type Processor } from "@huggingface/transformers";
-import { align, languageOf, SAMPLE_RATE, type Model, type WindowResult } from "./align";
+import { align, heardTimes, languageOf, SAMPLE_RATE, type Model, type WindowResult } from "./align";
 import { MODEL_ID } from "./model-files";
+import { tokenTimes, type Attention } from "./timing";
 
 /**
  * The words-to-song worker (an Electron utility process, started for the job and closed when idle): Whisper base on
- * the CPU, two threads, from the files main downloaded. It never writes words, only places the known ones (align.ts).
+ * the CPU, four threads, from the files main downloaded. It never writes words, only places the known ones (align.ts):
+ * all of them (plain words), or a few to check a source's timing (`times`).
  */
 
 export interface Job {
@@ -14,8 +16,12 @@ export interface Job {
   /** mono, 16 kHz */
   pcm: Float32Array;
   lines: string[];
+  /** the source's line times: only check them (heardTimes) */
+  times?: number[];
 }
-export type Reply = { id: number; ok: true; alignment: Awaited<ReturnType<typeof align>>; language: string; ms: number } | { id: number; ok: false; error: string };
+export type Reply =
+  | { id: number; ok: true; alignment?: Awaited<ReturnType<typeof align>>; heard?: Awaited<ReturnType<typeof heardTimes>>; language: string; ms: number }
+  | { id: number; ok: false; error: string };
 
 interface Whisper {
   model: WhisperForConditionalGeneration;
@@ -29,7 +35,7 @@ function load(root: string): Promise<Whisper> {
   env.allowLocalModels = true;
   env.localModelPath = root;
   // memory pools off: the worker is short-lived, and they kept twice the memory it needs
-  const session_options = { intraOpNumThreads: 2, interOpNumThreads: 1, enableCpuMemArena: false, enableMemPattern: false };
+  const session_options = { intraOpNumThreads: 4, interOpNumThreads: 1, enableCpuMemArena: false, enableMemPattern: false };
   return (loading ??= (async () => ({
     model: (await WhisperForConditionalGeneration.from_pretrained(MODEL_ID, { dtype: "q8", device: "cpu", session_options, local_files_only: true })) as WhisperForConditionalGeneration,
     processor: await AutoProcessor.from_pretrained(MODEL_ID, { local_files_only: true }),
@@ -46,7 +52,7 @@ interface GenerationConfig {
   alignment_heads: number[][];
 }
 type Output = Record<string, Tensor> & { logits: Tensor };
-type WithTimestamps = { _extract_token_timestamps(o: { cross_attentions: Tensor[][]; sequences: { dims: number[] } }, heads: number[][], frames: number, precision: number, skip: number): Tensor[] };
+type WithEncoder = { _prepare_encoder_decoder_kwargs_for_generation(o: { inputs_tensor: Tensor; model_inputs: Record<string, Tensor>; model_input_name: string; generation_config: unknown }): Promise<{ encoder_outputs: Tensor }> };
 
 /** log-softmax of one row of logits at one token */
 function logProb(logits: Float32Array, row: number, vocab: number, token: number) {
@@ -60,10 +66,20 @@ function logProb(logits: Float32Array, row: number, vocab: number, token: number
 
 async function run(w: Whisper, job: Job) {
   const gc = w.model.generation_config as unknown as GenerationConfig;
+  // the encoder's hearing of a window, kept while the job goes on: a window is placed again after a look ahead or when
+  // lines are set aside, and only the words change
+  const heard = new Map<string, Tensor>();
   const pass = async (window: Float32Array, ids: number[]) => {
-    const { input_features } = await w.processor(window);
+    const key = `${window.byteOffset}:${window.length}`;
+    let encoder_outputs = heard.get(key);
+    if (!encoder_outputs) {
+      const { input_features } = (await w.processor(window)) as { input_features: Tensor };
+      encoder_outputs = (await (w.model as unknown as WithEncoder)._prepare_encoder_decoder_kwargs_for_generation({ inputs_tensor: input_features, model_inputs: { input_features }, model_input_name: "input_features", generation_config: w.model.generation_config })).encoder_outputs;
+      heard.set(key, encoder_outputs);
+      if (heard.size > 6) heard.delete(heard.keys().next().value!);
+    }
     const dec = new Tensor("int64", BigInt64Array.from(ids.map(BigInt)), [1, ids.length]);
-    return (await w.model({ input_features, decoder_input_ids: dec })) as Output;
+    return (await w.model({ encoder_outputs, decoder_input_ids: dec })) as Output;
   };
 
   // the language: from the letters of the words when they tell it, else heard at a quarter, the middle and three
@@ -92,9 +108,9 @@ async function run(w: Whisper, job: Job) {
       const cross = Object.keys(out)
         .filter((k) => k.startsWith("cross_attentions"))
         .sort((a, b) => Number(a.split(".")[1]) - Number(b.split(".")[1]))
-        .map((k) => out[k]!);
+        .map((k) => ({ data: out[k]!.data as Float32Array, dims: out[k]!.dims }) satisfies Attention);
       // the row of token k (it predicts token k + 1) is where k + 1 is heard: the times of token k are at k - 1
-      const times = (w.model as unknown as WithTimestamps)._extract_token_timestamps({ cross_attentions: [cross], sequences: { dims: [1, ids.length + 1] } }, gc.alignment_heads, Math.floor(window.length / 320), 0.02, prefix.length - 1)[0]!.data as Float32Array;
+      const times = tokenTimes(cross, gc.alignment_heads, Math.floor(window.length / 320), prefix.length - 1, (w.model.config as { median_filter_width?: number }).median_filter_width ?? 7);
       const logits = out.logits.data as Float32Array;
       const vocab = out.logits.dims[2]!;
       const base = prefix.length - 1;
@@ -105,7 +121,9 @@ async function run(w: Whisper, job: Job) {
       };
     },
   };
-  return { alignment: await align(job.pcm, job.lines, model), language: language.slice(2, -2) };
+  const lang = language.slice(2, -2);
+  if (job.times) return { heard: await heardTimes(job.pcm, job.lines, job.times, model), language: lang };
+  return { alignment: await align(job.pcm, job.lines, model), language: lang };
 }
 
 process.parentPort.on("message", (e) => {
@@ -113,6 +131,6 @@ process.parentPort.on("message", (e) => {
   const started = Date.now();
   void load(job.root)
     .then((w) => run(w, job))
-    .then(({ alignment, language }) => process.parentPort.postMessage({ id: job.id, ok: true, alignment, language, ms: Date.now() - started } satisfies Reply))
+    .then((r) => process.parentPort.postMessage({ id: job.id, ok: true, ...r, ms: Date.now() - started } satisfies Reply))
     .catch((err: unknown) => process.parentPort.postMessage({ id: job.id, ok: false, error: err instanceof Error ? err.message : String(err) } satisfies Reply));
 });

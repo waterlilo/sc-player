@@ -152,8 +152,14 @@ export interface SyncRequest {
   trackId: number;
   source: LyricsSource;
   lyricsId: number;
+  /** the words, one line per line */
   plain: string;
+  /** the source's own line times, when it has them: only checked against the sound (one per line of `plain`) */
+  times?: number[];
 }
+
+/** Plain words placed in the song, or the shift a source's synced lines need to fit this upload (0: none). */
+export type SyncResult = { lines: SyncedLine[] } | { shift: number };
 
 /** Auto-sync: the model on disk and whether a song is being worked out. */
 export interface LyricsSyncStatus {

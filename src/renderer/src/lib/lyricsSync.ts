@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { LyricsSyncStatus, SyncRequest, SyncedLine } from "@shared/types";
+import type { LyricsSyncStatus, SyncRequest, SyncResult } from "@shared/types";
 import { call, on } from "./sky";
 
 /**
@@ -60,8 +60,8 @@ async function decode(trackId: number, signal: AbortSignal): Promise<Float32Arra
   return (await out.startRendering()).getChannelData(0);
 }
 
-/** The lines of these words in this track: worked out before, or now. null when they don't fit the song. */
-export async function syncLyrics(q: SyncRequest, signal: AbortSignal): Promise<SyncedLine[] | null> {
+/** These words in this track (their lines, or the shift of the source's): worked out before, or now. */
+export async function syncLyrics(q: SyncRequest, signal: AbortSignal): Promise<SyncResult | null> {
   const before = await call("lyricsSync:before", q);
   if (before !== undefined) return before;
   const pcm = await decode(q.trackId, signal);

@@ -1,13 +1,12 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { fitOffset } from "@shared/fitOffset";
 import type { Lyrics, LyricsHit, SyncRequest, Track } from "@shared/types";
 import { useT } from "@/i18n";
 import { duration } from "@/lib/format";
 import { syncLyrics, useLyricsSync } from "@/lib/lyricsSync";
 import { call } from "@/lib/sky";
-import { player, useCurrentTrack, usePosition, useStreamTrack } from "@/state/player";
+import { player, useCurrentTrack, usePlayer, usePosition, useStreamTrack } from "@/state/player";
 import { useSettings } from "@/state/settings";
 import { useUi } from "@/state/ui";
 import { IconButton } from "../ui/Buttons";
@@ -50,16 +49,28 @@ function PanelCredit({ track }: { track: Track }) {
   );
 }
 
+const lyricsOf = (track: Track) => call("lyrics:get", { trackId: track.id, artist: track.artist, title: track.title, durationMs: track.durationMs });
+
 /** The words of a track (cached for the session; the panel and the full screen player share them). */
 export function useLyrics(track: Track | null) {
   return useQuery({
     enabled: !!track,
     queryKey: key(track?.id ?? 0),
-    queryFn: () => call("lyrics:get", { trackId: track!.id, artist: track!.artist, title: track!.title, durationMs: track!.durationMs }),
+    queryFn: () => lyricsOf(track!),
     staleTime: Infinity,
     retry: 1,
   });
 }
+
+/** What Auto-sync is asked for these words in this upload: plain words to place, or a source's lines to check. */
+function syncRequest(l: Lyrics | null | undefined, soundId: number): SyncRequest | null {
+  if (!l) return null;
+  const timed = l.synced?.filter((x) => x.text.trim()) ?? [];
+  const words = timed.length ? timed.map((x) => x.text).join("\n") : l.plain;
+  if (!words) return null;
+  return { trackId: soundId, source: l.source ?? "lrclib", lyricsId: l.id, plain: words, ...(timed.length ? { times: timed.map((x) => x.t) } : {}) };
+}
+const syncKey = (q: SyncRequest | null) => ["lyricsSync", q?.trackId, q?.source, q?.lyricsId, q?.plain] as const;
 
 /**
  * The words as shown, with Auto-sync on (Settings → Lyrics; lib/lyricsSync), matched against the track that is streamed
@@ -72,29 +83,43 @@ export function useShownLyrics(track: Track | null) {
   const on = useSettings((s) => s.prefs.autoSyncLyrics);
   const ready = useLyricsSync((s) => s.status?.model === "ready");
   const l = q.data;
-  const timed = l?.synced?.filter((x) => x.text.trim()) ?? [];
-  const words = timed.length ? timed.map((x) => x.text).join("\n") : l?.plain;
-  const req: SyncRequest | null = on && ready && sound && l && words ? { trackId: sound.id, source: l.source ?? "lrclib", lyricsId: l.id, plain: words } : null;
+  const req = on && ready && sound ? syncRequest(l, sound.id) : null;
   const sync = useQuery({
     enabled: !!req,
-    queryKey: ["lyricsSync", req?.trackId, req?.source, req?.lyricsId, req?.plain],
+    queryKey: syncKey(req),
     queryFn: ({ signal }) => syncLyrics(req!, signal),
     staleTime: Infinity,
     retry: false,
   });
+  useSyncNext(on && ready && !!req && !sync.isFetching);
   let data = l;
-  if (l && req && sync.data) {
-    if (!timed.length) data = { ...l, synced: sync.data, aligned: true };
-    else {
-      const shift = fitOffset(
-        timed.map((x) => x.t),
-        sync.data.map((x) => x.t),
-      );
-      if (shift !== null && Math.abs(shift) >= 0.5)
-        data = { ...l, shifted: shift, synced: l.synced!.map((x) => ({ ...x, t: x.t + shift, ...(x.words ? { words: x.words.map((w) => ({ ...w, t: w.t + shift, end: w.end + shift })) } : {}) })) };
-    }
+  const r = req ? sync.data : null;
+  if (l && r && "lines" in r) data = { ...l, synced: r.lines, aligned: true };
+  // under a second is how exactly the sound is measured, not a different upload
+  else if (l?.synced && r && "shift" in r && Math.abs(r.shift) >= 1) {
+    const shift = r.shift;
+    data = { ...l, shifted: shift, synced: l.synced.map((x) => ({ ...x, t: x.t + shift, ...(x.words ? { words: x.words.map((w) => ({ ...w, t: w.t + shift, end: w.end + shift })) } : {}) })) };
   }
   return { ...q, data, syncing: !!req && sync.isFetching };
+}
+
+/**
+ * While the words are on screen and this track is done, the next one in the queue is prepared: its words fetched and
+ * synced, so they are ready when it starts. Not for a replacement upload (which one plays is decided when it starts).
+ */
+function useSyncNext(go: boolean) {
+  const qc = useQueryClient();
+  const next = usePlayer((s) => s.queue[s.index + 1] ?? null);
+  useEffect(() => {
+    if (!go || !next || next.playability !== "ok") return;
+    const stop = new AbortController();
+    void (async () => {
+      const l = await qc.fetchQuery({ queryKey: key(next.id), queryFn: () => lyricsOf(next), staleTime: Infinity });
+      const req = syncRequest(l, next.id);
+      if (req && !stop.signal.aborted) await qc.prefetchQuery({ queryKey: syncKey(req), queryFn: ({ signal }) => syncLyrics(req, signal), staleTime: Infinity });
+    })().catch(() => undefined);
+    return () => stop.abort();
+  }, [go, next, qc]);
 }
 
 /** Synced words: the line being sung is lit and kept in view; a click on a line jumps there. */

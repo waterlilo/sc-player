@@ -1,6 +1,6 @@
 import type { SearchKind } from "./provider";
 import type { Friends, Message, SocialStatus, SocialTrack, SocialUpdate, WsPage, WsSort, WsThemeFull } from "./social";
-import type { AppErrorInfo, Lyrics, LyricsHit, LyricsSyncStatus, Page, Playlist, QueueSource, Resolved, SavedProfile, StreamInfo, SyncRequest, SyncedLine, Track, TrackDetails, User } from "./types";
+import type { AppErrorInfo, Lyrics, LyricsHit, LyricsSyncStatus, Page, Playlist, QueueSource, Resolved, SavedProfile, StreamInfo, SyncRequest, SyncResult, Track, TrackDetails, User } from "./types";
 
 /**
  * The one contract between main and renderer. main registers a handler for every InvokeMap channel, preload exposes
@@ -265,10 +265,10 @@ export interface InvokeMap {
   /** starts the model download (progress comes as lyricsSync:status events) */
   "lyricsSync:download": () => LyricsSyncStatus;
   "lyricsSync:deleteModel": () => LyricsSyncStatus;
-  /** a song worked out before: its lines, null when the words didn't fit it, undefined when not done yet */
-  "lyricsSync:before": (q: SyncRequest) => SyncedLine[] | null | undefined;
+  /** a song worked out before: its result, null when the words didn't fit it, undefined when not done yet */
+  "lyricsSync:before": (q: SyncRequest) => SyncResult | null | undefined;
   /** matches the words to the sound (mono, 16 kHz); null when they don't fit it */
-  "lyricsSync:run": (q: SyncRequest, pcm: Float32Array) => SyncedLine[] | null;
+  "lyricsSync:run": (q: SyncRequest, pcm: Float32Array) => SyncResult | null;
   "data:feed": (cursor: string | null) => Page<Track>;
   /** `refresh`: read them again from SoundCloud (after liking on the site) */
   "data:likedIds": (refresh?: boolean) => number[];

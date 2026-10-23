@@ -2,7 +2,8 @@ import { createHash } from "node:crypto";
 import { createWriteStream, existsSync, mkdirSync, renameSync, rmSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { app, net, utilityProcess, type UtilityProcess } from "electron";
-import type { LyricsSyncStatus, SyncRequest, SyncedLine } from "@shared/types";
+import { fitOffset } from "@shared/fitOffset";
+import type { LyricsSyncStatus, SyncRequest, SyncResult } from "@shared/types";
 import { JsonFile } from "../store/json-file";
 import { log } from "../system/log";
 import { trustworthy } from "./align";
@@ -16,7 +17,7 @@ import type { Job, Reply } from "./worker";
  */
 
 /** bumped when the alignment changes: older answers are worked out again */
-const ALIGN_VERSION = 4;
+const ALIGN_VERSION = 5;
 const IDLE_MS = 60_000;
 const JOB_TIMEOUT_MS = 5 * 60_000;
 
@@ -122,7 +123,7 @@ function startWorker() {
   return (worker = w);
 }
 
-function runJob(pcm: Float32Array, lines: string[]): Promise<Reply> {
+function runJob(pcm: Float32Array, lines: string[], times?: number[]): Promise<Reply> {
   if (idle) clearTimeout(idle);
   const id = nextId++;
   const w = startWorker();
@@ -137,7 +138,7 @@ function runJob(pcm: Float32Array, lines: string[]): Promise<Reply> {
       waiting.delete(id);
       resolve(r);
     });
-    w.postMessage({ id, root: root(), pcm, lines } satisfies Job);
+    w.postMessage({ id, root: root(), pcm, lines, ...(times ? { times } : {}) } satisfies Job);
   }).finally(() => {
     if (idle) clearTimeout(idle);
     idle = setTimeout(stopWorker, IDLE_MS);
@@ -146,7 +147,7 @@ function runJob(pcm: Float32Array, lines: string[]): Promise<Reply> {
 
 // ---- answers -----------------------------------------------------------------------------------------------------
 
-type Saved = { lines: SyncedLine[] | null; at: number };
+type Saved = { result: SyncResult | null; at: number };
 let saved: JsonFile<{ byKey: Record<string, Saved> }> | null = null;
 const savedFile = () => (saved ??= new JsonFile<{ byKey: Record<string, Saved> }>(join(app.getPath("userData"), "lyrics-sync.json"), { byKey: {} }, 1000));
 
@@ -157,36 +158,51 @@ export const plainLines = (plain: string) =>
     .map((l) => l.trim())
     .filter(Boolean);
 
-const keyOf = (q: SyncRequest) => `${ALIGN_VERSION}:${q.trackId}:${q.source}:${q.lyricsId}:${createHash("sha1").update(q.plain).digest("hex").slice(0, 12)}`;
+const keyOf = (q: SyncRequest) => `${ALIGN_VERSION}:${q.trackId}:${q.source}:${q.lyricsId}:${q.times ? "check:" : ""}${createHash("sha1").update(q.plain).digest("hex").slice(0, 12)}`;
 
-/** A song already worked out: its lines, null when the words didn't fit the song; undefined when not done yet. */
-export function syncedBefore(q: SyncRequest): SyncedLine[] | null | undefined {
-  return savedFile().get().byKey[keyOf(q)]?.lines;
+/** A song already worked out: its lines or its shift, null when the words didn't fit the song; undefined when not yet. */
+export function syncedBefore(q: SyncRequest): SyncResult | null | undefined {
+  return savedFile().get().byKey[keyOf(q)]?.result;
 }
 
 // one song at a time; the others wait their turn
 let queue: Promise<unknown> = Promise.resolve();
 
-export function syncWords(q: SyncRequest, pcm: Float32Array): Promise<SyncedLine[] | null> {
+/**
+ * Plain words: placed in the song (their lines). A source's synced lines (`times`): checked at a few places, and the
+ * shift most of them share (shared/fitOffset), or 0 when they agree on none — they are then left as they are.
+ */
+export function syncWords(q: SyncRequest, pcm: Float32Array): Promise<SyncResult | null> {
   const key = keyOf(q);
   const job = queue.then(async () => {
     const before = savedFile().get().byKey[key];
-    if (before) return before.lines;
+    if (before) return before.result;
     if (!haveModel()) throw new Error("the model isn't downloaded");
     busy = true;
     changed();
     try {
-      const r = await runJob(pcm, plainLines(q.plain));
+      const lines = plainLines(q.plain);
+      const times = q.times?.length === lines.length ? q.times : undefined;
+      const r = await runJob(pcm, lines, times);
       if (!r.ok) throw new Error(r.error);
-      const ok = trustworthy(r.alignment);
-      log("main", `lyrics sync: track ${q.trackId}, ${r.language}, ${(r.ms / 1000).toFixed(1)} s, ${r.alignment.lines.length} lines, confidence ${r.alignment.confidence.toFixed(2)}, coverage ${r.alignment.coverage.toFixed(2)}${ok ? "" : " — not used"}`);
-      const lines = ok ? r.alignment.lines : null;
-      const all = { ...savedFile().get().byKey, [key]: { lines, at: Date.now() } };
+      let result: SyncResult | null;
+      if (times) {
+        const heard = r.heard ?? [];
+        const shift = heard.length >= 3 ? fitOffset(heard.map((h) => h.source), heard.map((h) => h.heard)) : null;
+        log("main", `lyrics sync: track ${q.trackId}, ${r.language}, ${(r.ms / 1000).toFixed(1)} s, checked the source's timing: ${heard.length} lines heard, shift ${shift === null ? "none" : shift.toFixed(1)}`);
+        result = { shift: shift ?? 0 };
+      } else {
+        const a = r.alignment!;
+        const ok = trustworthy(a);
+        log("main", `lyrics sync: track ${q.trackId}, ${r.language}, ${(r.ms / 1000).toFixed(1)} s, ${a.lines.length} lines, confidence ${a.confidence.toFixed(2)}, coverage ${a.coverage.toFixed(2)}${ok ? "" : " — not used"}`);
+        result = ok ? { lines: a.lines } : null;
+      }
+      const all = { ...savedFile().get().byKey, [key]: { result, at: Date.now() } };
       // the newest 500 songs
       const keys = Object.keys(all).sort((a, b) => all[a]!.at - all[b]!.at);
       for (const old of keys.slice(0, Math.max(0, keys.length - 500))) delete all[old];
       savedFile().patch({ byKey: all });
-      return lines;
+      return result;
     } finally {
       busy = false;
       changed();

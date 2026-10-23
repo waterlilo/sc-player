@@ -89,3 +89,8 @@ test("the language from the letters of the words", () => {
   // Latin letters: many languages, the sound decides
   assert.equal(languageOf(["My time is here"]), null);
 });
+
+test("tokenTimes: the median filter mirrors at the edges", async () => {
+  const { medianFilter } = await import("./timing.ts");
+  assert.deepEqual([...medianFilter(new Float32Array([5, 1, 9, 2, 7]), 3)], [1, 5, 2, 7, 2]);
+});

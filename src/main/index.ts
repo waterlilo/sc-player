@@ -91,7 +91,8 @@ function syncRequest(v: unknown): SyncRequest {
   const q = (typeof v === "object" && v !== null ? v : bad("request")) as Record<string, unknown>;
   const source = q.source === "lrclib" || q.source === "betterlyrics" || q.source === "unison" ? q.source : bad("source");
   const plain = typeof q.plain === "string" && q.plain.length < 50_000 ? q.plain : bad("words");
-  return { trackId: id(q.trackId), source, lyricsId: typeof q.lyricsId === "number" && Number.isSafeInteger(q.lyricsId) && q.lyricsId >= 0 ? q.lyricsId : bad("lyrics id"), plain };
+  const times = q.times === undefined ? undefined : Array.isArray(q.times) && q.times.length <= 2000 && q.times.every((t) => typeof t === "number" && Number.isFinite(t)) ? (q.times as number[]) : bad("times");
+  return { trackId: id(q.trackId), source, lyricsId: typeof q.lyricsId === "number" && Number.isSafeInteger(q.lyricsId) && q.lyricsId >= 0 ? q.lyricsId : bad("lyrics id"), plain, ...(times ? { times } : {}) };
 }
 const themeId = (v: unknown) => (typeof v === "string" && /^[\w-]{10}$/.test(v) ? v : bad("theme id"));
 /** a track to send or show to friends: the fields the server keeps */
