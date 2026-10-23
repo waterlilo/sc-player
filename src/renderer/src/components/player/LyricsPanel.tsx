@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { largestMove } from "@shared/fitTiming";
 import type { Lyrics, LyricsHit, SyncRequest, Track } from "@shared/types";
 import { useT } from "@/i18n";
 import { duration } from "@/lib/format";
@@ -29,7 +30,7 @@ export function LyricsSource({ lyrics, syncing = false }: { lyrics: Lyrics | nul
   return (
     <>
       {syncing ? (lyrics?.synced?.length ? t.lyricsChecking : t.lyricsSyncing) : lyrics?.aligned ? t.lyricsAligned : lyrics?.synced?.length ? (byWord ? t.syncedByWord : t.syncedByLine) : t.lyricsWord}
-      {!syncing && lyrics?.shifted !== undefined && `, ${t.lyricsShifted(lyrics.shifted)}`}
+      {!syncing && lyrics?.fitted && `, ${Math.abs(lyrics.fitted.scale - 1) < 0.005 ? t.lyricsShifted(lyrics.fitted.shift) : t.lyricsStretched(lyrics.fitted.scale)}`}
       {" · "}
       <button type="button" className="underline-offset-2 hover:text-text hover:underline" onClick={() => void call("shell:open", src.url)}>
         {src.name}
@@ -95,10 +96,10 @@ export function useShownLyrics(track: Track | null) {
   let data = l;
   const r = req ? sync.data : null;
   if (l && r && "lines" in r) data = { ...l, synced: r.lines, aligned: true };
-  // under a second is how exactly the sound is measured, not a different upload
-  else if (l?.synced && r && "shift" in r && Math.abs(r.shift) >= 1) {
-    const shift = r.shift;
-    data = { ...l, shifted: shift, synced: l.synced.map((x) => ({ ...x, t: x.t + shift, ...(x.words ? { words: x.words.map((w) => ({ ...w, t: w.t + shift, end: w.end + shift })) } : {}) })) };
+  // moving lines by under a second is how exactly the sound is measured, not a different upload
+  else if (l?.synced && r && "shift" in r && largestMove(r, (sound?.durationMs ?? 0) / 1000) >= 1) {
+    const at = (t: number) => r.scale * t + r.shift;
+    data = { ...l, fitted: r, synced: l.synced.map((x) => ({ ...x, t: at(x.t), ...(x.words ? { words: x.words.map((w) => ({ ...w, t: at(w.t), end: at(w.end) })) } : {}) })) };
   }
   return { ...q, data, syncing: !!req && sync.isFetching };
 }

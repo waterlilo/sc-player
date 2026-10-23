@@ -65,6 +65,14 @@ export function unsungLines(lineP: { line: number; p: number; start: number; uni
 /** How far ahead to look for a line that isn't heard where it was expected (a chorus, a break, a hook before it), seconds. */
 const LOOK_AHEAD = [4, 8, 12, 16];
 
+/** A line's words for telling repeats apart: letters and digits only. */
+const lineKey = (l: string) => l.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+
+/** For each line: whether the song has it once (a chorus line is heard wherever any of its repeats is sung). */
+export function sungOnce(lines: string[]): boolean[] {
+  return lines.map((l) => lines.filter((o) => lineKey(o) === lineKey(l)).length === 1);
+}
+
 /** A word that seems to last too long has swallowed the silence before it (an intro, a break): it starts later. */
 export const longestWord = (tokens: number) => 0.45 * tokens + 0.6;
 
@@ -76,8 +84,7 @@ export async function align(audio: Float32Array, lines: string[], model: Model):
       if (ids.length) words.push({ text: w, line, ids });
     }
   });
-  const key = (l: string) => l.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
-  const unique = lines.map((l) => lines.filter((o) => key(o) === key(l)).length === 1);
+  const unique = sungOnce(lines);
   const duration = audio.length / SAMPLE_RATE;
   let seek = 0;
   let next = 0;
@@ -216,16 +223,20 @@ export function fillGaps(lines: string[], found: (AlignedLine | null)[], duratio
 }
 
 /**
- * A source's synced lines checked against this upload's sound, quickly: a few lines at three places in the song
- * (a fifth, the middle, four fifths in), each placed in a window from 12 s before the source's time. What comes back
- * is the source's time and the heard time of each line the model is fairly sure of — main finds the shift they share
- * (shared/fitOffset). Three passes instead of a whole song's worth.
+ * A source's synced lines checked against this upload's sound, quickly: four lines at five places through the song,
+ * each placed in a window from 12 s before the source's time. What comes back is the source's time and the heard time
+ * of each line the model is fairly sure of — main finds the shift or stretch they share (shared/fitTiming). Five passes
+ * instead of a whole song's worth.
  */
-// a line counts from a fairly low certainty: the lines must still agree on one shift (fitOffset) to move anything
+// a line counts from a fairly low certainty: the lines must still agree on one timing (fitTiming) to move anything
 const MIN_P = 0.08;
 export async function heardTimes(audio: Float32Array, lines: string[], times: number[], model: Model): Promise<{ source: number; heard: number }[]> {
   const duration = audio.length / SAMPLE_RATE;
-  const anchors = [...new Set((lines.length >= 8 ? [0.2, 0.5, 0.8] : [0.3]).map((f) => Math.floor(f * lines.length)))];
+  // a repeated line (a chorus) may be found at its repeat: it counts only when heard nearer its own time than halfway
+  // to the source's nearest repeat of it
+  const key = lines.map(lineKey);
+  const room = lines.map((_, i) => Math.min(Infinity, ...lines.flatMap((__, j) => (j !== i && key[j] === key[i] ? [Math.abs(times[j]! - times[i]!) / 2] : []))));
+  const anchors = [...new Set((lines.length >= 12 ? [0.1, 0.3, 0.5, 0.7, 0.9] : lines.length >= 6 ? [0.2, 0.6] : [0]).map((f) => Math.floor(f * lines.length)))];
   const out: { source: number; heard: number }[] = [];
   for (const first of anchors) {
     const block = lines.slice(first, first + 4).map((text, k) => ({ line: first + k, words: text.split(/\s+/).filter(Boolean).map((w) => ({ text: w, ids: model.encode(` ${w}`) })) }));
@@ -247,7 +258,8 @@ export async function heardTimes(audio: Float32Array, lines: string[], times: nu
         k += w.ids.length;
       }
       // the line's certainty: the geometric mean over its words
-      if (b.words.length && Math.exp(p / b.words.length) >= MIN_P) out.push({ source: times[b.line]!, heard: from + lineStart });
+      const at = from + lineStart;
+      if (b.words.length && Math.exp(p / b.words.length) >= MIN_P && Math.abs(at - times[b.line]!) < room[b.line]!) out.push({ source: times[b.line]!, heard: at });
     }
   }
   return out;

@@ -141,8 +141,8 @@ export interface Lyrics {
   source?: LyricsSource;
   /** the plain words were matched to the song on this computer (Settings → Lyrics → Auto-sync) */
   aligned?: boolean;
-  /** the source's times were made for another upload: moved by this many seconds to fit this one (Auto-sync) */
-  shifted?: number;
+  /** the source's times were made for another upload: moved (and stretched, `scale` ≠ 1) to fit this one (Auto-sync) */
+  fitted?: { scale: number; shift: number };
 }
 
 export type SyncedLine = NonNullable<Lyrics["synced"]>[number];
@@ -158,8 +158,8 @@ export interface SyncRequest {
   times?: number[];
 }
 
-/** Plain words placed in the song, or the shift a source's synced lines need to fit this upload (0: none). */
-export type SyncResult = { lines: SyncedLine[] } | { shift: number };
+/** Plain words placed in the song, or how a source's synced lines fit this upload: `scale × time + shift`. */
+export type SyncResult = { lines: SyncedLine[] } | { scale: number; shift: number };
 
 /** Auto-sync: the model on disk and whether a song is being worked out. */
 export interface LyricsSyncStatus {

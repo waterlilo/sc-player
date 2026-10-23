@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { createWriteStream, existsSync, mkdirSync, renameSync, rmSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { app, net, utilityProcess, type UtilityProcess } from "electron";
-import { fitOffset } from "@shared/fitOffset";
+import { fitTiming } from "@shared/fitTiming";
 import type { LyricsSyncStatus, SyncRequest, SyncResult } from "@shared/types";
 import { JsonFile } from "../store/json-file";
 import { log } from "../system/log";
@@ -17,7 +17,7 @@ import type { Job, Reply } from "./worker";
  */
 
 /** bumped when the alignment changes: older answers are worked out again */
-const ALIGN_VERSION = 5;
+const ALIGN_VERSION = 6;
 const IDLE_MS = 60_000;
 const JOB_TIMEOUT_MS = 5 * 60_000;
 
@@ -170,7 +170,7 @@ let queue: Promise<unknown> = Promise.resolve();
 
 /**
  * Plain words: placed in the song (their lines). A source's synced lines (`times`): checked at a few places, and the
- * shift most of them share (shared/fitOffset), or 0 when they agree on none — they are then left as they are.
+ * shift or stretch most of them share (shared/fitTiming), or none — they are then left as they are.
  */
 export function syncWords(q: SyncRequest, pcm: Float32Array): Promise<SyncResult | null> {
   const key = keyOf(q);
@@ -188,9 +188,12 @@ export function syncWords(q: SyncRequest, pcm: Float32Array): Promise<SyncResult
       let result: SyncResult | null;
       if (times) {
         const heard = r.heard ?? [];
-        const shift = heard.length >= 3 ? fitOffset(heard.map((h) => h.source), heard.map((h) => h.heard)) : null;
-        log("main", `lyrics sync: track ${q.trackId}, ${r.language}, ${(r.ms / 1000).toFixed(1)} s, checked the source's timing: ${heard.length} lines heard, shift ${shift === null ? "none" : shift.toFixed(1)}`);
-        result = { shift: shift ?? 0 };
+        const fit = fitTiming(
+          heard.map((h) => h.source),
+          heard.map((h) => h.heard),
+        );
+        log("main", `lyrics sync: track ${q.trackId}, ${r.language}, ${(r.ms / 1000).toFixed(1)} s, checked the source's timing: ${heard.length} lines heard, ${fit ? `× ${fit.scale.toFixed(3)} + ${fit.shift.toFixed(1)} s` : "no common timing"}`);
+        result = fit ?? { scale: 1, shift: 0 };
       } else {
         const a = r.alignment!;
         const ok = trustworthy(a);

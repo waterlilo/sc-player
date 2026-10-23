@@ -119,11 +119,13 @@ const toLyrics = (r: Raw): Lyrics => ({
 
 const toHit = (r: Raw): LyricsHit => ({ id: r.id, artist: r.artistName, title: r.trackName, album: r.albumName ?? "", durationMs: Math.round(r.duration * 1000), synced: !!r.syncedLyrics });
 
-/** The title without SoundCloud's noise: bracketed "official video", "prod.", featurings. */
-function cleanTitle(title: string) {
+/** The title without SoundCloud's noise: bracketed "official video", "prod.", featurings ("feat. x", "w/ lil tracy"). */
+export function cleanTitle(title: string) {
   return title
     .replace(/[([{][^)\]}]*\b(official|video|audio|lyrics?|visuali[sz]er|prod|free|download|out now|premiere|explicit|clean|hq|hd)\b[^)\]}]*[)\]}]/gi, " ")
+    .replace(/[([{]\s*(w\/|\/w|with\s)[^)\]}]*[)\]}]/gi, " ")
     .replace(/\s(feat|ft|featuring)\.?\s.*$/i, "")
+    .replace(/\s(w\/|\/w)\s?.*$/i, "")
     .replace(/\s+/g, " ")
     .trim();
 }
