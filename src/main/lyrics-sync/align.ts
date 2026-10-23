@@ -54,10 +54,16 @@ interface Word {
   p?: number;
 }
 
-/** Lines that are not sung here: barely heard (< 0.08) while a later line in the same window is clearly heard. */
-export function unsungLines(lineP: { line: number; p: number; start: number }[], windowLength: number, last: boolean): number[] {
-  return lineP.filter((l, i) => l.p < 0.08 && lineP.slice(i + 1).some((after) => after.p >= 0.35 && (last || after.start < windowLength - 4))).map((l) => l.line);
+/**
+ * Lines that are not sung here: barely heard (< 0.08) while a later line in the same window is clearly heard — one
+ * that occurs once in the words: a repeated line (a chorus) is heard wherever any of its repeats is sung.
+ */
+export function unsungLines(lineP: { line: number; p: number; start: number; unique: boolean }[], windowLength: number, last: boolean): number[] {
+  return lineP.filter((l, i) => l.p < 0.08 && lineP.slice(i + 1).some((after) => after.unique && after.p >= 0.35 && (last || after.start < windowLength - 4))).map((l) => l.line);
 }
+
+/** How far ahead to look for a line that isn't heard where it was expected (a chorus or a break before it), seconds. */
+const LOOK_AHEAD = [4, 8, 12, 16];
 
 /** A word that seems to last too long has swallowed the silence before it (an intro, a break): it starts later. */
 export const longestWord = (tokens: number) => 0.45 * tokens + 0.6;
@@ -70,14 +76,17 @@ export async function align(audio: Float32Array, lines: string[], model: Model):
       if (ids.length) words.push({ text: w, line, ids });
     }
   });
+  const key = (l: string) => l.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+  const unique = lines.map((l) => lines.filter((o) => key(o) === key(l)).length === 1);
   const duration = audio.length / SAMPLE_RATE;
   let seek = 0;
   let next = 0;
+  // the word the look-ahead was last tried for (once per place in the words)
+  let lookedFor = -1;
   // a bound on the windows, whatever happens
   for (let round = 0; next < words.length && seek < duration - 1 && round < 40 + words.length; round++) {
     const from = Math.floor(seek * SAMPLE_RATE);
-    const window = audio.subarray(from, Math.min(audio.length, from + WINDOW_S * SAMPLE_RATE));
-    const length = window.length / SAMPLE_RATE;
+    const length = Math.min(audio.length - from, WINDOW_S * SAMPLE_RATE) / SAMPLE_RATE;
     const last = from + WINDOW_S * SAMPLE_RATE >= audio.length;
     const take: Word[] = [];
     let tokens = 0;
@@ -86,25 +95,50 @@ export async function align(audio: Float32Array, lines: string[], model: Model):
       tokens += words[k]!.ids.length;
     }
     if (!take.length) break;
-    const r = await model.forward(
-      window,
-      take.flatMap((w) => w.ids),
-    );
-    let at = 0;
-    const starts = take.map((w) => {
-      const s = r.starts[at]!;
-      // the geometric mean of the word's tokens
-      w.p = Math.exp(w.ids.reduce((n, _, j) => n + Math.log(Math.max(1e-9, r.p[at + j] ?? 0)), 0) / w.ids.length);
-      at += w.ids.length;
-      return s;
-    });
+    /** these words placed in the window starting at `at` (s): each word's start, certainty, and each line's */
+    const place = async (at: number) => {
+      const start = Math.floor(at * SAMPLE_RATE);
+      const r = await model.forward(
+        audio.subarray(start, Math.min(audio.length, start + WINDOW_S * SAMPLE_RATE)),
+        take.flatMap((w) => w.ids),
+      );
+      let k = 0;
+      const starts: number[] = [];
+      const p: number[] = [];
+      for (const w of take) {
+        starts.push(r.starts[k]!);
+        // the geometric mean of the word's tokens
+        p.push(Math.exp(w.ids.reduce((n, _, j) => n + Math.log(Math.max(1e-9, r.p[k + j] ?? 0)), 0) / w.ids.length));
+        k += w.ids.length;
+      }
+      const here = [...new Set(take.map((w) => w.line))].map((line) => {
+        const idx = take.flatMap((w, i) => (w.line === line ? [i] : []));
+        return { line, p: idx.reduce((n, i) => n + p[i]!, 0) / idx.length, start: starts[idx[0]!]!, unique: unique[line]! };
+      });
+      return { r, starts, p, here };
+    };
+    let placed = await place(seek);
+
+    // the first line isn't heard here: maybe it comes a little later (after a chorus, a break)
+    if (!last && placed.here[0]!.p < 0.15 && lookedFor !== next) {
+      lookedFor = next;
+      let best = { shift: 0, p: placed.here[0]!.p };
+      for (const shift of LOOK_AHEAD) {
+        if (seek + shift > duration - 2) break;
+        const p = (await place(seek + shift)).here[0]!.p;
+        if (p > best.p) best = { shift, p };
+      }
+      if (best.shift && best.p >= 0.25 && best.p > placed.here[0]!.p + 0.1) {
+        seek += best.shift;
+        continue;
+      }
+      placed = await place(seek);
+    }
+    const { r, starts } = placed;
+    take.forEach((w, i) => (w.p = placed.p[i]));
 
     // lines not heard here are set aside (fillGaps puts them back), and the window is placed again
-    const here = [...new Set(take.map((w) => w.line))].map((line) => {
-      const ws = take.filter((w) => w.line === line);
-      return { line, p: ws.reduce((n, w) => n + w.p!, 0) / ws.length, start: starts[take.indexOf(ws[0]!)]! };
-    });
-    const unsung = unsungLines(here, length, last);
+    const unsung = unsungLines(placed.here, length, last);
     if (unsung.length) {
       words = words.filter((w) => !unsung.includes(w.line));
       next = words.findIndex((w) => w.t === undefined);
@@ -183,4 +217,4 @@ export function fillGaps(lines: string[], found: (AlignedLine | null)[], duratio
 }
 
 /** Whether to show the alignment: most lines placed, and the model fairly sure of them. */
-export const trustworthy = (a: Alignment) => a.coverage >= 0.5 && a.confidence >= 0.3;
+export const trustworthy = (a: Alignment) => a.coverage >= 0.5 && a.confidence >= 0.25;

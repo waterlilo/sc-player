@@ -29,14 +29,16 @@ function fakeModel(sung: string[], start: number, missing: Set<string> = new Set
 
 test("lines that are barely heard while later ones are clearly heard are not sung here", () => {
   const lines = [
-    { line: 0, p: 0.8, start: 1 },
-    { line: 1, p: 0.02, start: 3 },
-    { line: 2, p: 0.7, start: 5 },
+    { line: 0, p: 0.8, start: 1, unique: true },
+    { line: 1, p: 0.02, start: 3, unique: true },
+    { line: 2, p: 0.7, start: 5, unique: true },
   ];
   assert.deepEqual(unsungLines(lines, 30, false), [1]);
   // only heard at the very end of the window: maybe squeezed there, so nothing is decided
-  assert.deepEqual(unsungLines([lines[0]!, lines[1]!, { line: 2, p: 0.7, start: 27 }], 30, false), []);
-  assert.deepEqual(unsungLines([lines[0]!, lines[1]!, { line: 2, p: 0.7, start: 27 }], 30, true), [1]);
+  assert.deepEqual(unsungLines([lines[0]!, lines[1]!, { ...lines[2]!, start: 27 }], 30, false), []);
+  assert.deepEqual(unsungLines([lines[0]!, lines[1]!, { ...lines[2]!, start: 27 }], 30, true), [1]);
+  // a chorus line is heard wherever it is sung: it proves nothing
+  assert.deepEqual(unsungLines([lines[0]!, lines[1]!, { ...lines[2]!, unique: false }], 30, false), []);
 });
 
 test("a long first word is pulled to the voice", () => {
