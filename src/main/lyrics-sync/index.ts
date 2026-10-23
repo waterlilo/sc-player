@@ -16,7 +16,7 @@ import type { Job, Reply } from "./worker";
  */
 
 /** bumped when the alignment changes: older answers are worked out again */
-const ALIGN_VERSION = 3;
+const ALIGN_VERSION = 4;
 const IDLE_MS = 60_000;
 const JOB_TIMEOUT_MS = 5 * 60_000;
 

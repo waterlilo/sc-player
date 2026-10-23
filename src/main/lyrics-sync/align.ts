@@ -216,5 +216,33 @@ export function fillGaps(lines: string[], found: (AlignedLine | null)[], duratio
   return out;
 }
 
+/**
+ * The language of the words when their letters tell it (Whisper's code: "ru", "ja"…); null for Latin letters, which
+ * many languages share (then the sound decides). The sound alone can be wrong: a hook or an intro in another language.
+ */
+export function languageOf(lines: string[]): string | null {
+  const text = lines.join(" ");
+  const count = (re: RegExp) => text.match(re)?.length ?? 0;
+  const letters = count(/\p{L}/gu);
+  if (!letters) return null;
+  const scripts: [RegExp, string][] = [
+    [/[぀-ヿ]/g, "ja"],
+    [/[가-힯ᄀ-ᇿ]/g, "ko"],
+    [/\p{Script=Han}/gu, "zh"],
+    [/\p{Script=Cyrillic}/gu, "ru"],
+    [/\p{Script=Greek}/gu, "el"],
+    [/\p{Script=Arabic}/gu, "ar"],
+    [/\p{Script=Hebrew}/gu, "he"],
+    [/\p{Script=Thai}/gu, "th"],
+    [/\p{Script=Devanagari}/gu, "hi"],
+  ];
+  for (const [re, lang] of scripts) {
+    const n = count(re);
+    // Japanese is written with kana and kanji: a little kana is enough
+    if (n / letters > (lang === "ja" ? 0.1 : 0.4)) return lang === "ru" && count(/[іїєґІЇЄҐ]/g) > 2 ? "uk" : lang;
+  }
+  return null;
+}
+
 /** Whether to show the alignment: most lines placed, and the model fairly sure of them. */
 export const trustworthy = (a: Alignment) => a.coverage >= 0.5 && a.confidence >= 0.25;

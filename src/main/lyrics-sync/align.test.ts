@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { align, fillGaps, longestWord, SAMPLE_RATE, trustworthy, unsungLines, type Model } from "./align.ts";
+import { align, fillGaps, languageOf, longestWord, SAMPLE_RATE, trustworthy, unsungLines, type Model } from "./align.ts";
 
 /**
  * A made-up song: every word is one token sung for 0.5 s, back to back from `start` (s), except the words of `missing`
@@ -79,4 +79,13 @@ test("gaps are spread by words between the placed lines", () => {
     ],
   );
   assert.equal(out[1]!.words[1]!.text, "words");
+});
+
+test("the language from the letters of the words", () => {
+  assert.equal(languageOf(["Моя бензопила уже идёт", "STRAVIT CHIKI"]), "ru");
+  assert.equal(languageOf(["Я їду додому, і ти теж", "єдина"]), "uk");
+  assert.equal(languageOf(["君の名前を呼ぶよ"]), "ja");
+  assert.equal(languageOf(["사랑해 오늘도"]), "ko");
+  // Latin letters: many languages, the sound decides
+  assert.equal(languageOf(["My time is here"]), null);
 });

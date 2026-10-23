@@ -1,5 +1,5 @@
 import { AutoProcessor, AutoTokenizer, env, Tensor, WhisperForConditionalGeneration, type PreTrainedTokenizer, type Processor } from "@huggingface/transformers";
-import { align, SAMPLE_RATE, type Model, type WindowResult } from "./align";
+import { align, languageOf, SAMPLE_RATE, type Model, type WindowResult } from "./align";
 import { MODEL_ID } from "./model-files";
 
 /**
@@ -66,12 +66,21 @@ async function run(w: Whisper, job: Job) {
     return (await w.model({ input_features, decoder_input_ids: dec })) as Output;
   };
 
-  // the language, from the middle of the song (the start is often an intro)
-  const mid = Math.max(0, Math.floor(job.pcm.length / 2) - 15 * SAMPLE_RATE);
-  const first = await pass(job.pcm.subarray(mid, mid + 30 * SAMPLE_RATE), [gc.decoder_start_token_id]);
-  const row = first.logits.data as Float32Array;
-  let language = "<|en|>";
-  for (const [token, id] of Object.entries(gc.lang_to_id)) if (row[id]! > row[gc.lang_to_id[language]!]!) language = token;
+  // the language: from the letters of the words when they tell it, else heard at a quarter, the middle and three
+  // quarters of the song (one place can be an intro or a hook in another language)
+  const fromText = languageOf(job.lines);
+  let language = fromText && gc.lang_to_id[`<|${fromText}|>`] !== undefined ? `<|${fromText}|>` : "";
+  if (!language) {
+    const votes = new Map<string, number>();
+    for (const at of [0.25, 0.5, 0.75]) {
+      const start = Math.max(0, Math.floor(job.pcm.length * at) - 15 * SAMPLE_RATE);
+      const row = (await pass(job.pcm.subarray(start, start + 30 * SAMPLE_RATE), [gc.decoder_start_token_id])).logits.data as Float32Array;
+      let best = "<|en|>";
+      for (const [token, id] of Object.entries(gc.lang_to_id)) if (row[id]! > row[gc.lang_to_id[best]!]!) best = token;
+      votes.set(best, (votes.get(best) ?? 0) + 1);
+    }
+    language = [...votes].sort((a, b) => b[1] - a[1])[0]![0];
+  }
 
   const prefix = [gc.decoder_start_token_id, gc.lang_to_id[language]!, gc.task_to_id.transcribe!, gc.no_timestamps_token_id];
   const eot = Array.isArray(gc.eos_token_id) ? gc.eos_token_id[0]! : gc.eos_token_id;
