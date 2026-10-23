@@ -146,6 +146,8 @@ export const en = {
   lyricsWord: "Lyrics",
   lyricsSyncing: "Matching the words to the song…",
   lyricsAligned: "Synced on this computer",
+  lyricsChecking: "Checking the timing against this upload…",
+  lyricsShifted: (s: number) => `moved ${s > 0 ? "+" : "−"}${Math.abs(s).toFixed(1)} s to fit this upload`,
   secLyrics: "Lyrics",
   autoSync: "Sync plain lyrics to the song",
   autoSyncHint: (mb: number) => `When the words come without timings, sc player matches them to the song on this computer with Whisper, a speech model (about ${mb} MB, downloaded once). The sound never leaves your computer.`,

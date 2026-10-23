@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { fitOffset } from "@shared/fitOffset";
 import type { Lyrics, LyricsHit, SyncRequest, Track } from "@shared/types";
 import { useT } from "@/i18n";
 import { duration } from "@/lib/format";
@@ -28,7 +29,8 @@ export function LyricsSource({ lyrics, syncing = false }: { lyrics: Lyrics | nul
   const byWord = !!lyrics?.synced?.some((l) => (l.words?.length ?? 0) > 1);
   return (
     <>
-      {syncing ? t.lyricsSyncing : lyrics?.aligned ? t.lyricsAligned : lyrics?.synced?.length ? (byWord ? t.syncedByWord : t.syncedByLine) : t.lyricsWord}
+      {syncing ? (lyrics?.synced?.length ? t.lyricsChecking : t.lyricsSyncing) : lyrics?.aligned ? t.lyricsAligned : lyrics?.synced?.length ? (byWord ? t.syncedByWord : t.syncedByLine) : t.lyricsWord}
+      {!syncing && lyrics?.shifted !== undefined && `, ${t.lyricsShifted(lyrics.shifted)}`}
       {" · "}
       <button type="button" className="underline-offset-2 hover:text-text hover:underline" onClick={() => void call("shell:open", src.url)}>
         {src.name}
@@ -60,8 +62,9 @@ export function useLyrics(track: Track | null) {
 }
 
 /**
- * The words as shown: plain words become synced lines once they are matched to the song (Auto-sync, Settings → Lyrics;
- * lib/lyricsSync). Matched against the track that is streamed — a replacement upload when there is one.
+ * The words as shown, with Auto-sync on (Settings → Lyrics; lib/lyricsSync), matched against the track that is streamed
+ * — a replacement upload when there is one: plain words become synced lines, and a source's synced lines made for
+ * another upload (a longer intro) are moved to fit this one when they all run early or late by the same amount.
  */
 export function useShownLyrics(track: Track | null) {
   const q = useLyrics(track);
@@ -69,7 +72,9 @@ export function useShownLyrics(track: Track | null) {
   const on = useSettings((s) => s.prefs.autoSyncLyrics);
   const ready = useLyricsSync((s) => s.status?.model === "ready");
   const l = q.data;
-  const req: SyncRequest | null = on && ready && sound && l && !l.synced?.length && l.plain ? { trackId: sound.id, source: l.source ?? "lrclib", lyricsId: l.id, plain: l.plain } : null;
+  const timed = l?.synced?.filter((x) => x.text.trim()) ?? [];
+  const words = timed.length ? timed.map((x) => x.text).join("\n") : l?.plain;
+  const req: SyncRequest | null = on && ready && sound && l && words ? { trackId: sound.id, source: l.source ?? "lrclib", lyricsId: l.id, plain: words } : null;
   const sync = useQuery({
     enabled: !!req,
     queryKey: ["lyricsSync", req?.trackId, req?.source, req?.lyricsId, req?.plain],
@@ -77,7 +82,18 @@ export function useShownLyrics(track: Track | null) {
     staleTime: Infinity,
     retry: false,
   });
-  const data = l && req && sync.data ? { ...l, synced: sync.data, aligned: true } : l;
+  let data = l;
+  if (l && req && sync.data) {
+    if (!timed.length) data = { ...l, synced: sync.data, aligned: true };
+    else {
+      const shift = fitOffset(
+        timed.map((x) => x.t),
+        sync.data.map((x) => x.t),
+      );
+      if (shift !== null && Math.abs(shift) >= 0.5)
+        data = { ...l, shifted: shift, synced: l.synced!.map((x) => ({ ...x, t: x.t + shift, ...(x.words ? { words: x.words.map((w) => ({ ...w, t: w.t + shift, end: w.end + shift })) } : {}) })) };
+    }
+  }
   return { ...q, data, syncing: !!req && sync.isFetching };
 }
 

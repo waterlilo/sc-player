@@ -17,5 +17,5 @@
     "paths": { "@/*": ["./src/renderer/src/*"], "@shared/*": ["./src/shared/*"], "@assets/*": ["./assets/*"] }
   },
   "include": ["./src/renderer/src/**/*", "src/shared/**/*", "src/preload/api.d.ts"],
-  "exclude": ["./src/renderer/src/**/*.test.ts"]
+  "exclude": ["./src/renderer/src/**/*.test.ts", "./src/shared/**/*.test.ts"]
 }

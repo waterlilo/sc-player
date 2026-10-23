@@ -141,6 +141,8 @@ export interface Lyrics {
   source?: LyricsSource;
   /** the plain words were matched to the song on this computer (Settings → Lyrics → Auto-sync) */
   aligned?: boolean;
+  /** the source's times were made for another upload: moved by this many seconds to fit this one (Auto-sync) */
+  shifted?: number;
 }
 
 export type SyncedLine = NonNullable<Lyrics["synced"]>[number];

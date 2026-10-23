@@ -62,7 +62,7 @@ export function unsungLines(lineP: { line: number; p: number; start: number; uni
   return lineP.filter((l, i) => l.p < 0.08 && lineP.slice(i + 1).some((after) => after.unique && after.p >= 0.35 && (last || after.start < windowLength - 4))).map((l) => l.line);
 }
 
-/** How far ahead to look for a line that isn't heard where it was expected (a chorus or a break before it), seconds. */
+/** How far ahead to look for a line that isn't heard where it was expected (a chorus, a break, a hook before it), seconds. */
 const LOOK_AHEAD = [4, 8, 12, 16];
 
 /** A word that seems to last too long has swallowed the silence before it (an intro, a break): it starts later. */
