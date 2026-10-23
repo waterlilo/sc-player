@@ -239,6 +239,8 @@ function registerIpc() {
   handle("social:state", (_e, m, state) => social.setState(id(m), state === "heard" || state === "liked" || state === "queued" ? state : bad("state")));
   handle("social:now", (_e, track) => social.now(track === null ? null : socialTrack(track)));
   handle("social:poll", () => social.poll());
+  handle("social:listened", (_e, t) => social.listened(id(t)));
+  handle("social:listening", () => social.listening());
   handle("room:state", () => rooms.roomState());
   handle("room:create", (_e, o) => {
     const v = (typeof o === "object" && o !== null ? o : bad("room")) as Record<string, unknown>;

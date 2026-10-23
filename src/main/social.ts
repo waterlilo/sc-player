@@ -274,6 +274,19 @@ function invitePopup(inv: RoomInvite) {
   n.show();
 }
 
+// ---- what sc player is playing --------------------------------------------------------------------------------------
+
+/** A track played for a while: its id to the server, anonymously (no device secret goes with it). */
+export async function listened(trackId: number) {
+  if (!BASE || !prefs().shareListening) return;
+  await api("POST", "/v1/listening", { body: { id: trackId }, auth: false }).catch(() => undefined);
+}
+
+export async function listening(): Promise<{ id: number; at: number; plays: number }[]> {
+  if (!BASE) return [];
+  return (await api<{ tracks: { id: number; at: number; plays: number }[] }>("GET", "/v1/listening", { auth: false })).tracks;
+}
+
 /** Polls a little sooner when something is expected (an invitation just sent, a room just left). */
 export function pollSoon() {
   setTimeout(() => void poll(), 1500);

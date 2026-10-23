@@ -41,6 +41,14 @@ CREATE TABLE IF NOT EXISTS messages (
 );
 CREATE INDEX IF NOT EXISTS messages_recipient ON messages (recipient, id);
 CREATE INDEX IF NOT EXISTS messages_pair ON messages (sender, recipient, id);
+-- what sc player is playing, for everyone's home screen: SoundCloud track ids only (the apps read titles and covers from
+-- SoundCloud itself), when last played and how often lately; nothing about who played them
+CREATE TABLE IF NOT EXISTS listening (
+  track_id INTEGER PRIMARY KEY,
+  at INTEGER NOT NULL,
+  plays INTEGER NOT NULL DEFAULT 1      -- in the last day (counting restarts after a quiet day)
+);
+CREATE INDEX IF NOT EXISTS listening_at ON listening (at);
 CREATE TABLE IF NOT EXISTS pings (
   day TEXT NOT NULL,                    -- YYYY-MM-DD (UTC)
   install TEXT NOT NULL,                -- a random id per install; nothing else about the user

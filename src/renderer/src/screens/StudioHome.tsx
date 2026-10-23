@@ -165,6 +165,69 @@ function Recent({ tracks }: { tracks: Track[] }) {
   );
 }
 
+/** What friends are playing right now (those who share it): a click plays it here too. */
+function FriendsListening() {
+  const t = useT();
+  const toast = useUi((s) => s.showToast);
+  const now = useSocial((s) => s.now);
+  const friends = useSocial((s) => s.friends?.friends);
+  const currentId = usePlayer((s) => s.queue[s.index]?.id ?? null);
+  const playing = usePlayer((s) => s.status === "playing" || s.status === "loading");
+  const list = Object.entries(now);
+  if (!list.length) return null;
+  const name = (code: string) => friends?.find((f) => f.code === code)?.name || code;
+  return (
+    <section className="mb-6">
+      <Heading title={t.friendsListening} />
+      <div className={ONE_ROW}>
+        {list.map(([code, tr], i) => (
+          <Card
+            key={code}
+            cover={tr.artworkUrl}
+            title={tr.title}
+            sub={name(code)}
+            on={tr.id === currentId}
+            playing={playing}
+            onClick={() =>
+              tr.id === currentId
+                ? player.toggle()
+                : void playShared(
+                    list.map((x) => x[1]),
+                    i,
+                  ).catch(() => toast(t.trackGone))
+            }
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * What was played in sc player lately, by anyone who shares it anonymously: the server keeps only SoundCloud ids, so
+ * titles and covers come from SoundCloud (and hidden artists and words stay hidden).
+ */
+function ScListening() {
+  const t = useT();
+  const available = useSocial((s) => !!s.status?.available);
+  const q = useQuery({ queryKey: ["sc-listening"], queryFn: () => call("social:listening"), enabled: available, staleTime: 30_000, refetchInterval: 60_000 });
+  const ids = (q.data ?? []).map((x) => x.id);
+  const tq = useQuery({ queryKey: ["sc-listening-tracks", ids.join(",")], queryFn: () => call("data:tracks", ids), enabled: ids.length > 0, staleTime: 5 * 60_000 });
+  const ordered = useMemo(() => {
+    const byId = new Map((tq.data ?? []).map((tr) => [tr.id, tr]));
+    // newest first, as the server sends them
+    return (q.data ?? []).map((x) => byId.get(x.id)).filter((tr): tr is Track => !!tr);
+  }, [tq.data, q.data]);
+  const tracks = useVisibleTracks(ordered).slice(0, 12);
+  if (!tracks.length) return null;
+  return (
+    <section className="mb-6">
+      <Heading title={t.scListening} />
+      <Recent tracks={tracks} />
+    </section>
+  );
+}
+
 /** Tracks friends sent lately: a click plays from there on. */
 function FromFriends() {
   const t = useT();
@@ -309,6 +372,13 @@ export default function StudioHome() {
           <Heading title={t.jumpBackIn} action={t.showAll} onAction={() => open("history", { name: "history" })} />
           <Recent tracks={recent} />
         </section>
+      )}
+
+      {(filter === "all" || filter === "tracks") && (
+        <>
+          <FriendsListening />
+          <ScListening />
+        </>
       )}
 
       {filter === "all" && <FromFriends />}

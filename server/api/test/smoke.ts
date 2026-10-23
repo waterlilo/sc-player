@@ -88,6 +88,20 @@ if (process.env.ADMIN_TOKEN) {
 }
 assert.equal((await api("GET", "/v1/admin/themes", { admin: "wrong-token-wrong-token-wrong" })).status, 404);
 
+// what sc player is playing: anonymous ids, newest first, counted per day
+assert.equal((await api("POST", "/v1/listening", { body: { id: 555 } })).status, 204);
+assert.equal((await api("POST", "/v1/listening", { body: { id: 777 } })).status, 204);
+assert.equal((await api("POST", "/v1/listening", { body: { id: 555 } })).status, 204);
+assert.equal((await api("POST", "/v1/listening", { body: { id: "x" } })).status, 400);
+const playing = (await api("GET", "/v1/listening")).body.tracks;
+assert.deepEqual(
+  playing.map((x: { id: number; plays: number }) => [x.id, x.plays]),
+  [
+    [555, 2],
+    [777, 1],
+  ],
+);
+
 // leaving removes everything
 assert.equal((await api("DELETE", "/v1/me", { secret: a.secret })).status, 204);
 assert.equal((await api("GET", "/v1/friends", { secret: b.secret })).body.friends.length, 0);

@@ -14,6 +14,7 @@ export default function Messenger() {
   const setStatus = useSocial((s) => s.setStatus);
   const popups = useSettings((s) => s.prefs.socialPopups);
   const countMe = useSettings((s) => s.prefs.countMe);
+  const shareListening = useSettings((s) => s.prefs.shareListening);
   const setPref = useSettings((s) => s.setPref);
   const toast = useUi((s) => s.showToast);
   const [busy, setBusy] = useState(false);
@@ -49,6 +50,9 @@ export default function Messenger() {
       )}
       <Row label={t.socialPopups} hint={t.socialPopupsHint}>
         <Toggle on={popups} onChange={(v) => setPref("socialPopups", v)} label={t.socialPopups} />
+      </Row>
+      <Row label={t.shareListening} hint={t.shareListeningHint}>
+        <Toggle on={shareListening} onChange={(v) => setPref("shareListening", v)} label={t.shareListening} />
       </Row>
       <Row label={t.countMe} hint={t.countMeHint}>
         <Toggle on={countMe} onChange={(v) => setPref("countMe", v)} label={t.countMe} />

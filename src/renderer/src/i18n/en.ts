@@ -398,6 +398,10 @@ export const en = {
   leaveMessenger: "Delete my code",
   leaveMessengerHint: "Removes your code, friends and sent tracks from sc player's server",
   leaveConfirm: "Delete your friend code? Friends, the tracks you sent each other and your workshop themes are removed from the server.",
+  shareListening: "Share what I play, anonymously",
+  shareListeningHint: "A track you listen to for half a minute adds to \"Listening on sc player\" on everyone's Home — only the track, nothing about you",
+  friendsListening: "Friends are listening",
+  scListening: "Listening on sc player",
   countMe: "Count me as a user",
   countMeHint: "Once a day: an anonymous \"one more running app\" (a random id and the version) — nothing about you",
   // the workshop

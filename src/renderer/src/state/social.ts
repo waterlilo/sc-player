@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { Friends, Message, MessageState, RoomInvite, SocialStatus, SocialTrack } from "@shared/social";
 import type { Track } from "@shared/types";
+import { currentTime } from "@/audio/engine";
 import { call, on } from "@/lib/sky";
 import { useNav } from "./nav";
 import { player, usePlayer } from "./player";
@@ -98,4 +99,16 @@ export function initSocial() {
     if (!useSocial.getState().status?.profile?.shareNow) return;
     void call("social:now", t && s.status !== "paused" && s.status !== "idle" ? toSocial(t) : null).catch(() => undefined);
   });
+  // a track heard for half a minute (or half of a short one) counts for "Listening on sc player" — once per play; main
+  // sends it only with sc player's server in the build and "Share what I play" on
+  let counted = "";
+  window.setInterval(() => {
+    const s = usePlayer.getState();
+    const t = s.queue[s.index];
+    if (!t || s.status !== "playing") return;
+    const play = `${s.index}:${t.id}`;
+    if (counted === play || currentTime() < Math.min(30, (s.duration || 60) / 2)) return;
+    counted = play;
+    void call("social:listened", t.id).catch(() => undefined);
+  }, 5000);
 }

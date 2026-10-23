@@ -139,6 +139,8 @@ export interface Prefs {
   socialPopups: boolean;
   /** once a day: an anonymous "one more app is running" to sc player's server (a random install id + the version) */
   countMe: boolean;
+  /** tracks played for a while go to sc player's server for everyone's "Listening on sc player" — the id only */
+  shareListening: boolean;
   /** plain words (no times anywhere) are matched to the song on this computer (Whisper; the model is downloaded once) */
   autoSyncLyrics: boolean;
   /** Auto-sync with Whisper small instead of base: hears fast and mumbled rap better, about three times slower */
@@ -174,6 +176,7 @@ export const PREFS_DEFAULTS: Prefs = {
   spectrum: { place: "cover", style: "bars", height: 120, color: "accent", mirror: true },
   socialPopups: true,
   countMe: true,
+  shareListening: true,
   autoSyncLyrics: false,
   accurateSync: false,
 };
@@ -335,6 +338,10 @@ export interface InvokeMap {
   "social:now": (track: SocialTrack | null) => void;
   /** poll now (the inbox opened) */
   "social:poll": () => void;
+  /** a track played for a while (sent anonymously when "Share what I play" is on) */
+  "social:listened": (trackId: number) => void;
+  /** what was played in sc player lately: SoundCloud ids, newest first */
+  "social:listening": () => { id: number; at: number; plays: number }[];
   /** listening rooms (main/rooms.ts): the state now (after a reload of the page) */
   "room:state": () => RoomState;
   /** a room of my own, playing what plays now, and invitations to these friends */
@@ -397,6 +404,8 @@ export const INVOKE_CHANNELS = [
   "social:state",
   "social:now",
   "social:poll",
+  "social:listened",
+  "social:listening",
   "room:state",
   "room:create",
   "room:invite",

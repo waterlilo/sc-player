@@ -305,6 +305,41 @@ async function messageState(c: Ctx) {
   send(c.res, 204, null);
 }
 
+// ---- what sc player is playing ------------------------------------------------------------------------------------
+
+/**
+ * An app played a track for a while (Settings → Messenger → "Share what I play, anonymously", on by default): its
+ * SoundCloud id, nothing else — no device, no address kept (the address only meets the rate limit, in memory).
+ */
+async function listened(c: Ctx) {
+  limit(`listen:${c.ip}`, 60, HOUR);
+  const body = await readJson(c.req, 256);
+  const id = int(body.id, 1, Number.MAX_SAFE_INTEGER, "id");
+  const now = Date.now();
+  run(
+    `INSERT INTO listening (track_id, at, plays) VALUES (?, ?, 1)
+     ON CONFLICT(track_id) DO UPDATE SET plays = CASE WHEN at > ? THEN plays + 1 ELSE 1 END, at = excluded.at`,
+    id,
+    now,
+    now - DAY,
+  );
+  // a week is plenty to keep
+  if (Math.random() < 0.01) run("DELETE FROM listening WHERE at < ?", now - 7 * DAY);
+  listeningCache = null;
+  send(c.res, 204, null);
+}
+
+let listeningCache: { at: number; body: unknown } | null = null;
+
+/** The latest tracks played in sc player (the last two days), newest first. */
+function listening(c: Ctx) {
+  if (!listeningCache || Date.now() - listeningCache.at > 30_000) {
+    const rows = all("SELECT track_id, at, plays FROM listening WHERE at > ? ORDER BY at DESC LIMIT 30", Date.now() - 2 * DAY);
+    listeningCache = { at: Date.now(), body: { tracks: rows.map((r) => ({ id: r.track_id, at: r.at, plays: r.plays })) } };
+  }
+  send(c.res, 200, listeningCache.body, { "cache-control": "public, max-age=30" });
+}
+
 // ---- the user counter ---------------------------------------------------------------------------------------------
 
 async function ping(c: Ctx) {
@@ -631,6 +666,8 @@ const ROUTES: [string, RegExp, Handler][] = [
   ["POST", new RegExp(`^/v1/chat/${CODE}/seen$`), chatSeen],
   ["POST", /^\/v1\/messages\/(\d{1,15})\/state$/, messageState],
   ["POST", /^\/v1\/ping$/, ping],
+  ["POST", /^\/v1\/listening$/, listened],
+  ["GET", /^\/v1\/listening$/, listening],
   ["GET", /^\/v1\/stats$/, stats],
   ["GET", /^\/v1\/themes$/, listThemes],
   ["POST", /^\/v1\/themes$/, createTheme],
