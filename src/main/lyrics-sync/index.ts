@@ -19,7 +19,12 @@ import type { Job, Reply } from "./worker";
 
 /** bumped when the alignment changes: older answers are worked out again */
 const ALIGN_VERSION = 7;
-const IDLE_MS = 60_000;
+/**
+ * The worker holds 300–500 MB (Whisper and onnxruntime) while it lives, so it goes soon after its last job: a track's
+ * words and the next one's are worked out back to back, then nothing until the next track starts. Starting it again
+ * costs under a second.
+ */
+const IDLE_MS = 10_000;
 const JOB_TIMEOUT_MS = 5 * 60_000;
 
 const root = () => join(app.getPath("userData"), "models");
