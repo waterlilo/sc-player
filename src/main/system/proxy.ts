@@ -32,7 +32,8 @@ const THROUGH = ["soundcloud.com", "sndcdn.com", "soundcloud.cloud", "datadome.c
 /** The built-in proxy as a PAC script: those domains through it, everything else (updates, lyrics…) direct. */
 function builtinPac(p: NonNullable<typeof __SC_PROXY__>) {
   const via = `${p.scheme === "http" ? "PROXY" : "HTTPS"} ${p.host}:${p.port}`;
-  const test = THROUGH.map((d) => `host === "${d}" || dnsDomainIs(host, ".${d}")`).join(" || ");
+  // and the secret name the server asks for the password on (Caddyfile: probe_resistance)
+  const test = [...THROUGH.map((d) => `host === "${d}" || dnsDomainIs(host, ".${d}")`), ...(p.secret ? [`host === "${p.secret}"`] : [])].join(" || ");
   const script = `function FindProxyForURL(url, host) { if (${test}) return "${via}"; return "DIRECT"; }`;
   return `data:application/x-ns-proxy-autoconfig;charset=utf-8,${encodeURIComponent(script)}`;
 }
@@ -45,8 +46,9 @@ async function setAll(config: Electron.ProxyConfig, dropConnections = true) {
 }
 
 /**
- * Pages log in to sc player's proxy through app "login", but main's session.fetch doesn't answer a proxy's password
- * request at all (407). One request that does (net.request) leaves the password in the session, and fetch uses it.
+ * The server asks for the password only on its secret name (to anyone else it looks like an ordinary site), and main's
+ * session.fetch doesn't answer a proxy's password question at all. So one request to that name (net.request, which
+ * does answer) leaves the password in each session; from then on Chromium sends it with every request by itself.
  */
 async function logInToBuiltin() {
   const p = __SC_PROXY__;
@@ -56,7 +58,7 @@ async function logInToBuiltin() {
       (s) =>
         new Promise<void>((done) => {
           const req = net.request({
-            url: "https://soundcloud.com/robots.txt",
+            url: p.secret ? `https://${p.secret}/` : "https://soundcloud.com/robots.txt",
             session: s,
             useSessionCookies: false,
           });

@@ -37,14 +37,15 @@ function shortVersion() {
 
 /**
  * The built-in proxy (server/README.md): proxy.local.json next to package.json, kept out of git —
- * { "host": "scp.example.com", "port": 443, "username": "…", "password": "…" } ("scheme": "http" only for a local test).
+ * { "host": "scp.example.com", "port": 443, "username": "…", "password": "…", "secret": "…" } ("secret": the server's
+ * SCP_SECRET_HOST, where it asks for the password; "scheme": "http" only for a local test).
  * Without the file the build has no built-in proxy and the setting doesn't show.
  */
 function builtinProxy() {
   try {
     const c = JSON.parse(readFileSync("proxy.local.json", "utf8")) as Record<string, unknown>;
     if (typeof c.host !== "string" || typeof c.username !== "string" || typeof c.password !== "string") return null;
-    return { scheme: c.scheme === "http" ? "http" : "https", host: c.host, port: typeof c.port === "number" ? c.port : 443, username: c.username, password: c.password };
+    return { scheme: c.scheme === "http" ? "http" : "https", host: c.host, port: typeof c.port === "number" ? c.port : 443, username: c.username, password: c.password, secret: typeof c.secret === "string" && /^[\w.-]+$/.test(c.secret) ? c.secret : null };
   } catch {
     return null;
   }

@@ -7,7 +7,7 @@ One small VPS runs everything the app needs from its own side:
 | **Proxy** | `caddy/` | HTTPS forward proxy for SoundCloud only (site, API, audio, artwork, bot protection). Anything else is refused. Without the password it looks like an ordinary site. |
 | **API** | `api/` | `/v1/*`: the track messenger (friend codes, no accounts), the theme workshop, an anonymous count of running apps. Node 24, SQLite, no packages. |
 
-Caddy takes the certificate from Let's Encrypt itself and renews it.
+Caddy takes the certificate from Let's Encrypt itself and renews it (no e-mail needed: Let's Encrypt no longer sends expiry notices).
 
 ## What it stores
 
@@ -36,19 +36,19 @@ On the server:
 
 ```bash
 cd /opt/sc-player
-cp .env.example .env && nano .env      # domain, e-mail, proxy password, admin token
+cp .env.example .env && nano .env      # domain, proxy password and secret name, admin token
 docker compose up -d --build
 curl https://<domain>/v1/health         # {"ok":true}
 ```
 
-**The domain.** Let's Encrypt needs a name, not a bare IP. Any domain works (an A record to the IP). Free: a [DuckDNS](https://www.duckdns.org) subdomain (`scplayer.duckdns.org`) pointed at the IP.
+**The domain.** Let's Encrypt needs a name, not a bare IP. Any domain works (an A record to the IP). Free and with no account: [sslip.io](https://sslip.io), whose names point at the IP written in them (`203-0-113-5.sslip.io`).
 
 ## Hooking up the app
 
 At build time, next to `package.json` (both files are in `.gitignore`):
 
 - `server.local.json` — `{ "api": "https://<domain>" }`: turns on Inbox, Send to friends, the Workshop and the counter.
-- `proxy.local.json` — `{ "host": "<domain>", "port": 443, "username": "<SCP_USER>", "password": "<SCP_PASS>" }`: the built-in proxy.
+- `proxy.local.json` — `{ "host": "<domain>", "port": 443, "username": "<SCP_USER>", "password": "<SCP_PASS>", "secret": "<SCP_SECRET_HOST>" }`: the built-in proxy.
 
 ## Day to day
 

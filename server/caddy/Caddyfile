@@ -4,16 +4,18 @@
 #  - /v1/*: the API (messenger, workshop, user count), passed to the api container.
 {
 	order forward_proxy first
-	email {$SCP_EMAIL}
 }
 
-{$SCP_DOMAIN} {
+# ":443" too: a request to the proxy names SoundCloud as its host, not this server, so the site must not be
+# limited to the server name (the certificate is still taken for it)
+:443, {$SCP_DOMAIN} {
 	forward_proxy {
 		basic_auth {$SCP_USER} {$SCP_PASS}
 		hide_ip
 		hide_via
-		# without the right password the server answers like an ordinary web site
-		probe_resistance
+		# without the right password the server answers like an ordinary web site; only a request to the secret name
+		# (proxy.local.json) gets the password question, after which Chromium sends the password by itself
+		probe_resistance {$SCP_SECRET_HOST}
 		ports 443 80
 		acl {
 			allow soundcloud.com *.soundcloud.com *.sndcdn.com *.soundcloud.cloud *.datadome.co *.captcha-delivery.com
