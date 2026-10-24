@@ -111,9 +111,8 @@ test("suggestions: a few each, no repeats, the host takes them or not", () => {
   const r = rooms.get(id)!;
   assert.equal(rooms.suggest(id, 2, track(5)), "suggested");
   assert.equal(rooms.suggest(id, 3, track(5)), "already");
-  rooms.suggest(id, 2, track(6));
-  rooms.suggest(id, 2, track(7));
-  assert.throws(() => rooms.suggest(id, 2, track(8)), /at most/);
+  for (let i = 1; i < LIMITS.suggestionsEach; i++) rooms.suggest(id, 2, track(5 + i));
+  assert.throws(() => rooms.suggest(id, 2, track(50)), /at most/);
   assert.throws(() => rooms.decide(id, 2, r.suggestions[0]!.uid, true), /host/);
   rooms.decide(id, 1, r.suggestions[0]!.uid, true);
   rooms.decide(id, 1, r.suggestions[0]!.uid, false);
@@ -123,7 +122,7 @@ test("suggestions: a few each, no repeats, the host takes them or not", () => {
   );
   assert.deepEqual(
     r.suggestions.map((s) => s.track.id),
-    [7],
+    Array.from({ length: LIMITS.suggestionsEach - 2 }, (_, i) => 7 + i),
   );
   // a host's own "suggestion" goes straight to the queue
   rooms.suggest(id, 1, track(9));
@@ -197,4 +196,65 @@ test("being in another room: creating or joining one leaves it", () => {
     rooms.view(rooms.get(id)!).members.map((m) => m.code),
     ["SKY-AAAAA", "SKY-CCCCC"],
   );
+});
+
+test("a list put on plays through after the queue; suggestions taken go before the rest of it", () => {
+  const { rooms, later, id } = room();
+  const r = rooms.get(id)!;
+  // the autopilot's picks make way for a list; what the host queued itself stays
+  rooms.queueAdd(id, 1, track(60), false, true);
+  rooms.queueAdd(id, 1, track(61));
+  rooms.playList(id, 1, [track(10, 10), track(11, 10), track(12, 10), track(13, 10)], "Night drive");
+  assert.deepEqual(rooms.view(r).queue.map((q) => q.track.id), [61]);
+  rooms.queueRemove(id, 1, rooms.view(r).queue[0]!.uid);
+  let v = rooms.view(r);
+  assert.equal(v.track?.id, 10);
+  assert.deepEqual(v.list && { title: v.list.title, left: v.list.left, next: v.list.next.map((x) => x.track.id) }, { title: "Night drive", left: 3, next: [11, 12, 13] });
+  assert.throws(() => rooms.playList(id, 2, [track(20)], ""), /only the host/);
+  // Bob suggests, Ann takes it: it plays next, then the list goes on
+  rooms.suggest(id, 2, track(30, 10));
+  rooms.decide(id, 1, rooms.view(r).suggestions[0]!.uid, true);
+  later(11_000);
+  assert.equal(rooms.view(r).track?.id, 30);
+  later(11_000);
+  assert.equal(rooms.view(r).track?.id, 11);
+  // the host takes one out and skips on
+  rooms.listRemove(id, 1, rooms.view(r).list!.next[0]!.uid);
+  rooms.next(id, 1);
+  assert.equal(rooms.view(r).track?.id, 13);
+  v = rooms.view(r);
+  assert.equal(v.list, null);
+  // nothing left: the room stops at the end
+  later(11_000);
+  assert.equal(rooms.view(r).playing, false);
+});
+
+test("a list is cut at its limit and can be cleared", () => {
+  const { rooms, id } = room();
+  const r = rooms.get(id)!;
+  rooms.playList(id, 1, Array.from({ length: LIMITS.list + 20 }, (_, i) => track(100 + i)), "");
+  assert.equal(rooms.view(r).list?.left, LIMITS.list);
+  assert.equal(rooms.view(r).list?.next.length, 20);
+  rooms.listClear(id, 1);
+  assert.equal(rooms.view(r).list, null);
+  // the rest of a long list comes after the first part, up to the limit
+  rooms.playList(id, 1, [track(1), track(2)], "Likes");
+  rooms.listAppend(id, 1, Array.from({ length: LIMITS.list }, (_, i) => track(1000 + i)));
+  assert.deepEqual([rooms.view(r).list?.title, rooms.view(r).list?.left, rooms.view(r).list?.next[1]?.track.id], ["Likes", LIMITS.list, 1000]);
+  assert.throws(() => rooms.listAppend(id, 2, [track(5)]), /only the host/);
+});
+
+test("the host hands the room to another member", () => {
+  const { rooms, id } = room();
+  const r = rooms.get(id)!;
+  rooms.suggest(id, 3, track(40));
+  assert.throws(() => rooms.handOver(id, 2, people.cat.code), /only the host/);
+  assert.throws(() => rooms.handOver(id, 1, "SKY-ZZZZZ"), /not in this room/);
+  rooms.handOver(id, 1, people.cat.code);
+  const v = rooms.view(r);
+  assert.equal(v.host, people.cat.code);
+  // Cat's own suggestion is the host's choice now
+  assert.equal(v.suggestions.length, 0);
+  assert.throws(() => rooms.next(id, 1), /only the host/);
+  rooms.next(id, 3);
 });

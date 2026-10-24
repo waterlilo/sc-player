@@ -3,6 +3,7 @@ import type { RoomItem } from "@shared/social";
 import { useT } from "@/i18n";
 import { call } from "@/lib/sky";
 import { room, useRoom, useRoomSheet } from "@/state/room";
+import { useSettings } from "@/state/settings";
 import { useUi } from "@/state/ui";
 import { Avatar, Cover } from "../social/bits";
 import Icon from "../ui/Icon";
@@ -36,6 +37,7 @@ export default function RoomPanel() {
   const me = useRoom((s) => s.me);
   const connected = useRoom((s) => s.connected);
   const toast = useUi((s) => s.showToast);
+  const autopilot = useSettings((s) => s.prefs.autopilot);
   const [saving, setSaving] = useState(false);
   if (!r) return null;
   const host = r.host === me;
@@ -83,10 +85,22 @@ export default function RoomPanel() {
 
       <ul className="mb-2 flex flex-wrap gap-1.5 px-1" aria-label={t.roomMembers}>
         {members.map((m) => (
-          <li key={m.code} title={m.here ? undefined : t.roomAway} className={`flex items-center gap-1.5 rounded-full bg-white/[0.05] py-0.5 pl-0.5 pr-2.5 ${m.here ? "" : "opacity-45"}`}>
+          <li key={m.code} title={m.here ? undefined : t.roomAway} className={`group/m flex items-center gap-1.5 rounded-full bg-white/[0.05] py-0.5 pl-0.5 pr-2.5 ${m.here ? "" : "opacity-45"}`}>
             <Avatar name={m.name} code={m.code} size={20} />
             <span className="max-w-[7.5rem] truncate text-[11.5px] text-text">{name(m.code)}</span>
             {m.code === r.host && <span className="text-[10px] uppercase tracking-wider text-[var(--accent,var(--glow))]">{t.roomHost}</span>}
+            {/* the host hands the room over: a crown on the others, shown on hover */}
+            {host && m.code !== me && (
+              <button
+                type="button"
+                onClick={() => room.handOver(m.code)}
+                aria-label={t.roomMakeHost(name(m.code))}
+                title={t.roomMakeHost(name(m.code))}
+                className="-mr-1.5 grid h-5 w-5 place-items-center rounded-full text-muted opacity-0 hover:bg-white/[0.1] hover:text-text focus-visible:opacity-100 group-hover/m:opacity-100"
+              >
+                <Icon name="crown" size={12} />
+              </button>
+            )}
           </li>
         ))}
         {host && (
@@ -136,7 +150,7 @@ export default function RoomPanel() {
           ) : (
             <ul>
               {r.queue.map((q, i) => (
-                <Row key={q.uid} item={q} who={q.by === r.host ? "" : name(q.by)}>
+                <Row key={q.uid} item={q} who={q.auto ? t.roomAutopilotPick : q.by === r.host ? "" : name(q.by)}>
                   {host && (
                     <>
                       {i > 0 && (
@@ -154,6 +168,32 @@ export default function RoomPanel() {
             </ul>
           )}
         </section>
+
+        {r.list && r.list.left > 0 && (
+          <section className="mb-3">
+            <div className="mb-1 flex items-center gap-2 px-1">
+              <h3 className="min-w-0 truncate text-[10.5px] uppercase tracking-wider text-[var(--s-dim,var(--muted))]">{t.roomFromList(r.list.title)}</h3>
+              <span className="shrink-0 text-[10.5px] text-muted">{t.roomListLeft(r.list.left)}</span>
+              {host && (
+                <button type="button" onClick={() => room.listClear()} className="ml-auto shrink-0 text-[11px] text-muted hover:text-text">
+                  {t.roomListClear}
+                </button>
+              )}
+            </div>
+            <ul>
+              {r.list.next.map((q) => (
+                <Row key={q.uid} item={q} who="">
+                  {host && (
+                    <button type="button" className={`${small} opacity-0 group-hover:opacity-100`} aria-label={t.remove} title={t.remove} onClick={() => room.listRemove(q.uid)}>
+                      <Icon name="close" size={14} />
+                    </button>
+                  )}
+                </Row>
+              ))}
+            </ul>
+          </section>
+        )}
+        {host && autopilot && !r.queue.length && !r.list?.left && r.track && <p className="mb-3 px-1 text-[11.5px] text-muted">{t.roomAutopilotNext}</p>}
 
         {r.history.length > 1 && (
           <section className="mb-2">

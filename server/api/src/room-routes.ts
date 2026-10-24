@@ -77,7 +77,8 @@ export function roomRoutes(h: Helpers): [string, RegExp, (c: Ctx) => unknown][] 
     const d = mine(c);
     const id = c.params[0]!;
     const me = Number(d.id);
-    const b = await readJson(c.req);
+    // a list put on carries up to 500 tracks
+    const b = await readJson(c.req, 320 * 1024);
     const position = () => (typeof b.position === "number" && Number.isFinite(b.position) ? Math.max(0, b.position) : 0);
     const item = () => text(b.item, 16, "item");
     let answer: Record<string, unknown> = {};
@@ -94,8 +95,27 @@ export function roomRoutes(h: Helpers): [string, RegExp, (c: Ctx) => unknown][] 
       case "next":
         rooms.next(id, me);
         break;
+      case "playList": {
+        if (!Array.isArray(b.tracks) || !b.tracks.length || b.tracks.length > 501) fail(400, "tracks: 1..501");
+        rooms.playList(id, me, (b.tracks as unknown[]).map(h.track), text(b.title, 200, "title", false));
+        break;
+      }
+      case "listAppend": {
+        if (!Array.isArray(b.tracks) || !b.tracks.length || b.tracks.length > 500) fail(400, "tracks: 1..500");
+        rooms.listAppend(id, me, (b.tracks as unknown[]).map(h.track));
+        break;
+      }
+      case "listRemove":
+        rooms.listRemove(id, me, item());
+        break;
+      case "listClear":
+        rooms.listClear(id, me);
+        break;
+      case "handOver":
+        rooms.handOver(id, me, h.code(b.to));
+        break;
       case "queueAdd":
-        rooms.queueAdd(id, me, h.track(b.track), b.next === true);
+        rooms.queueAdd(id, me, h.track(b.track), b.next === true, b.auto === true);
         break;
       case "queueRemove":
         rooms.queueRemove(id, me, item());

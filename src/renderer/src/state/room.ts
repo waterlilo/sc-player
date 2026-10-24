@@ -1,10 +1,10 @@
 import { create } from "zustand";
 import { correction, roomPosition, SETTLING_FAR } from "@shared/roomSync";
 import type { Room, RoomOp, RoomState, SocialTrack } from "@shared/social";
-import type { Track } from "@shared/types";
+import type { QueueSource, Track } from "@shared/types";
 import { en as t } from "@/i18n/en";
 import { call, on } from "@/lib/sky";
-import { roomPlayer, usePlayer, type Remote } from "./player";
+import { canPlay, roomPlayer, usePlayer, type Remote } from "./player";
 import { useSettings } from "./settings";
 import { toSocial } from "./social";
 import { useUi } from "./ui";
@@ -96,6 +96,7 @@ function follow() {
       roomPlayer.seek(target);
     }
   }
+  topUp(room, target);
   if (room.playing && status === "playing" && Date.now() >= quietUntil) {
     const c = correction(roomPlayer.time(), target, Date.now() < settleUntil ? SETTLING_FAR : undefined);
     if (c.seek !== undefined) {
@@ -103,22 +104,104 @@ function follow() {
       quietUntil = Date.now() + 1500;
     }
     roomPlayer.setRate(c.rate);
-    topUp(room, target);
   } else if (!room.playing || status !== "playing") roomPlayer.setRate(1);
 }
 
-/** The host's autopilot: near the end of a track with nothing queued, a few similar ones go into the room's queue. */
+/**
+ * The host's autopilot, as in its own player (Settings → Autopilot): when the queue and the list have run out, tracks
+ * similar to the one playing go into the room's queue a minute before its end — tried again in a while if SoundCloud
+ * didn't answer. A room that already stopped at the end with nothing left gets them too and goes on.
+ */
 let toppedFor = 0;
+let toppedAt = 0;
 function topUp(room: Room, target: number) {
-  if (!isHost() || room.queue.length || !room.track || toppedFor === room.track.id) return;
-  if (!useSettings.getState().prefs.autopilot || room.track.durationMs / 1000 - target > 25) return;
+  if (!isHost() || !room.track || room.queue.length || room.list?.left || !useSettings.getState().prefs.autopilot) return;
+  const left = room.track.durationMs / 1000 - target;
+  const ended = !room.playing && !room.waiting && left <= 0.5;
+  if (!ended && (!room.playing || left > 60)) return;
+  if (toppedFor === room.track.id && Date.now() - toppedAt < 15_000) return;
   toppedFor = room.track.id;
+  toppedAt = Date.now();
   const played = new Set(room.history.map((h) => h.track.id));
   void call("data:related", room.track.id)
     .then(async (related) => {
-      for (const tr of related.filter((x) => !played.has(x.id)).slice(0, 3)) await act({ op: "queueAdd", track: toSocial(tr) });
+      const picks = related.filter((x) => canPlay(x) && !played.has(x.id)).slice(0, 5);
+      for (const tr of picks) await act({ op: "queueAdd", track: toSocial(tr), auto: true });
+      if (ended && picks.length) await act({ op: "next" });
     })
     .catch(() => undefined);
+}
+
+// ---- a list put on --------------------------------------------------------------------------------------------------
+
+const LIST_MAX = 500;
+/** bumped by every list put on: the late part of an older one goes nowhere */
+let putting = 0;
+
+function shuffled<T>(list: T[]): T[] {
+  const a = [...list];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j]!, a[i]!];
+  }
+  return a;
+}
+
+async function listTitle(source: QueueSource): Promise<string> {
+  switch (source.kind) {
+    case "likes":
+      return t.roomListLikes;
+    case "playlist":
+      return (await call("data:playlist", source.playlistId).catch(() => null))?.title ?? t.roomListPlaylist;
+    case "userTracks":
+      return t.roomListTracks;
+    case "search":
+      return t.roomListSearch(source.query);
+    case "feed":
+      return t.roomListFeed;
+    default:
+      return "";
+  }
+}
+
+/** Full playable tracks for these ids, in their order, 200 a request (main knows most of them already from the list). */
+async function tracksOf(ids: number[], known: Map<number, Track>): Promise<Track[]> {
+  const missing = ids.filter((id) => !known.has(id));
+  for (let i = 0; i < missing.length; i += 200) for (const tr of await call("data:tracks", missing.slice(i, i + 200))) known.set(tr.id, tr);
+  return ids.map((id) => known.get(id)).filter((x): x is Track => !!x && canPlay(x));
+}
+
+/**
+ * The host puts a list on (a playlist, the likes, search results…): the chosen track at once with what the page has
+ * loaded after it, then the rest of the list (up to 500 tracks) once it's fetched. The room plays it after its queue,
+ * so suggestions taken still come first. Shuffled: the whole list in a random order.
+ */
+async function putOn(tracks: Track[], index: number, source: QueueSource, shuffle: boolean) {
+  const mine = ++putting;
+  const known = new Map(tracks.map((x) => [x.id, x]));
+  const title = listTitle(source);
+  const allIds = (): Promise<number[]> =>
+    source.kind === "static" ? Promise.resolve(tracks.map((x) => x.id)) : call("data:sourceIds", source).catch(() => tracks.map((x) => x.id));
+  if (shuffle) {
+    const order = shuffled(await allIds()).slice(0, LIST_MAX + 1);
+    const head = await tracksOf(order.slice(0, 30), known);
+    if (mine !== putting || !head.length) return;
+    await act({ op: "playList", tracks: head.map(toSocial), title: await title });
+    const rest = order.length > 30 ? await tracksOf(order.slice(30), known) : [];
+    if (mine === putting && isHost() && rest.length) await act({ op: "listAppend", tracks: rest.map(toSocial) });
+    return;
+  }
+  const first = tracks[index];
+  if (!first) return;
+  const loaded = tracks.slice(index + 1).filter(canPlay).slice(0, LIST_MAX);
+  await act({ op: "playList", tracks: [first, ...loaded].map(toSocial), title: await title });
+  // the part of the list the page hasn't loaded yet
+  if (source.kind === "static" || loaded.length >= LIST_MAX) return;
+  const ids = await allIds();
+  const at = ids.indexOf(loaded.at(-1)?.id ?? first.id);
+  if (at < 0) return;
+  const rest = await tracksOf(ids.slice(at + 1, at + 1 + LIST_MAX - loaded.length), known);
+  if (mine === putting && isHost() && rest.length) await act({ op: "listAppend", tracks: rest.map(toSocial) });
 }
 
 // ---- the player's buttons, in a room --------------------------------------------------------------------------------
@@ -137,11 +220,10 @@ const setPlaying = (playing: boolean) => {
 };
 
 const remote: Remote = {
-  playFrom: (tracks, index) => {
-    const tr = tracks[index];
-    if (!tr) return;
-    if (isHost()) void act({ op: "play", track: toSocial(tr) });
-    else void suggest(tr);
+  playFrom: (tracks, index, source, shuffle) => {
+    if (isHost()) return void putOn(tracks, index, source, !!shuffle).catch(() => toast(t.roomFailed));
+    const tr = shuffle ? shuffled(tracks.filter(canPlay))[0] : tracks[index];
+    if (tr) void suggest(tr);
   },
   toggle: () => setPlaying(!useRoom.getState().room?.playing),
   play: () => setPlaying(true),
@@ -194,6 +276,10 @@ export const room = {
   remove: (item: string) => void act({ op: "queueRemove", item }),
   move: (item: string, to: number) => void act({ op: "queueMove", item, to }),
   decide: (item: string, take: boolean) => void act({ op: "decide", item, take }),
+  listRemove: (item: string) => void act({ op: "listRemove", item }),
+  listClear: () => void act({ op: "listClear" }),
+  /** the host role to another member */
+  handOver: (code: string) => void act({ op: "handOver", to: code }),
   /** everything that played, as full tracks (for saving as a playlist) */
   async history(): Promise<Track[]> {
     const list = await call("room:history");

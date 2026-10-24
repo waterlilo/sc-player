@@ -33,6 +33,7 @@ export const STUDIO_ICONS: Record<string, { fill?: string; stroke?: string }> = 
   playlists: { stroke: `M4 6.5h11M4 12h11M4 17.5h7${circle(17.5, 17, 2.5)}M20 17V7.5l1.5.8` },
   list: { stroke: "M4 6.5h16M4 12h16M4 17.5h10" },
   user: { stroke: `${circle(12, 8.5, 3.5)}M5 19.5a7 7 0 0 1 14 0` },
+  crown: { stroke: "M4 17.5 3 7.5l5 4 4-6.5 4 6.5 5-4-1 10ZM4.5 20.5h15" },
   users: { stroke: `${circle(9, 8.5, 3.2)}M3 19.5a6 6 0 0 1 12 0M16 5.5a3.2 3.2 0 0 1 0 6.2M21 19.5a6 6 0 0 0-3.5-5.4` },
   external: { stroke: "M14 5h5v5M19 5l-8 8M17 13.5V18a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h4.5" },
   settings: {

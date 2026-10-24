@@ -160,7 +160,8 @@ function remember(track: Track) {
  * by itself (no autopilot, no crossfade) and a track's end waits for the room's next one.
  */
 export interface Remote {
-  playFrom(tracks: Track[], index: number): void;
+  /** a list started at `index` (or, shuffled, in a random order) */
+  playFrom(tracks: Track[], index: number, source: QueueSource, shuffle?: boolean): void;
   toggle(): void;
   play(): void;
   pause(): void;
@@ -468,7 +469,7 @@ export const player = {
   playFrom(tracks: Track[], index: number, source: QueueSource) {
     const target = tracks[index];
     if (!target) return;
-    if (remote) return remote.playFrom(tracks, index);
+    if (remote) return remote.playFrom(tracks, index, source);
     rebuild++;
     if (get().shuffle) {
       const rest = shuffled(tracks.filter((t, i) => i !== index && playable(t)));
@@ -482,12 +483,8 @@ export const player = {
   },
   /** The Shuffle button of a list: shuffle on, a random first track from the whole list when it's known. */
   async shuffleFrom(tracks: Track[], source: QueueSource) {
-    // in a room: a random track of the list, as the room's next
-    if (remote) {
-      const pick = shuffled(tracks.filter(playable))[0];
-      if (pick) remote.playFrom([pick], 0);
-      return;
-    }
+    // in a room: the whole list in a random order
+    if (remote) return remote.playFrom(tracks, 0, source, true);
     const gen = ++rebuild;
     set({ shuffle: true });
     let first = shuffled(tracks.filter(playable))[0];

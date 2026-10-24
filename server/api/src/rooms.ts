@@ -3,9 +3,10 @@ import { fail } from "./http.ts";
 
 /**
  * Listening rooms: friends hear the same track at the same moment, each from SoundCloud on their own — the server only
- * keeps what plays, from which second, and whether it is paused. The host picks the tracks (the room's queue);
- * everyone may pause or resume for all; the others suggest tracks, the host takes them into the queue or not. When the
- * host leaves (or is gone for a while), the member who joined first becomes host. A room lives in memory: a restart
+ * keeps what plays, from which second, and whether it is paused. The host picks the tracks: a list to play through
+ * (a playlist, the likes…) and the queue, which goes first; everyone may pause or resume for all; the others suggest
+ * tracks, the host takes them into the queue or not. The host may hand the room to another member; when the host
+ * leaves (or is gone for a while), the member who joined first becomes host. A room lives in memory: a restart
  * of the server closes it (the apps say so and play on as usual).
  *
  * The state is the server's alone and every change bumps `version`: the apps get the whole room each time (never
@@ -40,6 +41,8 @@ interface Item {
   uid: string;
   track: RoomTrack;
   by: string;
+  /** picked by the host's autopilot: makes way when the host puts a list on */
+  auto?: boolean;
 }
 
 export interface Room {
@@ -61,6 +64,8 @@ export interface Room {
   /** "start together": the track waits until everyone has it loaded, or until this time */
   waiting: { until: number; ready: Set<number> } | null;
   queue: Item[];
+  /** what the host put on (a playlist, the likes…): played on after the queue, in order */
+  list: { title: string; items: Item[] } | null;
   suggestions: (Item & { at: number })[];
   history: { track: RoomTrack; at: number }[];
 }
@@ -68,9 +73,11 @@ export interface Room {
 export const LIMITS = {
   members: 10,
   queue: 100,
+  /** tracks of a list put on */
+  list: 500,
   suggestions: 30,
   /** waiting suggestions per member */
-  suggestionsEach: 3,
+  suggestionsEach: 5,
   history: 300,
   rooms: 500,
   inviteMs: 6 * 60 * 60_000,
@@ -184,6 +191,7 @@ export class Rooms {
       by: host.code,
       waiting: null,
       queue: [],
+      list: null,
       suggestions: [],
       history: opts.track ? [{ track: opts.track, at: now }] : [],
     };
@@ -229,11 +237,23 @@ export class Rooms {
   /** The host role goes to whoever joined first — someone connected, if anyone is. */
   private handOn(r: Room) {
     const next = r.members.filter((m) => m.id !== r.host).sort((a, b) => (b.streams > 0 ? 1 : 0) - (a.streams > 0 ? 1 : 0) || a.joined - b.joined)[0];
-    if (next) {
-      r.host = next.id;
-      // a suggestion from the new host is the host's own choice now
-      r.suggestions = r.suggestions.filter((s) => s.by !== next.code);
-    }
+    if (next) this.makeHost(r, next);
+  }
+
+  private makeHost(r: Room, m: Member) {
+    r.host = m.id;
+    // a suggestion from the new host is the host's own choice now
+    r.suggestions = r.suggestions.filter((s) => s.by !== m.code);
+  }
+
+  /** The host gives the room to another member. */
+  handOver(id: string, device: number, code: string) {
+    const r = this.room(id);
+    this.onlyHost(r, device);
+    const to = r.members.find((m) => m.code === code) ?? fail(404, "not in this room");
+    if (to.id === device) return;
+    this.makeHost(r, to);
+    this.changed(r);
   }
 
   connected(id: string, device: number) {
@@ -258,6 +278,46 @@ export class Rooms {
     const r = this.room(id);
     this.onlyHost(r, device);
     this.start(r, track, position);
+    this.changed(r);
+  }
+
+  /** The host puts on a list: its first track now, the rest after the queue, in order. */
+  playList(id: string, device: number, tracks: RoomTrack[], title: string) {
+    const r = this.room(id);
+    this.onlyHost(r, device);
+    if (!tracks.length) fail(400, "no tracks");
+    const by = this.hostOf(r).code;
+    const rest = tracks.slice(1, LIMITS.list + 1);
+    r.queue = r.queue.filter((q) => !q.auto);
+    r.list = rest.length ? { title, items: rest.map((track) => ({ uid: uid(), track, by })) } : null;
+    this.start(r, tracks[0]!, 0);
+    this.changed(r);
+  }
+
+  /** The rest of a long list, sent once the host's app has it (the first part goes with playList, at once). */
+  listAppend(id: string, device: number, tracks: RoomTrack[]) {
+    const r = this.room(id);
+    this.onlyHost(r, device);
+    const by = this.hostOf(r).code;
+    const list = (r.list ??= { title: "", items: [] });
+    for (const track of tracks.slice(0, LIMITS.list - list.items.length)) list.items.push({ uid: uid(), track, by });
+    if (!list.items.length) r.list = null;
+    this.changed(r);
+  }
+
+  listRemove(id: string, device: number, item: string) {
+    const r = this.room(id);
+    this.onlyHost(r, device);
+    if (!r.list) return;
+    r.list.items = r.list.items.filter((q) => q.uid !== item);
+    if (!r.list.items.length) r.list = null;
+    this.changed(r);
+  }
+
+  listClear(id: string, device: number) {
+    const r = this.room(id);
+    this.onlyHost(r, device);
+    r.list = null;
     this.changed(r);
   }
 
@@ -302,7 +362,7 @@ export class Rooms {
     this.changed(r);
   }
 
-  /** The next track of the queue; with none, the room stops at the end. */
+  /** The next track: the queue's, else the list's; with neither, the room stops at the end. */
   next(id: string, device: number) {
     const r = this.room(id);
     this.onlyHost(r, device);
@@ -311,7 +371,8 @@ export class Rooms {
   }
 
   private advance(r: Room) {
-    const item = r.queue.shift();
+    const item = r.queue.shift() ?? r.list?.items.shift();
+    if (r.list && !r.list.items.length) r.list = null;
     if (item) return this.start(r, item.track, 0);
     if (r.track) r.position = r.track.durationMs / 1000;
     r.at = this.now();
@@ -339,11 +400,11 @@ export class Rooms {
 
   // ---- the queue and suggestions ----------------------------------------------------------------------------------
 
-  queueAdd(id: string, device: number, track: RoomTrack, next = false) {
+  queueAdd(id: string, device: number, track: RoomTrack, next = false, auto = false) {
     const r = this.room(id);
     this.onlyHost(r, device);
     if (r.queue.length >= LIMITS.queue) fail(409, "the queue is full");
-    const item = { uid: uid(), track, by: this.hostOf(r).code };
+    const item: Item = { uid: uid(), track, by: this.hostOf(r).code, ...(auto ? { auto: true } : {}) };
     if (next) r.queue.unshift(item);
     else r.queue.push(item);
     this.changed(r);
@@ -450,6 +511,8 @@ export class Rooms {
       by: r.by,
       waiting: r.waiting ? { until: r.waiting.until, ready: r.members.filter((m) => r.waiting!.ready.has(m.id)).map((m) => m.code) } : null,
       queue: r.queue,
+      // the next few of the list and how many are left (the whole list would go out with every change)
+      list: r.list ? { title: r.list.title, left: r.list.items.length, next: r.list.items.slice(0, 20) } : null,
       suggestions: r.suggestions,
       // the latest few; the whole history comes on request (saving it as a playlist)
       history: r.history.slice(-30),

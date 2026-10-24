@@ -95,6 +95,8 @@ export interface RoomItem {
   track: SocialTrack;
   /** who put it there (a code) */
   by: string;
+  /** picked by the host's autopilot */
+  auto?: boolean;
 }
 
 /**
@@ -118,6 +120,8 @@ export interface Room {
   /** "start together": waiting for everyone to have the track loaded, until `until` at most */
   waiting: { until: number; ready: string[] } | null;
   queue: RoomItem[];
+  /** what the host put on (a playlist, the likes…), after the queue: its name, the next few, how many are left */
+  list?: { title: string; left: number; next: RoomItem[] } | null;
   suggestions: (RoomItem & { at: number })[];
   history: { track: SocialTrack; at: number }[];
 }
@@ -127,12 +131,17 @@ export type RoomOp =
   | { op: "playing"; playing: boolean }
   | { op: "seek"; position: number }
   | { op: "next" }
-  | { op: "queueAdd"; track: SocialTrack; next?: boolean }
+  | { op: "queueAdd"; track: SocialTrack; next?: boolean; auto?: boolean }
   | { op: "queueRemove"; item: string }
   | { op: "queueMove"; item: string; to: number }
   | { op: "suggest"; track: SocialTrack }
   | { op: "decide"; item: string; take: boolean }
-  | { op: "ready"; trackId: number };
+  | { op: "ready"; trackId: number }
+  | { op: "playList"; tracks: SocialTrack[]; title: string }
+  | { op: "listAppend"; tracks: SocialTrack[] }
+  | { op: "listRemove"; item: string }
+  | { op: "listClear" }
+  | { op: "handOver"; to: string };
 
 /** Where this app stands with rooms: in one (and connected or reconnecting), or not; why the last one ended. */
 export interface RoomState {

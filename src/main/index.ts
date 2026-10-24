@@ -110,7 +110,7 @@ function roomOp(v: unknown): RoomOp {
     case "next":
       return { op: "next" };
     case "queueAdd":
-      return { op: "queueAdd", track: socialTrack(o.track), next: o.next === true };
+      return { op: "queueAdd", track: socialTrack(o.track), next: o.next === true, auto: o.auto === true };
     case "queueRemove":
       return { op: "queueRemove", item: item() };
     case "queueMove":
@@ -121,6 +121,20 @@ function roomOp(v: unknown): RoomOp {
       return { op: "decide", item: item(), take: o.take === true };
     case "ready":
       return { op: "ready", trackId: id(o.trackId) };
+    case "playList": {
+      if (!Array.isArray(o.tracks) || !o.tracks.length || o.tracks.length > 501) return bad("tracks");
+      return { op: "playList", tracks: o.tracks.map(socialTrack), title: typeof o.title === "string" ? o.title.slice(0, 200) : "" };
+    }
+    case "listAppend": {
+      if (!Array.isArray(o.tracks) || !o.tracks.length || o.tracks.length > 500) return bad("tracks");
+      return { op: "listAppend", tracks: o.tracks.map(socialTrack) };
+    }
+    case "listRemove":
+      return { op: "listRemove", item: item() };
+    case "listClear":
+      return { op: "listClear" };
+    case "handOver":
+      return { op: "handOver", to: str(o.to, "to").slice(0, 16) };
     default:
       return bad("op");
   }
