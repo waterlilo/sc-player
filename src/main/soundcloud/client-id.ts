@@ -1,4 +1,5 @@
 import { store } from "../store";
+import { reportNetTrouble } from "../system/net-trouble";
 import { ScError } from "./errors";
 import { chromeUserAgent, scSession } from "./session";
 
@@ -44,6 +45,7 @@ export class ClientId {
     try {
       res = await scSession().fetch(url, { headers: { "User-Agent": chromeUserAgent() } });
     } catch (err) {
+      void reportNetTrouble();
       throw new ScError("offline", `soundcloud.com unreachable: ${(err as Error).message}`);
     }
     if (!res.ok) throw new ScError("unknown", `soundcloud.com answered ${res.status}`);

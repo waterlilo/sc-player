@@ -155,10 +155,16 @@ function Proxy() {
   const [hasPassword, setHasPassword] = useState(false);
   // sc player's own proxy is offered only when the build carries one
   const [builtin, setBuiltin] = useState(false);
+  const [route, setRoute] = useState<"own" | "ours" | null>(null);
   useEffect(() => {
     void call("proxy:hasPassword").then(setHasPassword);
-    void call("app:info").then((i) => setBuiltin(i.builtinProxy));
-  }, []);
+    void call("app:info").then((i) => {
+      setBuiltin(i.builtinProxy);
+      setRoute(i.proxyRoute);
+    });
+  }, [proxy.mode]);
+  // without sc player's proxy in the build "auto" is just Windows settings
+  const mode = proxy.mode === "auto" && !builtin ? "system" : proxy.mode;
   const valid = PROXY_RE.test(url.trim());
   const socks = /^socks/i.test(url.trim());
 
@@ -167,7 +173,7 @@ function Proxy() {
     if (!valid) return;
     if (password) setHasPassword(await call("proxy:setPassword", password));
     setPassword("");
-    setPref("proxy", { mode: "custom", url: url.trim(), username: user.trim() });
+    setPref("proxy", { ...proxy, mode: "custom", url: url.trim(), username: user.trim() });
     toast(t.saved);
   };
 
@@ -176,8 +182,9 @@ function Proxy() {
       <Row label={t.proxy} hint={t.proxyHint}>
         <Choice
           label={t.proxy}
-          value={proxy.mode}
+          value={mode}
           options={[
+            ...(builtin ? [["auto", t.proxyAuto] as ["auto", string]] : []),
             ["system", t.proxySystem],
             ["direct", t.proxyDirect],
             ...(builtin || proxy.mode === "builtin" ? [["builtin", t.proxyBuiltin] as ["builtin", string]] : []),
@@ -186,6 +193,7 @@ function Proxy() {
           onChange={(mode) => setPref("proxy", { ...proxy, mode })}
         />
       </Row>
+      {mode === "auto" && <p className="px-3 pb-2 text-sm text-muted">{route === "ours" ? t.proxyAutoOurs : t.proxyAutoOwn}</p>}
       {proxy.mode === "builtin" && <p className="px-3 pb-2 text-sm text-muted">{t.proxyBuiltinHint}</p>}
       {proxy.mode === "custom" && (
         <form onSubmit={(e) => void save(e)} className="flex flex-col gap-2 rounded-md px-3 py-2.5">

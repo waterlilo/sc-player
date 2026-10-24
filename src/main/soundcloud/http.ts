@@ -1,5 +1,6 @@
 import type { ClientId } from "./client-id";
 import { log } from "../system/log";
+import { reportNetTrouble } from "../system/net-trouble";
 import { ScError } from "./errors";
 import { API_HOST, API_V2, chromeUserAgent, scSession } from "./session";
 
@@ -108,7 +109,8 @@ export class ScHttp {
       } catch (err) {
         if (!networkRetried) {
           networkRetried = true;
-          await sleep(1000);
+          // the proxy's "auto" mode may switch to sc player's proxy meanwhile: the retry then goes that way
+          if (!(await reportNetTrouble())) await sleep(1000);
           continue;
         }
         throw new ScError("offline", (err as Error).message);

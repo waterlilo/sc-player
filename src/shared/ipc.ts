@@ -61,6 +61,8 @@ export interface AppInfo {
   logsDir: string;
   /** the build carries sc player's own proxy */
   builtinProxy: boolean;
+  /** in the "auto" proxy mode: SoundCloud goes over the user's own connection or through sc player's proxy */
+  proxyRoute: "own" | "ours" | null;
 }
 export type StreamQuality = "high" | "low";
 /** studio — the 2.0 look (dark glass over a living background); og — the hand-drawn night sky of 1.x */
@@ -131,7 +133,7 @@ export interface Prefs {
   /** tracks the user told not to substitute */
   noSubstitute: number[];
   /** proxy: system settings, none, an address (for everything), or sc player's own (SoundCloud only) */
-  proxy: { mode: "system" | "direct" | "custom" | "builtin"; url: string; username: string };
+  proxy: { mode: "auto" | "system" | "direct" | "custom" | "builtin"; url: string; username: string; v?: number };
   look: Look;
   /** the full screen player's spectrum */
   spectrum: SpectrumLook;
@@ -171,7 +173,7 @@ export const PREFS_DEFAULTS: Prefs = {
   substitute: true,
   substituteTolerance: 3,
   noSubstitute: [],
-  proxy: { mode: "system", url: "", username: "" },
+  proxy: { mode: "auto", url: "", username: "", v: 2 },
   look: { design: "studio", bg: "liquid", bgFile: "", bgFileType: "", bgBlur: 14, bgDim: 72, bgReact: 40, panelOpacity: 58, panelBlur: 30, lite: false, accent: "" },
   spectrum: { place: "cover", style: "bars", height: 120, color: "accent", mirror: true },
   socialPopups: true,
@@ -184,7 +186,10 @@ export const PREFS_DEFAULTS: Prefs = {
 /** Fills in anything missing from stored prefs (new options in a newer version). */
 export function withPrefDefaults(stored: Partial<Prefs> | undefined): Prefs {
   const p = { ...PREFS_DEFAULTS, ...stored };
-  return { ...p, hotkeys: { ...PREFS_DEFAULTS.hotkeys, ...stored?.hotkeys }, eq: { ...PREFS_DEFAULTS.eq, ...stored?.eq }, proxy: { ...PREFS_DEFAULTS.proxy, ...stored?.proxy }, look: { ...PREFS_DEFAULTS.look, ...stored?.look }, spectrum: { ...PREFS_DEFAULTS.spectrum, ...stored?.spectrum } };
+  const proxy = { ...PREFS_DEFAULTS.proxy, ...stored?.proxy };
+  // "system" was the default before "auto" existed: such settings move to the new default once (v marks it done)
+  if (stored?.proxy && !stored.proxy.v) Object.assign(proxy, { v: 2, mode: proxy.mode === "system" ? "auto" : proxy.mode });
+  return { ...p, hotkeys: { ...PREFS_DEFAULTS.hotkeys, ...stored?.hotkeys }, eq: { ...PREFS_DEFAULTS.eq, ...stored?.eq }, proxy, look: { ...PREFS_DEFAULTS.look, ...stored?.look }, spectrum: { ...PREFS_DEFAULTS.spectrum, ...stored?.spectrum } };
 }
 
 /** State the renderer keeps in main's store (settings.json in userData). */

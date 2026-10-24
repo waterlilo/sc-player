@@ -1,6 +1,7 @@
 import { BrowserWindow, shell, type OnBeforeSendHeadersListenerDetails } from "electron";
 import { getSecret, setSecret } from "../store/secrets";
 import { log } from "../system/log";
+import { reportNetTrouble } from "../system/net-trouble";
 import type { ClientId } from "./client-id";
 import { presentAsChrome, scSession } from "./session";
 
@@ -115,7 +116,11 @@ export class SessionAuth {
     win.webContents.on("did-fail-load", (_e, code, description, url, isMainFrame) => {
       if (!isMainFrame || code === -3) return; // -3: aborted by a redirect
       log("main", `login: failed to load ${url}: ${code} ${description}`);
-      void win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(failedPage(description))}`);
+      // the proxy's "auto" mode may switch to sc player's proxy: then the page is tried again that way
+      void reportNetTrouble().then((switched) => {
+        if (win.isDestroyed()) return;
+        void win.loadURL(switched ? LOGIN_URL : `data:text/html;charset=utf-8,${encodeURIComponent(failedPage(description))}`);
+      });
     });
 
     return new Promise<boolean>((resolve) => {

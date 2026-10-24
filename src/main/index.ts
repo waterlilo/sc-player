@@ -19,7 +19,7 @@ import { pickBackground, registerBackgroundScheme, serveBackgrounds } from "./sy
 import { applyHotkeys, initHotkeys, suspendHotkeys } from "./system/hotkeys";
 import { log, logsDir } from "./system/log";
 import { netCheck } from "./system/netcheck";
-import { applyProxy, hasBuiltinProxy, initProxyAuth } from "./system/proxy";
+import { applyProxy, hasBuiltinProxy, initProxyAuth, initProxyAuto, proxyRoute } from "./system/proxy";
 import { notifyTrack } from "./system/notify";
 import { createTray, showWindow, updateTray } from "./system/tray";
 import { updateThumbar } from "./system/thumbar";
@@ -299,7 +299,7 @@ function registerIpc() {
   handle("hotkeys:suspend", (_e, on) => {
     send(main, "hotkeys:failed", suspendHotkeys(on === true));
   });
-  handle("app:info", () => ({ version: app.getVersion(), portable: !!process.env.PORTABLE_EXECUTABLE_DIR, packaged: app.isPackaged, logsDir: logsDir(), builtinProxy: hasBuiltinProxy() }));
+  handle("app:info", () => ({ version: app.getVersion(), portable: !!process.env.PORTABLE_EXECUTABLE_DIR, packaged: app.isPackaged, logsDir: logsDir(), builtinProxy: hasBuiltinProxy(), proxyRoute: proxyRoute() }));
   handle("log:write", (_e, message) => log("page", str(message, "message")));
   handle("diag:openLogs", async () => {
     await shell.openPath(logsDir());
@@ -397,6 +397,7 @@ process.on("uncaughtException", (err) => log("main", `uncaught: ${err.stack ?? e
 void app.whenReady().then(async () => {
   scSession().setUserAgent(chromeUserAgent());
   initProxyAuth(() => prefs().proxy.username);
+  initProxyAuto();
   await applyProxy(prefs().proxy);
   allowAudioCors();
   serveBackgrounds();

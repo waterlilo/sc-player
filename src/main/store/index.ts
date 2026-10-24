@@ -7,6 +7,8 @@ export interface MainState {
   /** api-v2 client_id scraped from soundcloud.com, with the time it was found */
   clientId: { value: string; at: number } | null;
   renderer: RendererState;
+  /** where the proxy's "auto" mode sent SoundCloud last: the user's own connection or sc player's proxy */
+  proxyRoute?: "own" | "ours";
 }
 
 let file: JsonFile<MainState> | null = null;
