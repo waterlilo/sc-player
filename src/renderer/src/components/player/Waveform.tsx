@@ -86,7 +86,8 @@ function paintBars(ctx: CanvasRenderingContext2D, peaks: number[], w: number, h:
  * canvases; a frame only stacks them and is drawn only when the playhead moves by a device pixel, at most 30 times
  * a second, only while visible — nothing at all while the window is hidden.
  */
-export default function Waveform({ track, height = 44, big = false }: { track: Track; height?: number; big?: boolean }) {
+/** `white`: the full screen's colour choice (Spectrum → White) paints the played part white instead of the accent */
+export default function Waveform({ track, height = 44, big = false, white = false }: { track: Track; height?: number; big?: boolean; white?: boolean }) {
   const t = useT();
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -121,6 +122,7 @@ export default function Waveform({ track, height = 44, big = false }: { track: T
     let visible = true;
     let dirty = true;
     let glow = "";
+    let shadow = "";
 
     const paint = () => {
       dpr = window.devicePixelRatio || 1;
@@ -132,10 +134,11 @@ export default function Waveform({ track, height = 44, big = false }: { track: T
       const gap = 2;
       // the studio design: the accent from the cover and grey bars ahead; the night: yellow and violet
       const studio = document.documentElement.dataset.design === "studio";
-      const accentRgb = cssColor("--accent-rgb");
       // --accent itself is still easing to the new colour when a palette arrives; its plain rgb copy is not
-      glow = studio ? `rgb(${accentRgb})` : cssColor("--glow");
-      paintBars(played.getContext("2d")!, peaks, w, h, dpr, { color: glow, alpha: 1, halo: studio ? `rgba(${accentRgb}, 0.35)` : "rgba(242, 220, 26, 0.45)" }, track.id, bar, gap);
+      const accentRgb = white ? "255, 255, 255" : studio ? cssColor("--accent-rgb") : "242, 220, 26";
+      glow = white || studio ? `rgb(${accentRgb})` : cssColor("--glow");
+      shadow = `rgba(${accentRgb}, 0.8)`;
+      paintBars(played.getContext("2d")!, peaks, w, h, dpr, { color: glow, alpha: 1, halo: `rgba(${accentRgb}, ${white ? 0.25 : studio ? 0.35 : 0.45})` }, track.id, bar, gap);
       paintBars(rest.getContext("2d")!, peaks, w, h, dpr, { color: studio ? "#8e8e98" : "#6b55c8", alpha: studio ? 0.45 : 0.55, halo: null }, track.id, bar, gap);
       dirty = true;
     };
@@ -155,7 +158,7 @@ export default function Waveform({ track, height = 44, big = false }: { track: T
           if (x > 0) ctx.drawImage(played, 0, 0, x, h, 0, 0, x, h);
           if (x > 0) {
             // playhead: a thin glowing line across the whole height
-            ctx.shadowColor = "rgba(242, 220, 26, 0.8)";
+            ctx.shadowColor = shadow;
             ctx.shadowBlur = 6 * dpr;
             ctx.fillStyle = glow;
             ctx.fillRect(x - dpr, 0, 2 * dpr, h);
@@ -222,7 +225,7 @@ export default function Waveform({ track, height = 44, big = false }: { track: T
       offPalette();
       offDesign();
     };
-  }, [data, track.id, height, big]);
+  }, [data, track.id, height, big, white]);
 
   // play/pause, a seek or a new duration: redraw (and keep going while playing)
   useEffect(() => kick.current(), [position, playing, durationS]);

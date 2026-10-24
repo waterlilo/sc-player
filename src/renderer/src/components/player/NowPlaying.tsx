@@ -159,6 +159,8 @@ function Stage({ track, sound, studio = false }: { track: Track; sound: Track | 
   const durationS = usePlayer((s) => s.duration);
   const canSend = useSocial((s) => !!s.status?.profile);
   const openSend = useSocial((s) => s.openSend);
+  // Spectrum → White / Accent colours the waveform and the ♥ here too
+  const white = useSettings((s) => s.prefs.spectrum.color === "white");
   const box = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState(300);
 
@@ -200,10 +202,10 @@ function Stage({ track, sound, studio = false }: { track: Track; sound: Track | 
           </button>
         </div>
         {canSend && !studio && <IconButton icon="send" label={t.sendToFriends} onClick={() => openSend(track)} />}
-        <LikeButton track={track} />
+        <LikeButton track={track} white={white} />
       </div>
       <div className="mt-3" style={{ width }}>
-        {sound ? <Waveform key={sound.id} track={sound} height={34} /> : <div className="h-[34px]" />}
+        {sound ? <Waveform key={sound.id} track={sound} height={34} white={white} /> : <div className="h-[34px]" />}
         <div className="mt-1 flex justify-between">
           <Elapsed />
           <span className="font-type text-xs tabular-nums text-muted">{duration((durationS || 0) * 1000)}</span>

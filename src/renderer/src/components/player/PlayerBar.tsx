@@ -49,13 +49,23 @@ function SubstituteLine({ sound }: { sound: Track }) {
   );
 }
 
-/** ♥ for the current track (signed in only). */
-export function LikeButton({ track }: { track: Track }) {
+/** ♥ for the current track (signed in only); `white`: lit white instead of the accent (the full screen's colour choice) */
+export function LikeButton({ track, white = false }: { track: Track; white?: boolean }) {
   const t = useT();
   const signedIn = useAuth((s) => s.status?.mode === "session");
   const liked = useLiked(track.id);
   if (!signedIn) return null;
-  return <IconButton icon="heart" label={liked ? t.unlike : t.like} on={liked} filled={liked} aria-pressed={liked} onClick={() => void toggleLike(track)} />;
+  return (
+    <IconButton
+      icon="heart"
+      label={liked ? t.unlike : t.like}
+      on={liked}
+      filled={liked}
+      aria-pressed={liked}
+      onClick={() => void toggleLike(track)}
+      {...(white && liked ? { style: { color: "#fff", filter: "drop-shadow(0 0 4px rgba(255, 255, 255, 0.45))" } } : {})}
+    />
+  );
 }
 
 export function PlayButton() {
