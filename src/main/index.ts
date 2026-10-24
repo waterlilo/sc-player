@@ -1,6 +1,6 @@
 import { existsSync, renameSync } from "node:fs";
 import { join } from "node:path";
-import { app, BrowserWindow, clipboard, ipcMain, session, shell, type IpcMainInvokeEvent } from "electron";
+import { app, BrowserWindow, clipboard, dialog, ipcMain, session, shell, type IpcMainInvokeEvent } from "electron";
 import { RENDERER_DEFAULTS, type AuthStatus, type InvokeChannel, type InvokeMap, type PlayerCommand, type PlayerInfo, type RendererState, type Result } from "@shared/ipc";
 import type { MusicProvider, SearchKind } from "@shared/provider";
 import type { RoomOp, SocialTrack } from "@shared/social";
@@ -8,7 +8,7 @@ import type { QueueSource, SyncRequest } from "@shared/types";
 import { DemoProvider } from "./demo";
 import { flushLyrics, lyricsFor, pickLyrics, searchLyrics } from "./lyrics";
 import { deleteModel, downloadModel, flushLyricsSync, onSyncStatus, syncedBefore, syncStatus, syncWords } from "./lyrics-sync";
-import { auth, authStatus, chromeUserAgent, provider, ScError, scSession, startBrowserSignIn, stopBrowserSignIn, toErrorInfo, tokenFromArgs, waitingForBrowser } from "./soundcloud";
+import { auth, authStatus, chromeUserAgent, provider, ScError, scSession, finishBrowserSignIn, startBrowserSignIn, stopBrowserSignIn, toErrorInfo, tokenFromArgs, waitingForBrowser } from "./soundcloud";
 import { flushAlternatives } from "./soundcloud/alternatives";
 import * as rooms from "./rooms";
 import * as social from "./social";
@@ -361,16 +361,30 @@ function allowAudioCors() {
 async function signInFromBrowser(argv: string[]) {
   const token = tokenFromArgs(argv);
   if (!token) return;
+  // more than 15 minutes since "Sign in with your browser", or the app was started by the link: asked first, so
+  // another page can't sign the app into someone else's account
   if (!waitingForBrowser()) {
-    log("main", "login: browser link ignored (not waiting for one)");
-    return;
+    const ask: Electron.MessageBoxOptions = {
+      type: "question",
+      buttons: ["Sign in", "Cancel"],
+      defaultId: 0,
+      cancelId: 1,
+      message: "Sign in with the SoundCloud account from your browser?",
+      detail: "A sign-in link came from your browser. Go on only if you just clicked the “sc player sign-in” bookmark.",
+    };
+    const { response } = await (main ? dialog.showMessageBox(main, ask) : dialog.showMessageBox(ask));
+    if (response !== 0) {
+      log("main", "login: browser link turned down");
+      return;
+    }
   }
   auth.useToken(token);
   provider.reset();
   const status = await authStatus();
   // a refused token is forgotten by authStatus: the app stays signed out and keeps waiting for another try
   if (status.mode === "session") {
-    stopBrowserSignIn();
+    // the link stays registered: next time the bookmark alone signs in (after the question above)
+    finishBrowserSignIn();
     log("main", "login: signed in through the browser");
   } else {
     log("main", "login: browser token refused");
@@ -407,6 +421,8 @@ void app.whenReady().then(async () => {
   main = createMainWindow({ startHidden: startedHidden() && p.startMinimized, closeToTray: () => prefs().closeToTray, quitting: () => quitting });
   onSyncStatus((s) => send(main, "lyricsSync:status", s));
   main.on("closed", () => (main = null));
+  // started by the browser sign-in's link (the app wasn't running)
+  main.webContents.once("did-finish-load", () => void signInFromBrowser(process.argv));
   // Windows forgets the taskbar buttons while the window is hidden
   main.on("show", () => updateThumbar(main, playerInfo, command, true));
   createTray({

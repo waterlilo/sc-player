@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import type { AuthStatus } from "@shared/ipc";
+import { en as t } from "@/i18n/en";
 import { call, on } from "@/lib/sky";
+import { useUi } from "./ui";
 
 interface AuthStore {
   status: AuthStatus | null;
@@ -20,7 +22,11 @@ export const useAuth = create<AuthStore>((set) => ({
   browser: "idle",
   init: async () => {
     on("auth:changed", (status) => set((s) => ({ status, browser: status.mode === "session" ? "idle" : s.browser })));
-    on("auth:browserRefused", () => set({ browser: "refused" }));
+    on("auth:browserRefused", () => {
+      set({ browser: "refused" });
+      // seen on any screen, not only on the sign-in one
+      useUi.getState().showToast(t.browserRefused);
+    });
     try {
       set({ status: await call("auth:status") });
     } catch {

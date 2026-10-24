@@ -11,9 +11,9 @@ import { log } from "../system/log";
  * by the page's scripts) and hands it to the app through the `scplayer://` link: Windows starts the app with that link
  * and the running app gets it as a second instance's arguments. Nothing leaves the computer.
  *
- * A link is only taken while the user is waiting for it (they pressed "Sign in with your browser" in the last
- * 15 minutes), so another page can't sign the app into someone else's account. The link handler is registered for
- * that wait only and removed afterwards.
+ * A link is taken at once while the user is waiting for it (they pressed "Sign in with your browser" in the last
+ * 15 minutes); any other time the app asks first, so another page can't sign it into someone else's account. The
+ * link handler stays registered after a sign-in (next time the bookmark alone does it) and goes with "Cancel".
  */
 const PROTOCOL = "scplayer";
 const WAIT_MS = 15 * 60_000;
@@ -36,6 +36,11 @@ export function startBrowserSignIn() {
   writeFileSync(page, helperPage(), "utf8");
   log("main", "login: browser sign-in started");
   void shell.openPath(page);
+}
+
+/** Signed in: the wait is over, the link stays for next time. */
+export function finishBrowserSignIn() {
+  waitingUntil = 0;
 }
 
 export function stopBrowserSignIn() {

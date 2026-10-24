@@ -28,5 +28,5 @@ export async function authStatus(): Promise<AuthStatus> {
 }
 
 export { ScError, toErrorInfo } from "./errors";
-export { startBrowserSignIn, stopBrowserSignIn, tokenFromArgs, waitingForBrowser } from "./browser-signin";
+export { finishBrowserSignIn, startBrowserSignIn, stopBrowserSignIn, tokenFromArgs, waitingForBrowser } from "./browser-signin";
 export { chromeUserAgent, scSession } from "./session";
