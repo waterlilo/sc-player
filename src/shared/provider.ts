@@ -52,6 +52,10 @@ export interface MusicProvider {
   addToPlaylist(playlistId: string, trackId: number): Promise<void>;
   /** a new private playlist of these tracks */
   createPlaylist(title: string, trackIds: number[]): Promise<Playlist>;
+  /** an own playlist's whole track list, in this order (reordered, or with some taken out) */
+  setPlaylistTracks(playlistId: string, trackIds: number[]): Promise<void>;
+  renamePlaylist(playlistId: string, title: string): Promise<void>;
+  deletePlaylist(playlistId: string): Promise<void>;
 }
 
 export const MAX_SOURCE_IDS = 10_000;

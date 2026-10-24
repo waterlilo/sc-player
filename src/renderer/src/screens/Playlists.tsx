@@ -1,13 +1,16 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { usePlaylists } from "@/api/queries";
+import NewPlaylist from "@/components/playlists/NewPlaylist";
 import PlaylistGrid from "@/components/playlists/PlaylistGrid";
+import { PaperButton } from "@/components/ui/Buttons";
+import Icon from "@/components/ui/Icon";
 import Chip from "@/components/ui/Chip";
 import { Screen, ScreenTitle } from "@/components/ui/Screen";
 import { EmptyState, ErrorState, Loading } from "@/components/ui/States";
 import { useT } from "@/i18n";
 import { useAuth } from "@/state/auth";
+import { useNav } from "@/state/nav";
 import { useViewState } from "@/state/viewState";
-import Login from "./Login";
 
 type Filter = "all" | "mine" | "liked" | "albums";
 
@@ -46,14 +49,23 @@ export function PlaylistsView({ userId }: { userId: number | "me" }) {
   );
 }
 
+/** Your playlists: SoundCloud's when signed in (and any kept on this computer), only this computer's otherwise. */
 export default function Playlists() {
   const t = useT();
+  const go = useNav((s) => s.go);
   const status = useAuth((s) => s.status);
+  const [making, setMaking] = useState(false);
   if (!status) return <Loading />;
-  if (status.mode !== "session") return <Login />;
   return (
     <Screen label={t.playlists}>
-      <ScreenTitle>{t.playlists.toLowerCase()}</ScreenTitle>
+      <div className="mb-2 flex flex-wrap items-center gap-3">
+        <ScreenTitle>{t.playlists.toLowerCase()}</ScreenTitle>
+        <PaperButton className="ml-auto" aria-expanded={making} onClick={() => setMaking((v) => !v)}>
+          <Icon name="plus" size={16} /> {t.newPlaylist}
+        </PaperButton>
+      </div>
+      {making && <NewPlaylist className="mb-4 max-w-md" onMade={(p) => go({ name: "playlist", id: p.id })} />}
+      {status.mode !== "session" && <p className="mb-4 max-w-xl text-sm text-muted">{t.localPlaylistsHint}</p>}
       <PlaylistsView userId="me" />
     </Screen>
   );

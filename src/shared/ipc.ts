@@ -286,7 +286,14 @@ export interface InvokeMap {
   "data:setLiked": (trackId: number, liked: boolean) => void;
   "data:myPlaylists": () => Playlist[];
   "data:addToPlaylist": (playlistId: string, trackId: number) => void;
+  /** signed in: on SoundCloud; otherwise kept on this computer (an id starting with "local-") */
   "data:createPlaylist": (title: string, trackIds: number[]) => Playlist;
+  /** an own playlist's whole track list in this order (reordered, or with tracks taken out) */
+  "data:setPlaylistTracks": (playlistId: string, trackIds: number[]) => void;
+  "data:renamePlaylist": (playlistId: string, title: string) => void;
+  "data:deletePlaylist": (playlistId: string) => void;
+  /** a playlist on this computer moved to SoundCloud (signed in): the new playlist */
+  "data:uploadPlaylist": (playlistId: string) => Playlist;
   "data:search": (query: string, kind: SearchKind, cursor: string | null) => Page<Track> | Page<Playlist> | Page<User>;
   "data:suggest": (query: string) => string[];
   "data:stream": (trackId: number) => StreamInfo;
@@ -463,6 +470,10 @@ export const INVOKE_CHANNELS = [
   "data:myPlaylists",
   "data:addToPlaylist",
   "data:createPlaylist",
+  "data:setPlaylistTracks",
+  "data:renamePlaylist",
+  "data:deletePlaylist",
+  "data:uploadPlaylist",
   "data:search",
   "data:suggest",
   "data:stream",

@@ -1,9 +1,11 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from "react";
+import { queryClient } from "@/api/queries";
 import { useT } from "@/i18n";
+import { canEdit, removeFromPlaylist } from "@/lib/playlists";
 import { call } from "@/lib/sky";
 import { useNav } from "@/state/nav";
-import type { Track } from "@shared/types";
+import type { Playlist, Track } from "@shared/types";
 import { useAuth } from "@/state/auth";
 import { toggleLike, useLikes } from "@/state/likes";
 import { player, substituteFor, useSubs } from "@/state/player";
@@ -52,6 +54,10 @@ export default function TrackMenu() {
 
   const track = menu?.track;
   const signedIn = useAuth((s) => s.status?.mode === "session");
+  // the menu opened on a page of a playlist of your own: it can take the track out
+  const route = useNav((s) => s.route);
+  const shown = route.name === "playlist" ? queryClient.getQueryData<Playlist>(["playlist", route.id]) : undefined;
+  const ownList = shown && canEdit(shown) ? shown : null;
   const likes = useLikes((s) => s.ids);
   const openPicker = useUi((s) => s.openPicker);
   const canSend = useSocial((s) => !!s.status?.profile);
@@ -92,10 +98,20 @@ export default function TrackMenu() {
   const items: { icon: IconName; label: string; run: () => void; danger?: boolean }[] = track
     ? [
         ...queueItems,
-        ...(signedIn
+        ...(signedIn ? [{ icon: "heart" as IconName, label: likes.has(track.id) ? t.unlike : t.like, run: () => void toggleLike(track) }] : []),
+        // playlists of your own: on SoundCloud signed in, on this computer otherwise
+        { icon: "plus" as IconName, label: t.addToPlaylist, run: () => openPicker(track) },
+        ...(ownList
           ? [
-              { icon: "heart" as IconName, label: likes.has(track.id) ? t.unlike : t.like, run: () => void toggleLike(track) },
-              { icon: "plus" as IconName, label: t.addToPlaylist, run: () => openPicker(track) },
+              {
+                icon: "close" as IconName,
+                label: t.removeFromPlaylist,
+                run: () =>
+                  void removeFromPlaylist(ownList.id, track.id).then(
+                    () => toast(t.removedFrom(ownList.title)),
+                    () => toast(t.playlistFailed),
+                  ),
+              },
             ]
           : []),
         ...(canSend ? [{ icon: "send" as IconName, label: t.sendToFriends, run: () => openSend(track) }] : []),

@@ -473,6 +473,32 @@ export class WebSessionProvider implements MusicProvider {
     return mapPlaylist(raw, "own");
   }
 
+  private ownPlaylistPath(playlistId: string) {
+    if (!/^\d+$/.test(playlistId)) throw new ScError("not_found", `bad playlist id ${playlistId}`);
+    return `/playlists/${playlistId}`;
+  }
+
+  private changed(playlistId: string) {
+    this.playlists.delete(playlistId);
+    // the library lists and the playlist page show the change at once
+    this.http.clearCache();
+  }
+
+  async setPlaylistTracks(playlistId: string, trackIds: number[]): Promise<void> {
+    await this.http.json(this.ownPlaylistPath(playlistId), {}, { method: "PUT", auth: "required", body: { playlist: { tracks: trackIds } } });
+    this.changed(playlistId);
+  }
+
+  async renamePlaylist(playlistId: string, title: string): Promise<void> {
+    await this.http.json(this.ownPlaylistPath(playlistId), {}, { method: "PUT", auth: "required", body: { playlist: { title } } });
+    this.changed(playlistId);
+  }
+
+  async deletePlaylist(playlistId: string): Promise<void> {
+    await this.http.json(this.ownPlaylistPath(playlistId), {}, { method: "DELETE", auth: "required" });
+    this.changed(playlistId);
+  }
+
   async addToPlaylist(playlistId: string, trackId: number): Promise<void> {
     const { ids } = await this.loadPlaylist(playlistId);
     if (ids.includes(trackId)) return;

@@ -4,8 +4,9 @@ import { app, BrowserWindow, clipboard, dialog, ipcMain, session, shell, type Ip
 import { RENDERER_DEFAULTS, type AuthStatus, type InvokeChannel, type InvokeMap, type PlayerCommand, type PlayerInfo, type RendererState, type Result } from "@shared/ipc";
 import type { MusicProvider, SearchKind } from "@shared/provider";
 import type { RoomOp, SocialTrack } from "@shared/social";
-import type { QueueSource, SyncRequest } from "@shared/types";
+import type { QueueSource, SyncRequest, Track } from "@shared/types";
 import { DemoProvider } from "./demo";
+import { addLocal, createLocal, deleteLocal, flushLocalPlaylists, isLocal, localIds, localPlaylist, localPlaylists, localTracks, MAX_TRACKS, renameLocal, setLocalTracks } from "./local-playlists";
 import { flushLyrics, lyricsFor, pickLyrics, searchLyrics } from "./lyrics";
 import { deleteModel, downloadModel, flushLyricsSync, onSyncStatus, syncedBefore, syncStatus, syncWords } from "./lyrics-sync";
 import { auth, authStatus, chromeUserAgent, provider, ScError, scSession, finishBrowserSignIn, startBrowserSignIn, stopBrowserSignIn, toErrorInfo, tokenFromArgs, waitingForBrowser } from "./soundcloud";
@@ -56,6 +57,13 @@ if (DEMO) app.setPath("userData", join(app.getPath("appData"), "sc player demo")
 // SKY_PROFILE=<name> in development: real SoundCloud with a data folder of its own (signed out, fresh settings)
 else if (!app.isPackaged && process.env.SKY_PROFILE) app.setPath("userData", join(app.getPath("appData"), `sc player ${process.env.SKY_PROFILE.replace(/[^\w-]/g, "")}`));
 const data: MusicProvider = DEMO ? new DemoProvider() : provider;
+const signedIn = () => DEMO || !!auth.token();
+/** full tracks for any number of ids, in their order (the provider takes 200 at a time) */
+async function tracksOf(ids: number[]): Promise<Track[]> {
+  const out: Track[] = [];
+  for (let i = 0; i < ids.length; i += 200) out.push(...(await data.getTracks(ids.slice(i, i + 200))));
+  return out;
+}
 const status = async (): Promise<AuthStatus> => (DEMO ? { mode: "session", user: await data.getMe() } : authStatus());
 
 if (!app.requestSingleInstanceLock()) app.quit();
@@ -197,16 +205,31 @@ function registerIpc() {
 
   handle("data:me", () => data.getMe());
   handle("data:likes", (_e, c) => data.getLikes(cursor(c)));
-  handle("data:playlists", (_e, c) => data.getPlaylists(cursor(c)));
-  handle("data:playlist", (_e, p) => data.getPlaylist(str(p, "playlist id")));
-  handle("data:playlistTracks", (_e, p, c) => data.getPlaylistTracks(str(p, "playlist id"), cursor(c)));
+  // playlists: SoundCloud's for the signed in, ones on this computer (local-playlists.ts) for everyone
+  handle("data:playlists", async (_e, c) => {
+    const from = cursor(c);
+    if (!signedIn()) return { items: from ? [] : localPlaylists(), next: null };
+    const page = await data.getPlaylists(from);
+    return from ? page : { ...page, items: [...localPlaylists(), ...page.items] };
+  });
+  handle("data:playlist", (_e, p) => {
+    const pid = str(p, "playlist id");
+    return isLocal(pid) ? localPlaylist(pid) : data.getPlaylist(pid);
+  });
+  handle("data:playlistTracks", (_e, p, c) => {
+    const pid = str(p, "playlist id");
+    return isLocal(pid) ? localTracks(pid, cursor(c), (ids) => data.getTracks(ids)) : data.getPlaylistTracks(pid, cursor(c));
+  });
   handle("data:user", (_e, u) => data.getUser(id(u)));
   handle("data:userLikes", (_e, u, c) => data.getUserLikes(id(u), cursor(c)));
   handle("data:userTracks", (_e, u, c) => data.getUserTracks(id(u), cursor(c)));
   handle("data:userPlaylists", (_e, u, c) => data.getUserPlaylists(id(u), cursor(c)));
   handle("data:followings", (_e, u, c) => data.getFollowings(u === "me" ? "me" : id(u), cursor(c)));
   handle("data:tracks", (_e, ids) => data.getTracks(Array.isArray(ids) ? ids.map(id) : bad("ids")));
-  handle("data:sourceIds", (_e, source) => data.getSourceIds(queueSource(source)));
+  handle("data:sourceIds", (_e, source) => {
+    const s = queueSource(source);
+    return s.kind === "playlist" && isLocal(s.playlistId) ? localIds(s.playlistId) : data.getSourceIds(s);
+  });
   handle("data:related", (_e, t) => data.getRelated(id(t)));
   handle("data:trackDetails", (_e, t) => data.getTrackDetails(id(t)));
   handle("data:alternatives", (_e, t, deep) => data.getAlternatives(id(t), deep === true));
@@ -225,9 +248,42 @@ function registerIpc() {
   handle("data:feed", (_e, c) => data.getFeed(cursor(c)));
   handle("data:likedIds", (_e, refresh) => data.getLikedIds(refresh === true));
   handle("data:setLiked", (_e, t, on) => (on === true ? data.like(id(t)) : data.unlike(id(t))));
-  handle("data:myPlaylists", () => data.getMyPlaylists());
-  handle("data:addToPlaylist", (_e, p, t) => data.addToPlaylist(str(p, "playlist id"), id(t)));
-  handle("data:createPlaylist", (_e, title, ids) => data.createPlaylist(str(title, "title").slice(0, 100), Array.isArray(ids) ? ids.slice(0, 500).map(id) : bad("ids")));
+  handle("data:myPlaylists", async () => [...localPlaylists(), ...(signedIn() ? await data.getMyPlaylists() : [])]);
+  handle("data:addToPlaylist", async (_e, p, t) => {
+    const pid = str(p, "playlist id");
+    if (!isLocal(pid)) return data.addToPlaylist(pid, id(t));
+    const [track] = await data.getTracks([id(t)]);
+    if (track) addLocal(pid, track);
+  });
+  // signed in: on SoundCloud; otherwise on this computer
+  handle("data:createPlaylist", async (_e, title, ids) => {
+    const name = str(title, "title").slice(0, 100);
+    const list = Array.isArray(ids) ? ids.slice(0, MAX_TRACKS).map(id) : bad("ids");
+    return signedIn() ? data.createPlaylist(name, list) : createLocal(name, await tracksOf(list));
+  });
+  handle("data:setPlaylistTracks", async (_e, p, ids) => {
+    const pid = str(p, "playlist id");
+    const list = Array.isArray(ids) ? ids.slice(0, MAX_TRACKS).map(id) : bad("ids");
+    if (!isLocal(pid)) return data.setPlaylistTracks(pid, list);
+    setLocalTracks(pid, list);
+  });
+  handle("data:renamePlaylist", (_e, p, title) => {
+    const pid = str(p, "playlist id");
+    const name = str(title, "title").slice(0, 100);
+    return isLocal(pid) ? renameLocal(pid, name) : data.renamePlaylist(pid, name);
+  });
+  handle("data:deletePlaylist", (_e, p) => {
+    const pid = str(p, "playlist id");
+    return isLocal(pid) ? deleteLocal(pid) : data.deletePlaylist(pid);
+  });
+  /** a playlist on this computer to SoundCloud (signed in): made there with the same tracks, then removed here */
+  handle("data:uploadPlaylist", async (_e, p) => {
+    const pid = str(p, "playlist id");
+    if (!isLocal(pid) || !signedIn()) return bad("playlist id");
+    const made = await data.createPlaylist(localPlaylist(pid).title, localIds(pid));
+    deleteLocal(pid);
+    return made;
+  });
   handle("data:resolve", (_e, url) => data.resolve(str(url, "url")));
   handle("data:search", (_e, q, kind, c) => data.search(str(q, "query"), kinds.includes(kind) ? kind : bad("kind"), cursor(c)));
   handle("data:suggest", (_e, q) => data.searchSuggestions(str(q, "query")));
@@ -419,6 +475,7 @@ app.on("before-quit", () => {
   flushAlternatives();
   flushLyrics();
   flushLyricsSync();
+  flushLocalPlaylists();
 });
 process.on("uncaughtException", (err) => log("main", `uncaught: ${err.stack ?? err.message}`));
 

@@ -162,5 +162,8 @@ export class DemoProvider implements MusicProvider {
   like = async () => undefined;
   unlike = async () => undefined;
   addToPlaylist = async () => undefined;
+  setPlaylistTracks = async () => undefined;
+  renamePlaylist = async () => undefined;
+  deletePlaylist = async () => undefined;
   createPlaylist = async (title: string): Promise<Playlist> => ({ ...PLAYLISTS[0]!, id: "demo-new", title, relation: "own" });
 }

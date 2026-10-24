@@ -1,6 +1,7 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { artwork, type QueueSource } from "@shared/types";
 import { usePlaylist, usePlaylistTracks } from "@/api/queries";
+import PlaylistEditor from "@/components/playlists/PlaylistEditor";
 import ListFilter, { useListFilter } from "@/components/tracks/ListFilter";
 import TrackList from "@/components/tracks/TrackList";
 import { MarkerButton, PaperButton } from "@/components/ui/Buttons";
@@ -11,6 +12,9 @@ import { useT } from "@/i18n";
 import { duration } from "@/lib/format";
 import { call } from "@/lib/sky";
 import { togglePin } from "@/lib/links";
+import { canEdit, deletePlaylist, isLocal, uploadPlaylist } from "@/lib/playlists";
+import { useAuth } from "@/state/auth";
+import { useUi } from "@/state/ui";
 import { useNav } from "@/state/nav";
 import { useSettings } from "@/state/settings";
 import { player } from "@/state/player";
@@ -27,6 +31,37 @@ export default function Playlist({ id }: { id: string }) {
   const p = meta.data;
   const pinned = useSettings((s) => s.pinnedPlaylists.some((x) => x.id === id));
   const firstPlayable = Math.max(0, f.tracks.findIndex((x) => x.playability === "ok" || x.playability === "preview"));
+  const signedIn = useAuth((s) => s.status?.mode === "session");
+  const toast = useUi((s) => s.showToast);
+  const [editing, setEditing] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const local = isLocal(id);
+  const own = canEdit(p);
+
+  const remove = async () => {
+    if (!p || !window.confirm(t.deletePlaylistConfirm(p.title, local))) return;
+    setBusy(true);
+    try {
+      await deletePlaylist(id);
+      toast(t.playlistDeleted);
+      go({ name: "playlists" });
+    } catch {
+      toast(t.playlistFailed);
+      setBusy(false);
+    }
+  };
+  const upload = async () => {
+    setBusy(true);
+    try {
+      const made = await uploadPlaylist(id);
+      toast(t.uploadedPlaylist(made.title));
+      go({ name: "playlist", id: made.id });
+    } catch {
+      toast(t.playlistFailed);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <Screen label={p?.title ?? t.playlist}>
@@ -49,9 +84,13 @@ export default function Playlist({ id }: { id: string }) {
             <h1 className="display-heading my-1 line-clamp-2 min-h-[2.5rem] text-4xl leading-tight text-text">{p?.title}</h1>
             {p && (
               <div className="flex flex-wrap items-center gap-x-2 font-type text-sm text-muted">
-                <button type="button" className="hover:text-text hover:underline" onClick={() => go({ name: "profile", userId: p.user.id })}>
-                  {p.user.username}
-                </button>
+                {local ? (
+                  <span>{t.onThisComputer}</span>
+                ) : (
+                  <button type="button" className="hover:text-text hover:underline" onClick={() => go({ name: "profile", userId: p.user.id })}>
+                    {p.user.username}
+                  </button>
+                )}
                 <span>·</span>
                 <span>{t.tracks(p.trackCount)}</span>
                 {p.durationMs > 0 && (
@@ -74,6 +113,21 @@ export default function Playlist({ id }: { id: string }) {
                   {pinned ? t.unpin : t.pin}
                 </PaperButton>
               )}
+              {own && !editing && (
+                <PaperButton disabled={busy} onClick={() => setEditing(true)}>
+                  <Icon name="brush" size={16} /> {t.editPlaylist}
+                </PaperButton>
+              )}
+              {own && !editing && (
+                <PaperButton disabled={busy} aria-label={t.deletePlaylist} title={t.deletePlaylist} onClick={() => void remove()}>
+                  <Icon name="close" size={16} />
+                </PaperButton>
+              )}
+              {local && signedIn && !editing && (
+                <PaperButton disabled={busy} onClick={() => void upload()}>
+                  {t.uploadPlaylist}
+                </PaperButton>
+              )}
               {p?.permalinkUrl && (
                 <PaperButton aria-label={t.openOnSoundCloud} title={t.openOnSoundCloud} onClick={() => void call("shell:open", p.permalinkUrl)}>
                   <Icon name="external" size={18} />
@@ -83,12 +137,14 @@ export default function Playlist({ id }: { id: string }) {
           </div>
         </header>
       )}
-      {q.isPending ? (
+      {editing && p ? (
+        <PlaylistEditor playlist={p} onDone={() => setEditing(false)} />
+      ) : q.isPending ? (
         <Loading />
       ) : q.isError && !tracks.length ? (
         <ErrorState error={q.error} onRetry={() => void q.refetch()} />
       ) : !tracks.length ? (
-        <EmptyState caption={t.emptyPlaylists} />
+        <EmptyState caption={own ? t.playlistEmpty : t.emptyPlaylists} />
       ) : (
         <>
       <ListFilter f={f} count={f.tracks.length} playlist />

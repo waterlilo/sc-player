@@ -3,9 +3,11 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { artwork, type Playlist } from "@shared/types";
 import { useT } from "@/i18n";
+import { addToPlaylist } from "@/lib/playlists";
 import { call, errorCode } from "@/lib/sky";
 import { askCheck } from "@/state/check";
 import { useUi } from "@/state/ui";
+import NewPlaylist from "../playlists/NewPlaylist";
 import Icon from "../ui/Icon";
 
 /** "Add to playlist": the user's own playlists in a small card in the middle of the window. Esc or a click outside closes. */
@@ -15,6 +17,13 @@ export default function PlaylistPicker() {
   const close = useUi((s) => s.closePicker);
   const toast = useUi((s) => s.showToast);
   const [busy, setBusy] = useState<string | null>(null);
+  const [making, setMaking] = useState(false);
+  // opened for another track: the list again, not a half-typed new playlist
+  const [shownFor, setShownFor] = useState(track?.id);
+  if (shownFor !== track?.id) {
+    setShownFor(track?.id);
+    setMaking(false);
+  }
   const ref = useRef<HTMLDivElement>(null);
   const q = useQuery({ queryKey: ["myPlaylists"], queryFn: () => call("data:myPlaylists"), enabled: !!track, staleTime: 60_000 });
   const lists = q.data ?? null;
@@ -31,7 +40,7 @@ export default function PlaylistPicker() {
     if (!track) return;
     setBusy(p.id);
     try {
-      await call("data:addToPlaylist", p.id, track.id);
+      await addToPlaylist(p.id, track.id);
       toast(t.addedTo(p.title));
       close();
     } catch (err) {
@@ -68,6 +77,23 @@ export default function PlaylistPicker() {
               <div className="font-type text-xs text-muted">{t.addToPlaylist}</div>
               <div className="truncate text-sm text-text">{track.title}</div>
             </div>
+            {making ? (
+              <NewPlaylist
+                className="px-4 pb-2"
+                trackIds={[track.id]}
+                onMade={(p) => {
+                  toast(t.addedTo(p.title));
+                  close();
+                }}
+              />
+            ) : (
+              <button type="button" onClick={() => setMaking(true)} className="flex w-full items-center gap-3 px-4 py-1.5 text-left text-sm text-text outline-none hover:bg-[var(--row-hover)] focus-visible:bg-[var(--row-hover)]">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-sm border border-dashed border-white/20 text-muted">
+                  <Icon name="plus" size={16} />
+                </span>
+                <span className="min-w-0 flex-1 truncate">{t.newPlaylist}</span>
+              </button>
+            )}
             <div className="max-h-[50vh] overflow-y-auto">
               {failed && <p className="px-4 py-3 text-sm text-muted">{t.playlistsFailed}</p>}
               {!failed && !lists && <p className="px-4 py-3 font-type text-sm text-muted">{t.loadingMore}</p>}
