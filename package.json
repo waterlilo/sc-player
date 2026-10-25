@@ -1,7 +1,7 @@
 {
   "name": "sc-player",
   "productName": "sc player",
-  "version": "2.0.0-beta.17",
+  "version": "2.0.0-beta.18",
   "private": true,
   "description": "sc player — a SoundCloud desktop client for Windows",
   "author": "sky (@skythemontage)",
