@@ -276,14 +276,6 @@ function registerIpc() {
     const pid = str(p, "playlist id");
     return isLocal(pid) ? deleteLocal(pid) : data.deletePlaylist(pid);
   });
-  /** a playlist on this computer to SoundCloud (signed in): made there with the same tracks, then removed here */
-  handle("data:uploadPlaylist", async (_e, p) => {
-    const pid = str(p, "playlist id");
-    if (!isLocal(pid) || !signedIn()) return bad("playlist id");
-    const made = await data.createPlaylist(localPlaylist(pid).title, localIds(pid));
-    deleteLocal(pid);
-    return made;
-  });
   handle("data:resolve", (_e, url) => data.resolve(str(url, "url")));
   handle("data:search", (_e, q, kind, c) => data.search(str(q, "query"), kinds.includes(kind) ? kind : bad("kind"), cursor(c)));
   handle("data:suggest", (_e, q) => data.searchSuggestions(str(q, "query")));

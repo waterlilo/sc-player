@@ -75,8 +75,8 @@ function repin(id: string, change: Partial<{ title: string }> | null) {
 }
 
 /**
- * A new playlist. SoundCloud's bot protection can refuse making one from the app for a while, and passing the site's
- * check doesn't lift it (seen 2026-10-25): then it can be kept on this computer and moved to SoundCloud later.
+ * A new playlist. SoundCloud's bot protection can refuse making one from the app, and passing the site's check doesn't
+ * lift it (seen 2026-10-25): then it can be kept on this computer instead.
  */
 export async function createPlaylist(title: string, trackIds: number[] = []): Promise<Playlist> {
   let p: Playlist;
@@ -121,15 +121,4 @@ export async function deletePlaylist(id: string) {
   refresh();
   queryClient.removeQueries({ queryKey: ["playlist", id] });
   queryClient.removeQueries({ queryKey: ["playlistTracks", id] });
-}
-
-/** One on this computer goes to SoundCloud (signed in): the new playlist. */
-export async function uploadPlaylist(id: string): Promise<Playlist> {
-  // refused by the bot protection: it stays here, to be tried again later
-  const p = await call("data:uploadPlaylist", id).catch((err: unknown) => {
-    throw errorCode(err) === "verify" ? new Error(t.uploadRefused) : err;
-  });
-  repin(id, null);
-  refresh();
-  return p;
 }

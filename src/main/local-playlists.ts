@@ -8,7 +8,7 @@ import { JsonFile } from "./store/json-file";
 /**
  * Playlists kept on this computer, for whoever isn't signed in to SoundCloud (signed in, playlists are made on
  * SoundCloud). A playlist is its tracks' ids plus what its card needs without asking SoundCloud (length, a cover);
- * the tracks themselves are fetched like any others. Signed in later, one can be moved to SoundCloud.
+ * the tracks themselves are fetched like any others.
  */
 
 interface Item {

@@ -12,8 +12,7 @@ import { useT } from "@/i18n";
 import { duration } from "@/lib/format";
 import { call } from "@/lib/sky";
 import { togglePin } from "@/lib/links";
-import { canEdit, deletePlaylist, isLocal, uploadPlaylist } from "@/lib/playlists";
-import { useAuth } from "@/state/auth";
+import { canEdit, deletePlaylist, isLocal } from "@/lib/playlists";
 import { useUi } from "@/state/ui";
 import { useNav } from "@/state/nav";
 import { useSettings } from "@/state/settings";
@@ -31,7 +30,6 @@ export default function Playlist({ id }: { id: string }) {
   const p = meta.data;
   const pinned = useSettings((s) => s.pinnedPlaylists.some((x) => x.id === id));
   const firstPlayable = Math.max(0, f.tracks.findIndex((x) => x.playability === "ok" || x.playability === "preview"));
-  const signedIn = useAuth((s) => s.status?.mode === "session");
   const toast = useUi((s) => s.showToast);
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -47,18 +45,6 @@ export default function Playlist({ id }: { id: string }) {
       go({ name: "playlists" });
     } catch {
       toast(t.playlistFailed);
-      setBusy(false);
-    }
-  };
-  const upload = async () => {
-    setBusy(true);
-    try {
-      const made = await uploadPlaylist(id);
-      toast(t.uploadedPlaylist(made.title));
-      go({ name: "playlist", id: made.id });
-    } catch (err) {
-      toast(err instanceof Error && err.message ? err.message : t.playlistFailed);
-    } finally {
       setBusy(false);
     }
   };
@@ -121,11 +107,6 @@ export default function Playlist({ id }: { id: string }) {
               {own && !editing && (
                 <PaperButton disabled={busy} aria-label={t.deletePlaylist} title={t.deletePlaylist} onClick={() => void remove()}>
                   <Icon name="close" size={16} />
-                </PaperButton>
-              )}
-              {local && signedIn && !editing && (
-                <PaperButton disabled={busy} onClick={() => void upload()}>
-                  {t.uploadPlaylist}
                 </PaperButton>
               )}
               {p?.permalinkUrl && (
