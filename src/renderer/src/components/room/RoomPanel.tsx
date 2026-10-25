@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { RoomItem } from "@shared/social";
 import { useT } from "@/i18n";
-import { call } from "@/lib/sky";
+import { createPlaylist } from "@/lib/playlists";
 import { room, useRoom, useRoomSheet } from "@/state/room";
 import { useSettings } from "@/state/settings";
 import { useUi } from "@/state/ui";
@@ -52,7 +52,7 @@ export default function RoomPanel() {
       if (!tracks.length) return;
       const date = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short" });
       const others = r.members.filter((m) => m.code !== me).map((m) => m.name || m.code);
-      await call("data:createPlaylist", t.roomPlaylistTitle(others, date), tracks.map((x) => x.id));
+      await createPlaylist(t.roomPlaylistTitle(others, date), tracks.map((x) => x.id));
       toast(t.roomPlaylistSaved(tracks.length));
     } catch (e) {
       toast(e instanceof Error && e.message ? e.message : t.roomFailed);

@@ -158,12 +158,6 @@ export class DemoProvider implements MusicProvider {
     return Array.from({ length: 1800 }, (_, i) => Math.min(1, 0.25 + 0.45 * Math.abs(Math.sin(i / 60)) * (0.6 + r() * 0.4) + (i > 900 && i < 1300 ? 0.2 : 0)));
   };
   getLikedIds = async () => LIKES.map((t) => t.id);
-  getMyPlaylists = async () => PLAYLISTS.filter((p) => p.relation === "own");
   like = async () => undefined;
   unlike = async () => undefined;
-  addToPlaylist = async () => undefined;
-  setPlaylistTracks = async () => undefined;
-  renamePlaylist = async () => undefined;
-  deletePlaylist = async () => undefined;
-  createPlaylist = async (title: string): Promise<Playlist> => ({ ...PLAYLISTS[0]!, id: "demo-new", title, relation: "own" });
 }

@@ -248,34 +248,25 @@ function registerIpc() {
   handle("data:feed", (_e, c) => data.getFeed(cursor(c)));
   handle("data:likedIds", (_e, refresh) => data.getLikedIds(refresh === true));
   handle("data:setLiked", (_e, t, on) => (on === true ? data.like(id(t)) : data.unlike(id(t))));
-  handle("data:myPlaylists", async () => [...localPlaylists(), ...(signedIn() ? await data.getMyPlaylists() : [])]);
-  handle("data:addToPlaylist", async (_e, p, t) => {
+  // own playlists are made and changed on this computer: SoundCloud's bot protection refuses playlist changes from
+  // the app (POST and PUT /playlists, tested 2026-10-25); SoundCloud's own playlists are for listening here
+  const localId = (p: unknown) => {
     const pid = str(p, "playlist id");
-    if (!isLocal(pid)) return data.addToPlaylist(pid, id(t));
+    return isLocal(pid) ? pid : bad("playlist id");
+  };
+  handle("data:myPlaylists", () => localPlaylists());
+  handle("data:addToPlaylist", async (_e, p, t) => {
+    const pid = localId(p);
     const [track] = await data.getTracks([id(t)]);
     if (track) addLocal(pid, track);
   });
-  // signed in: on SoundCloud; otherwise on this computer
-  handle("data:createPlaylist", async (_e, title, ids, where) => {
-    const name = str(title, "title").slice(0, 100);
+  handle("data:createPlaylist", async (_e, title, ids) => {
     const list = Array.isArray(ids) ? ids.slice(0, MAX_TRACKS).map(id) : bad("ids");
-    return signedIn() && where !== "local" ? data.createPlaylist(name, list) : createLocal(name, await tracksOf(list));
+    return createLocal(str(title, "title").slice(0, 100), await tracksOf(list));
   });
-  handle("data:setPlaylistTracks", async (_e, p, ids) => {
-    const pid = str(p, "playlist id");
-    const list = Array.isArray(ids) ? ids.slice(0, MAX_TRACKS).map(id) : bad("ids");
-    if (!isLocal(pid)) return data.setPlaylistTracks(pid, list);
-    setLocalTracks(pid, list);
-  });
-  handle("data:renamePlaylist", (_e, p, title) => {
-    const pid = str(p, "playlist id");
-    const name = str(title, "title").slice(0, 100);
-    return isLocal(pid) ? renameLocal(pid, name) : data.renamePlaylist(pid, name);
-  });
-  handle("data:deletePlaylist", (_e, p) => {
-    const pid = str(p, "playlist id");
-    return isLocal(pid) ? deleteLocal(pid) : data.deletePlaylist(pid);
-  });
+  handle("data:setPlaylistTracks", (_e, p, ids) => setLocalTracks(localId(p), Array.isArray(ids) ? ids.slice(0, MAX_TRACKS).map(id) : bad("ids")));
+  handle("data:renamePlaylist", (_e, p, title) => renameLocal(localId(p), str(title, "title").slice(0, 100)));
+  handle("data:deletePlaylist", (_e, p) => deleteLocal(localId(p)));
   handle("data:resolve", (_e, url) => data.resolve(str(url, "url")));
   handle("data:search", (_e, q, kind, c) => data.search(str(q, "query"), kinds.includes(kind) ? kind : bad("kind"), cursor(c)));
   handle("data:suggest", (_e, q) => data.searchSuggestions(str(q, "query")));

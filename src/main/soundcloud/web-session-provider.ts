@@ -439,19 +439,6 @@ export class WebSessionProvider implements MusicProvider {
     return [...this.liked];
   }
 
-  async getMyPlaylists(): Promise<Playlist[]> {
-    const mine: Playlist[] = [];
-    let cursor: string | null = null;
-    // the library lists own playlists and liked ones together; a few pages are plenty
-    for (let page = 0; page < 4; page++) {
-      const res: Page<Playlist> = await this.getPlaylists(cursor);
-      mine.push(...res.items.filter((p) => p.relation === "own" && !p.id.startsWith("soundcloud:")));
-      cursor = res.next;
-      if (!cursor) break;
-    }
-    return mine;
-  }
-
   async like(trackId: number): Promise<void> {
     await this.http.json(`/users/${await this.myId()}/track_likes/${trackId}`, {}, { method: "PUT", auth: "required" });
     this.liked?.add(trackId);
@@ -463,46 +450,5 @@ export class WebSessionProvider implements MusicProvider {
     await this.http.json(`/users/${await this.myId()}/track_likes/${trackId}`, {}, { method: "DELETE", auth: "required" });
     this.liked?.delete(trackId);
     this.http.clearCache();
-  }
-
-  /** A new private playlist of these tracks (a listening room's history). */
-  async createPlaylist(title: string, trackIds: number[]): Promise<Playlist> {
-    const raw = await this.http.json<RawPlaylist>("/playlists", {}, { method: "POST", auth: "required", body: { playlist: { title, sharing: "private", tracks: trackIds } } });
-    // the library lists show it at once
-    this.http.clearCache();
-    return mapPlaylist(raw, "own");
-  }
-
-  private ownPlaylistPath(playlistId: string) {
-    if (!/^\d+$/.test(playlistId)) throw new ScError("not_found", `bad playlist id ${playlistId}`);
-    return `/playlists/${playlistId}`;
-  }
-
-  private changed(playlistId: string) {
-    this.playlists.delete(playlistId);
-    // the library lists and the playlist page show the change at once
-    this.http.clearCache();
-  }
-
-  async setPlaylistTracks(playlistId: string, trackIds: number[]): Promise<void> {
-    await this.http.json(this.ownPlaylistPath(playlistId), {}, { method: "PUT", auth: "required", body: { playlist: { tracks: trackIds } } });
-    this.changed(playlistId);
-  }
-
-  async renamePlaylist(playlistId: string, title: string): Promise<void> {
-    await this.http.json(this.ownPlaylistPath(playlistId), {}, { method: "PUT", auth: "required", body: { playlist: { title } } });
-    this.changed(playlistId);
-  }
-
-  async deletePlaylist(playlistId: string): Promise<void> {
-    await this.http.json(this.ownPlaylistPath(playlistId), {}, { method: "DELETE", auth: "required" });
-    this.changed(playlistId);
-  }
-
-  async addToPlaylist(playlistId: string, trackId: number): Promise<void> {
-    const { ids } = await this.loadPlaylist(playlistId);
-    if (ids.includes(trackId)) return;
-    await this.http.json(`/playlists/${playlistId}`, {}, { method: "PUT", auth: "required", body: { playlist: { tracks: [...ids, trackId] } } });
-    this.playlists.delete(playlistId);
   }
 }

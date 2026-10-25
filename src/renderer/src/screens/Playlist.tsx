@@ -37,7 +37,7 @@ export default function Playlist({ id }: { id: string }) {
   const own = canEdit(p);
 
   const remove = async () => {
-    if (!p || !window.confirm(t.deletePlaylistConfirm(p.title, local))) return;
+    if (!p || !window.confirm(t.deletePlaylistConfirm(p.title))) return;
     setBusy(true);
     try {
       await deletePlaylist(id);

@@ -65,7 +65,7 @@ export default function Playlists() {
         </PaperButton>
       </div>
       {making && <NewPlaylist className="mb-4 max-w-md" onMade={(p) => go({ name: "playlist", id: p.id })} />}
-      {status.mode !== "session" && <p className="mb-4 max-w-xl text-sm text-muted">{t.localPlaylistsHint}</p>}
+      <p className="mb-4 max-w-xl text-sm text-muted">{t.localPlaylistsHint}</p>
       <PlaylistsView userId="me" />
     </Screen>
   );

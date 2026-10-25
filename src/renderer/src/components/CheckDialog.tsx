@@ -54,15 +54,14 @@ export default function CheckDialog() {
         <motion.div className="fixed inset-0 z-[75] grid place-items-center bg-black/50" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, transition: { duration: 0.08 } }}>
           <div role="dialog" aria-label={t.checkTitle} className="float-card paper-fill sketch sketch-thin w-[36rem] max-w-[92vw] rounded-md p-5 shadow-[4px_6px_0_rgba(0,0,0,0.5)]">
             <h2 className="display-heading -rotate-1 text-2xl text-text">{t.checkTitle.toLowerCase()}</h2>
-            <p className="mt-3 text-sm leading-relaxed text-text/90">{pending.passOnly ? t.checkPassText(pending.action) : t.checkText(pending.action)}</p>
+            <p className="mt-3 text-sm leading-relaxed text-text/90">{t.checkText(pending.action)}</p>
             {state === "waiting" && <p className="mt-3 font-type text-sm text-glow">{t.checkWaiting}</p>}
             {state === "failed" && <p className="mt-3 text-sm text-muted">{t.checkFailed}</p>}
             <div className="mt-5 flex flex-wrap justify-end gap-2">
               <PaperButton onClick={close} disabled={state === "waiting"}>
                 {t.cancel}
               </PaperButton>
-              {/* a check passed in the browser doesn't count for the app's own requests */}
-              {!pending.passOnly && <PaperButton onClick={inBrowser}>{t.checkBrowser}</PaperButton>}
+              <PaperButton onClick={inBrowser}>{t.checkBrowser}</PaperButton>
               {state !== "failed" && (
                 <MarkerButton onClick={() => void inApp()} disabled={state === "waiting"}>
                   {t.checkInApp}

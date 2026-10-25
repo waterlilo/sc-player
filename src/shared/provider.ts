@@ -45,17 +45,9 @@ export interface MusicProvider {
   getWaveform(url: string): Promise<number[]>;
   /** ids of every track the signed-in user liked (for the ♥ buttons) */
   getLikedIds(refresh?: boolean): Promise<number[]>;
-  /** the signed-in user's own playlists (to add a track to) */
-  getMyPlaylists(): Promise<Playlist[]>;
   like(trackId: number): Promise<void>;
   unlike(trackId: number): Promise<void>;
-  addToPlaylist(playlistId: string, trackId: number): Promise<void>;
-  /** a new private playlist of these tracks */
-  createPlaylist(title: string, trackIds: number[]): Promise<Playlist>;
-  /** an own playlist's whole track list, in this order (reordered, or with some taken out) */
-  setPlaylistTracks(playlistId: string, trackIds: number[]): Promise<void>;
-  renamePlaylist(playlistId: string, title: string): Promise<void>;
-  deletePlaylist(playlistId: string): Promise<void>;
+  // no playlist changes: SoundCloud's bot protection refuses them from the app (own playlists are kept locally)
 }
 
 export const MAX_SOURCE_IDS = 10_000;
