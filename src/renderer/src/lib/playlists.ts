@@ -1,8 +1,10 @@
 import type { Playlist } from "@shared/types";
 import { queryClient } from "@/api/queries";
+import { en as t } from "@/i18n/en";
 import { useAuth } from "@/state/auth";
+import { askCheck, useCheck } from "@/state/check";
 import { useSettings } from "@/state/settings";
-import { call } from "./sky";
+import { call, errorCode } from "./sky";
 
 /**
  * Own playlists, made and changed in the app: on SoundCloud when signed in, otherwise kept on this computer (main's
@@ -10,6 +12,43 @@ import { call } from "./sky";
  */
 
 export const isLocal = (id: string) => id.startsWith("local-");
+
+/** where on soundcloud.com the bot protection's check is passed for a playlist change */
+const PLAYLISTS_PAGE = "https://soundcloud.com/you/sets";
+
+/**
+ * SoundCloud's bot protection may stop a change (seen on making a playlist): the check dialog (CheckDialog) lets the
+ * person pass the site's check, then the change is tried again. Closed without it, the change fails like any other.
+ */
+async function checked<T>(action: string, run: () => Promise<T>): Promise<T> {
+  try {
+    return await run();
+  } catch (err) {
+    if (errorCode(err) !== "verify") throw err;
+    return new Promise<T>((resolve, reject) => {
+      let done = false;
+      askCheck({
+        action,
+        url: PLAYLISTS_PAGE,
+        passOnly: true,
+        retry: async () => {
+          try {
+            resolve(await run());
+            done = true;
+            return true;
+          } catch {
+            return false;
+          }
+        },
+      });
+      const off = useCheck.subscribe((s) => {
+        if (s.pending) return;
+        off();
+        if (!done) reject(err);
+      });
+    });
+  }
+}
 
 /** Can this playlist be changed here: one on this computer, or the signed-in user's own on SoundCloud. */
 export function canEdit(p: Playlist | undefined): boolean {
@@ -35,20 +74,30 @@ function repin(id: string, change: Partial<{ title: string }> | null) {
   save({ pinnedPlaylists: change ? pinnedPlaylists.map((x) => (x.id === id ? { ...x, ...change } : x)) : pinnedPlaylists.filter((x) => x.id !== id) });
 }
 
+/**
+ * A new playlist. SoundCloud's bot protection can refuse making one from the app for a while, and passing the site's
+ * check doesn't lift it (seen 2026-10-25): then it can be kept on this computer and moved to SoundCloud later.
+ */
 export async function createPlaylist(title: string, trackIds: number[] = []): Promise<Playlist> {
-  const p = await call("data:createPlaylist", title, trackIds);
+  let p: Playlist;
+  try {
+    p = await call("data:createPlaylist", title, trackIds);
+  } catch (err) {
+    if (errorCode(err) !== "verify" || !window.confirm(t.keepLocalConfirm)) throw err;
+    p = await call("data:createPlaylist", title, trackIds, "local");
+  }
   refresh();
   return p;
 }
 
 export async function addToPlaylist(id: string, trackId: number) {
-  await call("data:addToPlaylist", id, trackId);
+  await checked(t.addToPlaylist, () => call("data:addToPlaylist", id, trackId));
   refresh(id);
 }
 
 /** The whole list in this order: reordered, or with tracks taken out. */
 export async function setTracks(id: string, trackIds: number[]) {
-  await call("data:setPlaylistTracks", id, trackIds);
+  await checked(t.editPlaylist, () => call("data:setPlaylistTracks", id, trackIds));
   refresh(id);
 }
 
@@ -61,13 +110,13 @@ export async function removeFromPlaylist(id: string, trackId: number) {
 }
 
 export async function renamePlaylist(id: string, title: string) {
-  await call("data:renamePlaylist", id, title);
+  await checked(t.editPlaylist, () => call("data:renamePlaylist", id, title));
   repin(id, { title });
   refresh(id);
 }
 
 export async function deletePlaylist(id: string) {
-  await call("data:deletePlaylist", id);
+  await checked(t.deletePlaylist, () => call("data:deletePlaylist", id));
   repin(id, null);
   refresh();
   queryClient.removeQueries({ queryKey: ["playlist", id] });
@@ -76,7 +125,10 @@ export async function deletePlaylist(id: string) {
 
 /** One on this computer goes to SoundCloud (signed in): the new playlist. */
 export async function uploadPlaylist(id: string): Promise<Playlist> {
-  const p = await call("data:uploadPlaylist", id);
+  // refused by the bot protection: it stays here, to be tried again later
+  const p = await call("data:uploadPlaylist", id).catch((err: unknown) => {
+    throw errorCode(err) === "verify" ? new Error(t.uploadRefused) : err;
+  });
   repin(id, null);
   refresh();
   return p;

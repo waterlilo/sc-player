@@ -12,6 +12,8 @@ export interface PendingCheck {
   url: string;
   /** tries the action again (or finds it done on the site); true when it went through */
   retry: () => Promise<boolean>;
+  /** only pass the site's check there, don't do the action on the site (making a playlist twice would make two) */
+  passOnly?: boolean;
 }
 
 export const useCheck = create<{ pending: PendingCheck | null }>(() => ({ pending: null }));

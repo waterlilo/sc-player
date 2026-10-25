@@ -56,8 +56,8 @@ export default function Playlist({ id }: { id: string }) {
       const made = await uploadPlaylist(id);
       toast(t.uploadedPlaylist(made.title));
       go({ name: "playlist", id: made.id });
-    } catch {
-      toast(t.playlistFailed);
+    } catch (err) {
+      toast(err instanceof Error && err.message ? err.message : t.playlistFailed);
     } finally {
       setBusy(false);
     }
@@ -101,7 +101,7 @@ export default function Playlist({ id }: { id: string }) {
                 )}
               </div>
             )}
-            <div className="mt-4 flex gap-3">
+            <div className="mt-4 flex flex-wrap gap-3">
               <MarkerButton disabled={!f.tracks.length} onClick={() => player.playFrom(f.tracks, firstPlayable, f.source)}>
                 <Icon name="play" size={18} /> {t.playAll}
               </MarkerButton>

@@ -256,10 +256,10 @@ function registerIpc() {
     if (track) addLocal(pid, track);
   });
   // signed in: on SoundCloud; otherwise on this computer
-  handle("data:createPlaylist", async (_e, title, ids) => {
+  handle("data:createPlaylist", async (_e, title, ids, where) => {
     const name = str(title, "title").slice(0, 100);
     const list = Array.isArray(ids) ? ids.slice(0, MAX_TRACKS).map(id) : bad("ids");
-    return signedIn() ? data.createPlaylist(name, list) : createLocal(name, await tracksOf(list));
+    return signedIn() && where !== "local" ? data.createPlaylist(name, list) : createLocal(name, await tracksOf(list));
   });
   handle("data:setPlaylistTracks", async (_e, p, ids) => {
     const pid = str(p, "playlist id");

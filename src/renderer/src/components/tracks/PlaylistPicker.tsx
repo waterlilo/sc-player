@@ -4,8 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { artwork, type Playlist } from "@shared/types";
 import { useT } from "@/i18n";
 import { addToPlaylist } from "@/lib/playlists";
-import { call, errorCode } from "@/lib/sky";
-import { askCheck } from "@/state/check";
+import { call } from "@/lib/sky";
 import { useUi } from "@/state/ui";
 import NewPlaylist from "../playlists/NewPlaylist";
 import Icon from "../ui/Icon";
@@ -43,20 +42,9 @@ export default function PlaylistPicker() {
       await addToPlaylist(p.id, track.id);
       toast(t.addedTo(p.title));
       close();
-    } catch (err) {
-      if (errorCode(err) === "verify") {
-        close();
-        const id = track.id;
-        askCheck({
-          action: t.addToPlaylist,
-          url: track.permalinkUrl,
-          retry: () =>
-            call("data:addToPlaylist", p.id, id).then(
-              () => true,
-              () => false,
-            ),
-        });
-      } else toast(t.addFailed);
+    } catch {
+      // a bot check on the way is offered by addToPlaylist itself; here it was turned down or failed
+      toast(t.addFailed);
     } finally {
       setBusy(null);
     }
