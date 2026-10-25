@@ -68,13 +68,13 @@ export default function Appearance() {
             />
           </Row>
           <Unfold open={!!look.surface}>
-            <ColorPicker value={look.surface || "#1c1730"} onChange={(surface) => set({ surface })} presets={SURFACES} maxLight={20} labels={colorLabels} />
+            <ColorPicker value={look.surface || "#1c1730"} onChange={(surface) => set({ surface })} presets={SURFACES} maxLight={20} sample="text" labels={colorLabels} />
           </Unfold>
           <Row label={t.accent} hint={look.accent ? undefined : t.accentAuto}>
             <Choice<"auto" | "fixed"> value={look.accent ? "fixed" : "auto"} onChange={(v) => set({ accent: v === "auto" ? "" : look.accent || "#b2a0e6" })} label={t.accent} options={[["auto", t.accentFromPicture], ["fixed", t.accentFixed]]} />
           </Row>
           <Unfold open={!!look.accent}>
-            <ColorPicker value={look.accent || "#b2a0e6"} onChange={(accent) => set({ accent })} presets={ACCENTS} labels={colorLabels} />
+            <ColorPicker value={look.accent || "#b2a0e6"} onChange={(accent) => set({ accent })} presets={ACCENTS} sample="glow" labels={colorLabels} />
           </Unfold>
           <Row label={t.panelOpacity} hint={`${look.panelOpacity}%`}>
             <Slider value={look.panelOpacity} min={10} max={100} step={1} onChange={(v) => set({ panelOpacity: v })} label={t.panelOpacity} />

@@ -24,13 +24,35 @@ function toHex([h, s, l]: HSL): string {
   const k = (n: number) => (n + h / 30) % 12;
   const a = S * Math.min(L, 1 - L);
   const f = (n: number) => L - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1));
-  return `#${[f(0), f(8), f(4)].map((x) => Math.round(x * 255).toString(16).padStart(2, "0")).join("")}`;
+  return `#${[f(0), f(8), f(4)]
+    .map((x) =>
+      Math.round(x * 255)
+        .toString(16)
+        .padStart(2, "0"),
+    )
+    .join("")}`;
 }
 
 const css = ([h, s, l]: HSL) => `hsl(${h} ${s}% ${l}%)`;
 
 /** One line of the picker: its name, a range whose track shows the colours it goes through, the value. */
-function Line({ label, value, min, max, track, onChange, shown }: { label: string; value: number; min: number; max: number; track: string; onChange: (v: number) => void; shown: string }) {
+function Line({
+  label,
+  value,
+  min,
+  max,
+  track,
+  onChange,
+  shown,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  track: string;
+  onChange: (v: number) => void;
+  shown: string;
+}) {
   return (
     <label className="flex items-center gap-3">
       <span className="w-20 shrink-0 text-sm text-muted">{label}</span>
@@ -55,7 +77,22 @@ function Line({ label, value, min, max, track, onChange, shown }: { label: strin
  * show the colours they go through, the colour's code, and a few ready ones. `maxLight` keeps it dark (the interface
  * colour); the hue is kept while the colour is grey, so moving saturation up again finds it.
  */
-export function ColorPicker({ value, onChange, presets, maxLight = 100, labels }: { value: string; onChange: (hex: string) => void; presets: string[]; maxLight?: number; labels: { hue: string; saturation: string; lightness: string; code: string } }) {
+export function ColorPicker({
+  value,
+  onChange,
+  presets,
+  maxLight = 100,
+  sample,
+  labels,
+}: {
+  value: string;
+  onChange: (hex: string) => void;
+  presets: string[];
+  maxLight?: number;
+  /** the preview: white text on it (the interface colour), or the colour glowing (the accent) */
+  sample: "text" | "glow";
+  labels: { hue: string; saturation: string; lightness: string; code: string };
+}) {
   // a colour saved before the limit (or a theme's) shows at the limit, as it is applied
   const within = (c: HSL): HSL => [c[0], c[1], Math.min(c[2], maxLight)];
   const [hsl, setHsl] = useState<HSL>(() => within(toHsl(value)));
@@ -77,41 +114,82 @@ export function ColorPicker({ value, onChange, presets, maxLight = 100, labels }
   };
 
   return (
-    <div className="flex flex-col gap-3 px-3 pb-3 pt-1">
-      <div className="flex items-center gap-3">
-        <span aria-hidden="true" className="h-9 w-9 shrink-0 rounded-full border border-white/15" style={{ background: css(hsl) }} />
-        <label className="field sketch sketch-thin paper-fill flex rounded-md">
-          <input
-            value={code ?? toHex(hsl)}
-            maxLength={7}
-            spellCheck={false}
-            aria-label={labels.code}
-            onChange={(e) => {
-              const v = e.target.value.trim();
-              setCode(v);
-              if (/^#[0-9a-f]{6}$/i.test(v)) set(toHsl(v));
-            }}
-            onBlur={() => setCode(null)}
-            className="w-24 px-3 py-1.5 font-type text-sm uppercase text-text"
-          />
-        </label>
-        <div className="ml-auto flex flex-wrap gap-1.5">
-          {presets.map((p) => (
-            <button
-              key={p}
-              type="button"
-              aria-label={p}
-              title={p}
-              onClick={() => set(toHsl(p))}
-              className={`h-6 w-6 rounded-full border transition-transform hover:scale-110 ${toHex(hsl) === p.toLowerCase() ? "border-white" : "border-white/15"}`}
-              style={{ background: p }}
-            />
-          ))}
-        </div>
+    <div className="flex gap-4 px-3 pb-3 pt-1">
+      {/* the colour, big: as text sits on it, or as it glows */}
+      <div
+        aria-hidden="true"
+        className="relative flex w-28 shrink-0 flex-col justify-end overflow-hidden rounded-[var(--r,10px)] border border-white/20 p-3"
+        style={{
+          background: `linear-gradient(160deg, rgba(255, 255, 255, 0.1), transparent 45%), ${css(hsl)}`,
+          boxShadow: sample === "glow" ? `0 0 22px ${css([h, s, l])}66` : "inset 0 1px 0 rgba(255, 255, 255, 0.08)",
+        }}
+      >
+        {sample === "text" && (
+          <>
+            <span className="text-2xl font-semibold leading-none text-white">Aa</span>
+            <span className="mt-1.5 text-[11px] text-white/60">sc player</span>
+          </>
+        )}
       </div>
-      <Line label={labels.hue} value={h} min={0} max={359} shown={`${h}°`} track="linear-gradient(90deg, hsl(0 80% 55%), hsl(60 80% 55%), hsl(120 80% 55%), hsl(180 80% 55%), hsl(240 80% 55%), hsl(300 80% 55%), hsl(359 80% 55%))" onChange={(v) => set([v, s, l])} />
-      <Line label={labels.saturation} value={s} min={0} max={100} shown={`${s}%`} track={`linear-gradient(90deg, ${css([h, 0, Math.max(l, 25)])}, ${css([h, 100, Math.max(l, 25)])})`} onChange={(v) => set([h, v, l])} />
-      <Line label={labels.lightness} value={l} min={0} max={maxLight} shown={`${l}%`} track={`linear-gradient(90deg, ${css([h, s, 0])}, ${css([h, s, maxLight / 2])}, ${css([h, s, maxLight])})`} onChange={(v) => set([h, s, v])} />
+      <div className="flex min-w-0 flex-1 flex-col gap-3">
+        <div className="flex items-center gap-3">
+          <label className="field sketch sketch-thin paper-fill flex rounded-md">
+            <input
+              value={code ?? toHex(hsl)}
+              maxLength={7}
+              spellCheck={false}
+              aria-label={labels.code}
+              onChange={(e) => {
+                const v = e.target.value.trim();
+                setCode(v);
+                if (/^#[0-9a-f]{6}$/i.test(v)) set(toHsl(v));
+              }}
+              onBlur={() => setCode(null)}
+              className="w-24 px-3 py-1.5 font-type text-sm uppercase text-text"
+            />
+          </label>
+          <div className="ml-auto flex flex-wrap gap-1.5">
+            {presets.map((p) => (
+              <button
+                key={p}
+                type="button"
+                aria-label={p}
+                title={p}
+                onClick={() => set(toHsl(p))}
+                className={`h-6 w-6 rounded-full border transition-transform hover:scale-110 ${toHex(hsl) === p.toLowerCase() ? "border-white" : "border-white/15"}`}
+                style={{ background: p }}
+              />
+            ))}
+          </div>
+        </div>
+        <Line
+          label={labels.hue}
+          value={h}
+          min={0}
+          max={359}
+          shown={`${h}°`}
+          track="linear-gradient(90deg, hsl(0 80% 55%), hsl(60 80% 55%), hsl(120 80% 55%), hsl(180 80% 55%), hsl(240 80% 55%), hsl(300 80% 55%), hsl(359 80% 55%))"
+          onChange={(v) => set([v, s, l])}
+        />
+        <Line
+          label={labels.saturation}
+          value={s}
+          min={0}
+          max={100}
+          shown={`${s}%`}
+          track={`linear-gradient(90deg, ${css([h, 0, Math.max(l, 25)])}, ${css([h, 100, Math.max(l, 25)])})`}
+          onChange={(v) => set([h, v, l])}
+        />
+        <Line
+          label={labels.lightness}
+          value={l}
+          min={0}
+          max={maxLight}
+          shown={`${l}%`}
+          track={`linear-gradient(90deg, ${css([h, s, 0])}, ${css([h, s, maxLight / 2])}, ${css([h, s, maxLight])})`}
+          onChange={(v) => set([h, s, v])}
+        />
+      </div>
     </div>
   );
 }
@@ -119,7 +197,10 @@ export function ColorPicker({ value, onChange, presets, maxLight = 100, labels }
 /** Opens and closes smoothly under a row (height from 0 to its content); closed, its controls can't be reached. */
 export function Unfold({ open, children }: { open: boolean; children: ReactNode }) {
   return (
-    <div className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out ${open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`} inert={!open}>
+    <div
+      className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out ${open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
+      inert={!open}
+    >
       <div className="min-h-0 overflow-hidden">{children}</div>
     </div>
   );
