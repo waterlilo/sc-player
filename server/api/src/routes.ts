@@ -153,7 +153,8 @@ function friendsOf(d: Row) {
     v: Number(d.friends_v),
     friends: rows.filter((r) => r.accepted).map((r) => ({ code: r.code, name: r.name, since: r.created, now: live(r), rooms: String(r.features).split(",").includes("rooms") })),
     incoming: rows.filter((r) => !r.accepted && r.asked_by !== d.id).map((r) => ({ code: r.code, name: r.name, at: r.created })),
-    outgoing: rows.filter((r) => !r.accepted && r.asked_by === d.id).map((r) => ({ code: r.code, name: r.name, at: r.created })),
+    // whom I asked shows as a code until they accept: a request mustn't reveal the name behind any code one tries
+    outgoing: rows.filter((r) => !r.accepted && r.asked_by === d.id).map((r) => ({ code: r.code, name: "", at: r.created })),
   };
 }
 

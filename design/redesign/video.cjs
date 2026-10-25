@@ -12,7 +12,8 @@ const args = process.argv.slice(2).filter((a) => !a.startsWith("--") || a === "-
 const screen = args[0] || "home";
 const stillAt = process.argv.includes("--still") ? Number(process.argv[process.argv.indexOf("--still") + 1]) : null;
 const count = Number(args[1] && !args.includes("--still") ? args[1] : 420);
-const AUDIO = "C:/Users/dnkuv/Desktop/sc-media/public/music/neko.wav";
+// the music the recording is analysed with: a local file, given as SC_VIDEO_AUDIO (not kept in the repository)
+const AUDIO = process.env.SC_VIDEO_AUDIO ?? "";
 
 app.commandLine.appendSwitch("force-device-scale-factor", stillAt != null ? "1.5" : "1");
 

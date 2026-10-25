@@ -197,7 +197,17 @@ export function roomRoutes(h: Helpers): [string, RegExp, (c: Ctx) => unknown][] 
       },
     ],
     ["POST", /^\/v1\/rooms$/, create],
-    ["GET", new RegExp(`^/v1/rooms/${RID}$`), (c) => (mine(c), view(c, c.params[0]!))],
+    [
+      "GET",
+      new RegExp(`^/v1/rooms/${RID}$`),
+      (c) => {
+        // the room's people and tracks: for its members and those invited (an invitation shows it before joining)
+        const me = Number(mine(c).id);
+        const r = rooms.get(c.params[0]!) ?? fail(404, "this room is closed");
+        if (!r.members.some((m) => m.id === me) && !r.invited.has(me)) fail(404, "this room is closed");
+        view(c, r.id);
+      },
+    ],
     ["GET", new RegExp(`^/v1/rooms/${RID}/events$`), events],
     ["GET", new RegExp(`^/v1/rooms/${RID}/history$`), history],
     ["POST", new RegExp(`^/v1/rooms/${RID}/invite$`), invite],

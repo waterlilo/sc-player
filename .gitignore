@@ -10,3 +10,19 @@ proxy.local.json
 server/.env
 server/api/data*/
 server.local.json
+
+# never in the repository: environment files, keys, recordings and app data
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.pcm
+*.wav
+*.sqlite
+*.db
+*.db-*
+settings.json
+secrets.bin

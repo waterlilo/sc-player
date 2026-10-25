@@ -24,6 +24,8 @@ assert.match(a.code, /^SKY-[2-9A-HJ-NP-Z]{5}$/);
 
 // friends: a asks, b sees it, b accepts
 assert.equal((await api("POST", "/v1/friends", { secret: a.secret, body: { code: b.code } })).body.outgoing.length, 1);
+// a request doesn't reveal the name behind the code until it's accepted
+assert.equal((await api("GET", "/v1/friends", { secret: a.secret })).body.outgoing[0].name, "");
 assert.equal((await api("POST", "/v1/friends", { secret: a.secret, body: { code: a.code } })).status, 400);
 assert.equal((await api("GET", "/v1/friends", { secret: b.secret })).body.incoming[0].name, "sky");
 assert.equal((await api("POST", "/v1/send", { secret: a.secret, body: { to: [b.code], track } })).status, 403);
