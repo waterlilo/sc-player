@@ -27,6 +27,15 @@ export const useAuth = create<AuthStore>((set) => ({
       // seen on any screen, not only on the sign-in one
       useUi.getState().showToast(t.browserRefused);
     });
+    // signed in, but SoundCloud didn't answer at the start (offline, the route to it restarting): the account is asked
+    // for again every 15 s until it comes — the sign-in itself is kept, the page just showed no account meanwhile
+    window.setInterval(() => {
+      const st = useAuth.getState().status;
+      if (st?.mode !== "session" || st.user) return;
+      void call("auth:status")
+        .then((status) => set({ status }))
+        .catch(() => undefined);
+    }, 15_000);
     try {
       set({ status: await call("auth:status") });
     } catch {
