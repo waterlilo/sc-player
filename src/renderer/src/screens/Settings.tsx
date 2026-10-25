@@ -7,6 +7,7 @@ import LyricsSync from "@/components/settings/LyricsSync";
 import Messenger from "@/components/settings/Messenger";
 import { Choice, Row, Section, Slider, Toggle } from "@/components/settings/Controls";
 import { MarkerButton, PaperButton } from "@/components/ui/Buttons";
+import Chip from "@/components/ui/Chip";
 import Icon from "@/components/ui/Icon";
 import { Screen, ScreenTitle } from "@/components/ui/Screen";
 import { useT } from "@/i18n";
@@ -16,6 +17,7 @@ import { useSystem } from "@/lib/system";
 import { useAuth } from "@/state/auth";
 import { useSettings } from "@/state/settings";
 import { useUi } from "@/state/ui";
+import { useViewState } from "@/state/viewState";
 
 const RELEASES = "https://github.com/waterlilo/sc-player/releases/latest";
 
@@ -280,8 +282,21 @@ function Diagnostics() {
 }
 
 /** Settings. Everything is saved at once; main applies what it is responsible for (tray, autostart, shortcuts). */
+/** The settings in tabs, so nothing is far down a long page; the tab stays while the app runs. */
+type Tab = "playback" | "look" | "app" | "hidden" | "friends" | "network" | "account";
+
 export default function Settings() {
   const t = useT();
+  const [tab, setTab] = useViewState<Tab>("settings:tab", "playback");
+  const tabs: [Tab, string][] = [
+    ["playback", t.secPlayback],
+    ["look", t.secAppearance],
+    ["app", t.settingsApp],
+    ["hidden", t.secHidden],
+    ["friends", t.messengerSettings],
+    ["network", t.secNetwork],
+    ["account", t.secAccount],
+  ];
   const prefs = useSettings((s) => s.prefs);
   const setPref = useSettings((s) => s.setPref);
   const failed = useSystem((s) => s.hotkeysFailed);
@@ -304,164 +319,194 @@ export default function Settings() {
     <Screen label={t.settings}>
       <ScreenTitle meta={`${t.version} ${__APP_VERSION__}`}>{t.settings.toLowerCase()}</ScreenTitle>
 
-      <Section title={t.secPlayback}>
-        <Row label={t.substitute} hint={t.substituteHint}>
-          <Toggle on={prefs.substitute} onChange={(v) => setPref("substitute", v)} label={t.substitute} />
-        </Row>
-        {prefs.substitute && (
-          <Row label={t.substituteTolerance}>
-            <Choice
-              label={t.substituteTolerance}
-              value={String(prefs.substituteTolerance)}
-              options={[
-                ["2", t.strict(2)],
-                ["3", t.strict(3)],
-                ["5", t.strict(5)],
-              ]}
-              onChange={(v) => setPref("substituteTolerance", Number(v))}
-            />
-          </Row>
-        )}
-        <Row label={t.autopilot} hint={t.autopilotHint}>
-          <Toggle on={prefs.autopilot} onChange={(v) => setPref("autopilot", v)} label={t.autopilot} />
-        </Row>
-        <Row label={t.crossfade} hint={t.crossfadeHint}>
-          <span className="w-12 text-right font-type text-sm text-muted">{prefs.crossfade ? t.seconds(prefs.crossfade) : t.off}</span>
-          <Slider value={prefs.crossfade} min={0} max={12} step={1} onChange={(v) => setPref("crossfade", v)} label={t.crossfade} />
-        </Row>
-        <Row label={t.streamQuality} hint={t.streamQualityHint}>
-          <Choice
-            label={t.streamQuality}
-            value={prefs.streamQuality}
-            options={[
-              ["high", t.qualityHigh],
-              ["low", t.qualityLow],
-            ]}
-            onChange={(v) => setPref("streamQuality", v)}
-          />
-        </Row>
-      </Section>
-
-      <LyricsSync />
-
-      <Section title={t.secSound}>
-        <Equalizer />
-        <OutputDevice />
-      </Section>
-
-      <Appearance />
-
-      <Section title={t.secWindow}>
-        <Row label={t.closeButton} hint={t.closeHint}>
-          <Choice
-            label={t.closeButton}
-            value={prefs.closeToTray ? "tray" : "quit"}
-            options={[
-              ["tray", t.closeToTray],
-              ["quit", t.closeQuits],
-            ]}
-            onChange={(v) => setPref("closeToTray", v === "tray")}
-          />
-        </Row>
-        <Row label={t.startWithWindows} hint={autostartOk ? undefined : t.autostartUnavailable}>
-          <Toggle on={prefs.startWithWindows} disabled={!autostartOk} onChange={(v) => setPref("startWithWindows", v)} label={t.startWithWindows} />
-        </Row>
-        <Row label={t.startMinimized}>
-          <Toggle on={prefs.startMinimized} disabled={!prefs.startWithWindows} onChange={(v) => setPref("startMinimized", v)} label={t.startMinimized} />
-        </Row>
-        <Row label={t.notifications} hint={t.notificationsHint}>
-          <Toggle on={prefs.notifications} onChange={(v) => setPref("notifications", v)} label={t.notifications} />
-        </Row>
-        <Row label={t.trackPopup} hint={t.trackPopupHint}>
-          <Toggle on={prefs.trackPopup} onChange={(v) => setPref("trackPopup", v)} label={t.trackPopup} />
-        </Row>
-        <Row label={t.popupCorner}>
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <Choice
-              value={prefs.popupCorner}
-              label={t.popupCorner}
-              onChange={(v) => setPref("popupCorner", v)}
-              options={[
-                ["bottom-right", t.cornerBottomRight],
-                ["top-right", t.cornerTopRight],
-                ["bottom-left", t.cornerBottomLeft],
-                ["top-left", t.cornerTopLeft],
-              ]}
-            />
-            <PaperButton onClick={() => void call("popup:preview")}>{t.showPopup}</PaperButton>
-          </div>
-        </Row>
-      </Section>
-
-      <Section title={t.secHotkeys}>
-        <p className="px-3 pb-1 text-sm text-muted">{t.hkHint}</p>
-        {hotkeyRows.map(([action, label]) => (
-          <Row key={action} label={label}>
-            <HotkeyRecorder label={label} value={prefs.hotkeys[action]} taken={failed.includes(action)} onChange={(accel) => setPref("hotkeys", { ...prefs.hotkeys, [action]: accel })} />
-          </Row>
+      <div role="tablist" aria-label={t.settings} className="mb-6 flex flex-wrap gap-2">
+        {tabs.map(([key, label], i) => (
+          <Chip key={key} index={i} active={tab === key} onClick={() => setTab(key)}>
+            {label}
+          </Chip>
         ))}
-        <div className="px-3 pt-1">
-          <button type="button" onClick={() => setPref("hotkeys", PREFS_DEFAULTS.hotkeys)} className="font-type text-xs text-muted underline-offset-2 hover:text-text hover:underline">
-            {t.hkReset}
-          </button>
-        </div>
-      </Section>
+      </div>
 
-      <Section title={t.secHidden}>
-        <div className="rounded-md px-3 py-2.5">
-          <div className="font-medium text-text">{t.blockedArtists}</div>
-          {prefs.blockedArtists.length ? (
-            <ul className="mt-2 flex flex-wrap gap-2">
-              {prefs.blockedArtists.map((a) => (
-                <li key={a.id} className="paper-fill torn flex items-center gap-1.5 py-1 pl-3 pr-1.5 text-sm text-text">
-                  {a.username}
-                  <button
-                    type="button"
-                    aria-label={`${t.unblock}: ${a.username}`}
-                    title={t.unblock}
-                    onClick={() => setPref("blockedArtists", prefs.blockedArtists.filter((x) => x.id !== a.id))}
-                    className="grid h-5 w-5 place-items-center rounded-full text-muted hover:text-glow"
-                  >
-                    <Icon name="close" size={11} />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <div className="mt-0.5 text-sm text-muted">{t.blockedNone}</div>
-          )}
-        </div>
-        <Keywords />
-      </Section>
+      {tab === "playback" && (
+        <>
+          <Section title={t.secPlayback}>
+            <Row label={t.substitute} hint={t.substituteHint}>
+              <Toggle on={prefs.substitute} onChange={(v) => setPref("substitute", v)} label={t.substitute} />
+            </Row>
+            {prefs.substitute && (
+              <Row label={t.substituteTolerance}>
+                <Choice
+                  label={t.substituteTolerance}
+                  value={String(prefs.substituteTolerance)}
+                  options={[
+                    ["2", t.strict(2)],
+                    ["3", t.strict(3)],
+                    ["5", t.strict(5)],
+                  ]}
+                  onChange={(v) => setPref("substituteTolerance", Number(v))}
+                />
+              </Row>
+            )}
+            <Row label={t.autopilot} hint={t.autopilotHint}>
+              <Toggle on={prefs.autopilot} onChange={(v) => setPref("autopilot", v)} label={t.autopilot} />
+            </Row>
+            <Row label={t.crossfade} hint={t.crossfadeHint}>
+              <span className="w-12 text-right font-type text-sm text-muted">{prefs.crossfade ? t.seconds(prefs.crossfade) : t.off}</span>
+              <Slider value={prefs.crossfade} min={0} max={12} step={1} onChange={(v) => setPref("crossfade", v)} label={t.crossfade} />
+            </Row>
+            <Row label={t.streamQuality} hint={t.streamQualityHint}>
+              <Choice
+                label={t.streamQuality}
+                value={prefs.streamQuality}
+                options={[
+                  ["high", t.qualityHigh],
+                  ["low", t.qualityLow],
+                ]}
+                onChange={(v) => setPref("streamQuality", v)}
+              />
+            </Row>
+          </Section>
 
-      <Messenger />
+          <LyricsSync />
 
-      <Section title={t.secUpdates}>
-        <Updates info={info} />
-      </Section>
+          <Section title={t.secSound}>
+            <Equalizer />
+            <OutputDevice />
+          </Section>
+        </>
+      )}
+      {tab === "look" && (
+        <>
+          <Appearance />
+        </>
+      )}
+      {tab === "app" && (
+        <>
+          <Section title={t.secWindow}>
+            <Row label={t.closeButton} hint={t.closeHint}>
+              <Choice
+                label={t.closeButton}
+                value={prefs.closeToTray ? "tray" : "quit"}
+                options={[
+                  ["tray", t.closeToTray],
+                  ["quit", t.closeQuits],
+                ]}
+                onChange={(v) => setPref("closeToTray", v === "tray")}
+              />
+            </Row>
+            <Row label={t.startWithWindows} hint={autostartOk ? undefined : t.autostartUnavailable}>
+              <Toggle on={prefs.startWithWindows} disabled={!autostartOk} onChange={(v) => setPref("startWithWindows", v)} label={t.startWithWindows} />
+            </Row>
+            <Row label={t.startMinimized}>
+              <Toggle on={prefs.startMinimized} disabled={!prefs.startWithWindows} onChange={(v) => setPref("startMinimized", v)} label={t.startMinimized} />
+            </Row>
+            <Row label={t.notifications} hint={t.notificationsHint}>
+              <Toggle on={prefs.notifications} onChange={(v) => setPref("notifications", v)} label={t.notifications} />
+            </Row>
+            <Row label={t.trackPopup} hint={t.trackPopupHint}>
+              <Toggle on={prefs.trackPopup} onChange={(v) => setPref("trackPopup", v)} label={t.trackPopup} />
+            </Row>
+            <Row label={t.popupCorner}>
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <Choice
+                  value={prefs.popupCorner}
+                  label={t.popupCorner}
+                  onChange={(v) => setPref("popupCorner", v)}
+                  options={[
+                    ["bottom-right", t.cornerBottomRight],
+                    ["top-right", t.cornerTopRight],
+                    ["bottom-left", t.cornerBottomLeft],
+                    ["top-left", t.cornerTopLeft],
+                  ]}
+                />
+                <PaperButton onClick={() => void call("popup:preview")}>{t.showPopup}</PaperButton>
+              </div>
+            </Row>
+          </Section>
 
-      <Section title={t.secDiagnostics}>
-        <Diagnostics />
-      </Section>
+          <Section title={t.secHotkeys}>
+            <p className="px-3 pb-1 text-sm text-muted">{t.hkHint}</p>
+            {hotkeyRows.map(([action, label]) => (
+              <Row key={action} label={label}>
+                <HotkeyRecorder label={label} value={prefs.hotkeys[action]} taken={failed.includes(action)} onChange={(accel) => setPref("hotkeys", { ...prefs.hotkeys, [action]: accel })} />
+              </Row>
+            ))}
+            <div className="px-3 pt-1">
+              <button type="button" onClick={() => setPref("hotkeys", PREFS_DEFAULTS.hotkeys)} className="font-type text-xs text-muted underline-offset-2 hover:text-text hover:underline">
+                {t.hkReset}
+              </button>
+            </div>
+          </Section>
 
-      <Section title={t.secNetwork}>
-        <Proxy />
-      </Section>
+          <Section title={t.secUpdates}>
+            <Updates info={info} />
+          </Section>
+        </>
+      )}
+      {tab === "hidden" && (
+        <>
+          <Section title={t.secHidden}>
+            <div className="rounded-md px-3 py-2.5">
+              <div className="font-medium text-text">{t.blockedArtists}</div>
+              {prefs.blockedArtists.length ? (
+                <ul className="mt-2 flex flex-wrap gap-2">
+                  {prefs.blockedArtists.map((a) => (
+                    <li key={a.id} className="paper-fill torn flex items-center gap-1.5 py-1 pl-3 pr-1.5 text-sm text-text">
+                      {a.username}
+                      <button
+                        type="button"
+                        aria-label={`${t.unblock}: ${a.username}`}
+                        title={t.unblock}
+                        onClick={() => setPref("blockedArtists", prefs.blockedArtists.filter((x) => x.id !== a.id))}
+                        className="grid h-5 w-5 place-items-center rounded-full text-muted hover:text-glow"
+                      >
+                        <Icon name="close" size={11} />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="mt-0.5 text-sm text-muted">{t.blockedNone}</div>
+              )}
+            </div>
+            <Keywords />
+          </Section>
+        </>
+      )}
+      {tab === "friends" && (
+        <>
+          <Messenger />
+        </>
+      )}
+      {tab === "network" && (
+        <>
+          <Section title={t.secNetwork}>
+            <Proxy />
+          </Section>
 
-      <Section title={t.secAbout}>
-        <p className="px-3 text-sm text-muted">{t.unofficial}</p>
-        <div className="px-3 pt-2">
-          <button type="button" onClick={() => void call("shell:open", REPO)} className="inline-flex items-center gap-1.5 font-type text-xs text-muted underline-offset-2 hover:text-text hover:underline">
-            <Icon name="external" size={13} /> {t.sourceCode}
-          </button>
-        </div>
-      </Section>
+          <Section title={t.secDiagnostics}>
+            <Diagnostics />
+          </Section>
+        </>
+      )}
+      {tab === "account" && (
+        <>
+          <Section title={t.secAccount}>
+            <Row label={status?.user ? t.signedInAs(status.user.username) : t.notSignedIn}>
+              {status?.mode === "session" && <PaperButton onClick={() => void logout()}>{t.logout}</PaperButton>}
+            </Row>
+          </Section>
 
-      <Section title={t.secAccount}>
-        <Row label={status?.user ? t.signedInAs(status.user.username) : t.notSignedIn}>
-          {status?.mode === "session" && <PaperButton onClick={() => void logout()}>{t.logout}</PaperButton>}
-        </Row>
-      </Section>
+          <Section title={t.secAbout}>
+            <p className="px-3 text-sm text-muted">{t.unofficial}</p>
+            <div className="px-3 pt-2">
+              <button type="button" onClick={() => void call("shell:open", REPO)} className="inline-flex items-center gap-1.5 font-type text-xs text-muted underline-offset-2 hover:text-text hover:underline">
+                <Icon name="external" size={13} /> {t.sourceCode}
+              </button>
+            </div>
+          </Section>
+        </>
+      )}
     </Screen>
   );
 }

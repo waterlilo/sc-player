@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { useT } from "@/i18n";
 import { call } from "@/lib/sky";
 import { useSettings } from "@/state/settings";
@@ -18,8 +18,24 @@ export default function Messenger() {
   const setPref = useSettings((s) => s.setPref);
   const toast = useUi((s) => s.showToast);
   const [busy, setBusy] = useState(false);
+  // what friends see; typed here, sent with Save
+  const [name, setName] = useState<string | null>(null);
   if (!status?.available) return null;
   const profile = status.profile;
+  const shownName = name ?? profile?.name ?? "";
+
+  const rename = async (e: FormEvent) => {
+    e.preventDefault();
+    const next = shownName.trim();
+    if (!next || next === profile?.name) return;
+    try {
+      setStatus(await call("social:profile", { name: next }));
+      setName(null);
+      toast(t.saved);
+    } catch {
+      toast(t.serverOffline);
+    }
+  };
 
   const share = async (on: boolean) => {
     try {
@@ -43,6 +59,18 @@ export default function Messenger() {
 
   return (
     <Section title={t.messengerSettings}>
+      {profile && (
+        <Row label={t.yourName} hint={t.yourNameHint}>
+          <form onSubmit={(e) => void rename(e)} className="flex items-center gap-2">
+            <label className="field sketch sketch-thin paper-fill flex rounded-md">
+              <input value={shownName} maxLength={32} onChange={(e) => setName(e.target.value)} aria-label={t.yourName} className="w-44 px-3 py-1.5 text-sm text-text" />
+            </label>
+            <PaperButton type="submit" disabled={!shownName.trim() || shownName.trim() === profile.name}>
+              {t.save}
+            </PaperButton>
+          </form>
+        </Row>
+      )}
       {profile && (
         <Row label={t.shareNow} hint={t.shareNowHint}>
           <Toggle on={profile.shareNow} onChange={(v) => void share(v)} label={t.shareNow} />

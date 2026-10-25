@@ -421,6 +421,8 @@ export const en = {
   sendFailed: "Didn't send — sc player's server didn't answer",
   serverOffline: "sc player's server didn't answer. Try again in a moment.",
   trackGone: "This track isn't on SoundCloud any more",
+  yourNameHint: "What friends see in their list, chats and listening rooms",
+  settingsApp: "App",
   messengerSettings: "Messenger",
   shareNow: "Show friends what I'm listening to",
   shareNowHint: "Only the current track, only to friends",

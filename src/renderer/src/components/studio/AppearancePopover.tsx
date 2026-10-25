@@ -7,6 +7,7 @@ import { call } from "@/lib/sky";
 import { useNav } from "@/state/nav";
 import { useSettings } from "@/state/settings";
 import { useUi } from "@/state/ui";
+import { setViewValue } from "@/state/viewState";
 import Icon from "../ui/Icon";
 
 function Knob({ label, value, min, max, unit, onChange }: { label: string; value: number; min: number; max: number; unit: string; onChange: (v: number) => void }) {
@@ -145,6 +146,8 @@ export default function AppearancePopover() {
               className="hover:text-text"
               onClick={() => {
                 close(null);
+                // straight to the Appearance tab
+                setViewValue(JSON.stringify({ name: "settings" }), "settings:tab", "look");
                 open("settings", { name: "settings" });
               }}
             >
