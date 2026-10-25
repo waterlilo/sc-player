@@ -191,7 +191,7 @@ export function withPrefDefaults(stored: Partial<Prefs> | undefined): Prefs {
   const proxy = { ...PREFS_DEFAULTS.proxy, ...stored?.proxy };
   // "system" was the default before "auto" existed: such settings move to the new default once (v marks it done)
   if (stored?.proxy && !stored.proxy.v) Object.assign(proxy, { v: 2, mode: proxy.mode === "system" ? "auto" : proxy.mode });
-  return { ...p, hotkeys: { ...PREFS_DEFAULTS.hotkeys, ...stored?.hotkeys }, eq: { ...PREFS_DEFAULTS.eq, ...stored?.eq }, proxy, look: { ...PREFS_DEFAULTS.look, ...stored?.look }, spectrum: { ...PREFS_DEFAULTS.spectrum, ...stored?.spectrum } };
+  return { ...p, hotkeys: { ...PREFS_DEFAULTS.hotkeys, ...stored?.hotkeys }, eq: { ...PREFS_DEFAULTS.eq, ...stored?.eq }, proxy, look: { ...PREFS_DEFAULTS.look, ...stored?.look, design: "studio" }, spectrum: { ...PREFS_DEFAULTS.spectrum, ...stored?.spectrum } };
 }
 
 /** State the renderer keeps in main's store (settings.json in userData). */
@@ -369,6 +369,8 @@ export interface InvokeMap {
   "ws:list": (sort: WsSort, page: number, q: string, mine: boolean) => WsPage;
   "ws:get": (id: string) => WsThemeFull;
   /** publish the current look (with its own background when `withBackground`) and a picture of the window; the theme's id */
+  /** a picture of the window for the theme being published (taken while the page has stepped aside) */
+  "ws:capture": () => void;
   "ws:publish": (t: { name: string; description: string; withBackground: boolean }) => string;
   /** download a theme (and its background): the look to apply */
   "ws:install": (id: string) => Look;
@@ -427,6 +429,7 @@ export const INVOKE_CHANNELS = [
   "room:history",
   "ws:list",
   "ws:get",
+  "ws:capture",
   "ws:publish",
   "ws:install",
   "ws:like",

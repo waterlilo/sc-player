@@ -138,9 +138,6 @@ export default function AppearancePopover() {
             <Swatches />
           </div>
           <div className="mt-1.5 flex items-center justify-between border-t border-[var(--s-line)] px-2 pt-2 text-[11px] text-[var(--s-dim)]">
-            <button type="button" className="hover:text-text" onClick={() => set({ design: "og" })}>
-              {t.switchToOg}
-            </button>
             <button
               type="button"
               className="hover:text-text"

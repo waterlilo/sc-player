@@ -182,10 +182,21 @@ function PublishDialog({ onClose }: { onClose: () => void }) {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    // the preview is a picture of the window: the dialog leaves first
+    // the preview is a picture of the window: the dialog, the page and the toasts leave first, so the middle shows the
+    // background rather than the workshop's own grid of themes
     onClose();
+    const { setPosing } = useUi.getState();
+    setPosing(true);
+    try {
+      await new Promise((r) => setTimeout(r, 450));
+      await call("ws:capture");
+    } catch (err) {
+      setPosing(false);
+      toast(err instanceof Error && err.message ? err.message : t.serverOffline);
+      return;
+    }
+    setPosing(false);
     toast(t.publishing);
-    await new Promise((r) => setTimeout(r, 450));
     try {
       await call("ws:publish", { name: name.trim(), description: description.trim(), withBackground: hasOwnBg && withBackground });
       toast(t.published);

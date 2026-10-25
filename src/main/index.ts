@@ -313,6 +313,7 @@ function registerIpc() {
   handle("social:recent", () => social.recent());
   handle("ws:list", (_e, sort, page, q, mine) => social.wsList(sort === "top" ? "top" : "new", typeof page === "number" && page >= 0 && page < 1000 ? Math.floor(page) : 0, str(q ?? "", "query").slice(0, 40), mine === true));
   handle("ws:get", (_e, t) => social.wsGet(themeId(t)));
+  handle("ws:capture", () => social.wsCapture());
   handle("ws:publish", (_e, t) => {
     const o = (typeof t === "object" && t !== null ? t : bad("theme")) as Record<string, unknown>;
     return social.wsPublish({ name: str(o.name, "name").slice(0, 40), description: str(o.description ?? "", "description").slice(0, 300), withBackground: o.withBackground === true });

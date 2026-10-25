@@ -156,7 +156,6 @@ let source = "";
 let job = 0;
 async function update() {
   const look = useSettings.getState().prefs.look;
-  if (look.design !== "studio") return;
   const t: Track | undefined = usePlayer.getState().queue[usePlayer.getState().index];
   const picture =
     look.bg === "file" && look.bgFile ? `${look.bgFileType}:${bgUrl(look.bgFile)}` : t?.artworkUrl ? `image:${artwork(t.artworkUrl, "t300x300")}` : "";
@@ -179,7 +178,8 @@ async function update() {
 
 function applyKnobs(look: Look) {
   const html = document.documentElement;
-  html.dataset.design = look.design;
+  // the old night design is gone: a theme that still says "og" shows as studio
+  html.dataset.design = "studio";
   html.classList.toggle("lite", look.lite);
   html.classList.toggle("thin-glass", look.panelOpacity < 40);
   const root = html.style;

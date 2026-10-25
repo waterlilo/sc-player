@@ -15,6 +15,9 @@ interface UiStore {
   /** studio: the Appearance popover, opened from the sidebar ("side") or the full screen player ("full") */
   appearance: "side" | "full" | null;
   setAppearance(where: "side" | "full" | null): void;
+  /** the workshop is taking its picture of the look: the page steps aside */
+  posing: boolean;
+  setPosing(posing: boolean): void;
   /** what the full screen player shows on the right */
   fullTab: FullTab;
   setFullTab(tab: FullTab): void;
@@ -71,6 +74,8 @@ export const useUi = create<UiStore>((set) => ({
     }),
   appearance: null,
   setAppearance: (appearance) => set({ appearance }),
+  posing: false,
+  setPosing: (posing) => set({ posing }),
   fullTab: "lyrics",
   setFullTab: (fullTab) => set({ fullTab }),
   fullOpen: false,

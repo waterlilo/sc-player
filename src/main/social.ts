@@ -332,19 +332,27 @@ function themeLook(l: Look): ThemeLook {
   return { design: l.design, bg: l.bg, bgBlur: l.bgBlur, bgDim: l.bgDim, bgReact: l.bgReact, panelOpacity: l.panelOpacity, panelBlur: l.panelBlur, accent: l.accent, surface: l.surface };
 }
 
-/** Publish the current look: the theme, its background (optional), then a picture of the window as its preview. */
+/** The picture of the look a theme is shown with: taken while the page has stepped aside (the background shows). */
+let preview: Buffer | null = null;
+export async function wsCapture() {
+  const w = win();
+  if (!w) throw new ScError("unknown", "no window");
+  const shot = await w.webContents.capturePage();
+  preview = shot.resize({ width: Math.min(1200, shot.getSize().width) }).toJPEG(84);
+}
+
+/** Publish the current look: the theme, its background (optional), then the picture taken by wsCapture. */
 export async function wsPublish(t: { name: string; description: string; withBackground: boolean }): Promise<string> {
   needProfile();
   const look = prefs().look;
   const bg = t.withBackground && look.bg === "file" ? readBackground(look.bgFile) : null;
   if (bg && bg.data.length > 25 * 1024 * 1024) throw new ScError("unknown", "The background is too big for the workshop (25 MB at most)");
-  const w = win();
-  if (!w) throw new ScError("unknown", "no window");
-  const shot = await w.webContents.capturePage();
-  const preview = shot.resize({ width: Math.min(1200, shot.getSize().width) }).toJPEG(84);
+  const picture = preview;
+  if (!picture) throw new ScError("unknown", "no picture of the look");
+  preview = null;
   const { id } = await api<{ id: string }>("POST", "/v1/themes", { body: { name: t.name, description: t.description, look: { ...themeLook(look), bg: look.bg === "file" && !bg ? "liquid" : look.bg }, css: "" } });
   if (bg) await api("PUT", `/v1/themes/${id}/background`, { raw: bg.data, timeout: 120_000 });
-  await api("PUT", `/v1/themes/${id}/preview`, { raw: preview, timeout: 60_000 });
+  await api("PUT", `/v1/themes/${id}/preview`, { raw: picture, timeout: 60_000 });
   return id;
 }
 
@@ -363,7 +371,8 @@ export async function wsInstall(id: string): Promise<Look> {
     file = { bgFile: saved.file, bgFileType: saved.type };
   } else if (bg === "file") bg = "liquid";
   if (joined()) void api("POST", `/v1/themes/${encodeURIComponent(id)}/install`).catch(() => undefined);
-  return { ...current, ...t.look, surface: t.look.surface ?? "", bg, ...file, lite: current.lite };
+  // themes from the old night design come in as studio ones
+  return { ...current, ...t.look, design: "studio", surface: t.look.surface ?? "", bg, ...file, lite: current.lite };
 }
 
 export async function wsLike(id: string) {

@@ -1,14 +1,6 @@
 import { motion } from "framer-motion";
-import TitleBar from "@/components/chrome/TitleBar";
-import Sidebar from "@/components/chrome/Sidebar";
-import Backdrop from "@/components/deco/Backdrop";
 import LivingBackdrop from "@/components/deco/LivingBackdrop";
-import { useSettings } from "@/state/settings";
 import SvgDefs from "@/components/deco/SvgDefs";
-import PlayerBar from "@/components/player/PlayerBar";
-import QueuePanel from "@/components/player/QueuePanel";
-import EdgeGlow from "@/components/deco/EdgeGlow";
-import LyricsPanel from "@/components/player/LyricsPanel";
 import NowPlaying from "@/components/player/NowPlaying";
 import AppearancePopover from "@/components/studio/AppearancePopover";
 import StudioPlayerBar from "@/components/studio/PlayerBar";
@@ -87,12 +79,18 @@ function Page() {
   );
 }
 
-/** The studio design's window: title bar with search, sidebar, the page, the queue on the right, the player. */
-function StudioApp() {
+/**
+ * The window: title bar with search, sidebar, the page, the queue on the right, the player, over the living
+ * background. While the workshop takes its picture of the look (`posing`), the page and the toasts step aside so
+ * the background shows in the middle.
+ */
+export default function App() {
   const full = useUi((s) => s.fullOpen);
   const sideQueue = useUi((s) => s.sideQueue);
+  const posing = useUi((s) => s.posing);
   return (
     <>
+      <SvgDefs />
       <LivingBackdrop />
       <TrackMenu />
       <PlaylistPicker />
@@ -105,8 +103,8 @@ function StudioApp() {
         <StudioTitleBar />
         <StudioSidebar />
         <main className="relative min-h-0 overflow-hidden">
-          <Page />
-          <Toast />
+          {!posing && <Page />}
+          {!posing && <Toast />}
         </main>
         {sideQueue && <StudioQueue />}
         <StudioPlayerBar />
@@ -117,48 +115,3 @@ function StudioApp() {
   );
 }
 
-/**
- * Window layout (og): title bar, sidebar, the current screen on its sheet, the player along the bottom. The backdrop
- * (stipple, night sky, grain) sits under all of it.
- */
-export default function App() {
-  const studio = useSettings((s) => s.prefs.look.design === "studio");
-  const full = useUi((s) => s.fullOpen);
-  if (studio)
-    return (
-      <>
-        <SvgDefs />
-        <StudioApp />
-      </>
-    );
-  return (
-    <>
-      <SvgDefs />
-      <Backdrop />
-      <TrackMenu />
-      <PlaylistPicker />
-      <CheckDialog />
-      <SendSheet />
-      <RoomSheet />
-      <InviteFloat />
-      <SkipNotice />
-      <div className={`app-grid relative z-10 grid${full ? " full-open" : ""} h-full grid-cols-[232px_minmax(0,1fr)] grid-rows-[40px_minmax(0,1fr)_88px]`}>
-        <div className="col-span-2">
-          <TitleBar />
-        </div>
-        <Sidebar />
-        <main className="relative min-h-0 overflow-hidden">
-          <Page />
-          <EdgeGlow />
-          <QueuePanel />
-          <LyricsPanel />
-          <Toast />
-        </main>
-        <div className="col-span-2">
-          <PlayerBar />
-        </div>
-        <NowPlaying />
-      </div>
-    </>
-  );
-}
