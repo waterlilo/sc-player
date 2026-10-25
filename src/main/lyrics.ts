@@ -285,11 +285,41 @@ const found = new Map<number, Lyrics | null>();
 let picks: JsonFile<{ byTrack: Record<string, number> }> | null = null;
 const pickFile = () => (picks ??= new JsonFile<{ byTrack: Record<string, number> }>(join(app.getPath("userData"), "lyrics-picks.json"), { byTrack: {} }, 1000));
 
+// ---- words of one's own ------------------------------------------------------------------------------------------
+
+/** Words the user pasted for a track (lyrics-own.json): shown before anything found. */
+let own: JsonFile<{ byTrack: Record<string, { text: string; at: number }> }> | null = null;
+const ownFile = () => (own ??= new JsonFile<{ byTrack: Record<string, { text: string; at: number }> }>(join(app.getPath("userData"), "lyrics-own.json"), { byTrack: {} }, 1000));
+
+/** Pasted words as lyrics: timed lines when they carry LRC times ("[01:23.45] …"), else plain lines. */
+function ownLyrics(q: { artist: string; title: string }, text: string): Lyrics {
+  const timed = parseLrc(text).filter((l) => l.text);
+  const plain = text
+    .split(/\r?\n/)
+    .map((l) => l.replace(/\[[^\]]*\]/g, "").trim())
+    .filter(Boolean)
+    .join("\n");
+  return { id: 0, artist: q.artist, title: q.title, synced: timed.length >= 2 ? timed : null, plain: plain || null, instrumental: false, source: "own" };
+}
+
+/** The user's own words for a track (`text` null: back to what's found). The words now shown, or null to look again. */
+export function setOwnLyrics(q: { trackId: number; artist: string; title: string }, text: string | null): Lyrics | null {
+  const byTrack = { ...ownFile().get().byTrack };
+  if (text?.trim()) byTrack[String(q.trackId)] = { text: text.trim(), at: Date.now() };
+  else delete byTrack[String(q.trackId)];
+  ownFile().patch({ byTrack });
+  found.delete(q.trackId);
+  return text?.trim() ? ownLyrics(q, text.trim()) : null;
+}
+
 /**
  * Every source is asked at once and the answers are taken in order of preference (a pick by hand, Better Lyrics,
- * Unison, then LRCLIB's lookups): one after another a slow or busy LRCLIB made some songs wait 30 s.
+ * Unison, then LRCLIB's lookups): one after another a slow or busy LRCLIB made some songs wait 30 s. The user's own
+ * words come before all of them.
  */
 export async function lyricsFor(q: LyricsQuery): Promise<Lyrics | null> {
+  const mine = ownFile().get().byTrack[String(q.trackId)];
+  if (mine) return ownLyrics(q, mine.text);
   if (found.has(q.trackId)) return found.get(q.trackId)!;
   // once the words are chosen, the lookups still running are dropped
   const stop = new AbortController();
@@ -384,9 +414,13 @@ export async function pickLyrics(trackId: number, lyricsId: number): Promise<Lyr
   const result = raw ? toLyrics(raw) : null;
   found.set(trackId, result);
   pickFile().patch({ byTrack: { ...pickFile().get().byTrack, [String(trackId)]: lyricsId } });
+  // a pick replaces one's own words
+  const mine = { ...ownFile().get().byTrack };
+  if (String(trackId) in mine && delete mine[String(trackId)]) ownFile().patch({ byTrack: mine });
   return result;
 }
 
 export function flushLyrics() {
   picks?.flush();
+  own?.flush();
 }

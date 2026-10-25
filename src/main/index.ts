@@ -9,7 +9,7 @@ import type { RoomOp, SocialTrack } from "@shared/social";
 import type { QueueSource, SyncRequest, Track } from "@shared/types";
 import { DemoProvider } from "./demo";
 import { addLocal, createLocal, deleteLocal, exportLocal, importLocal, flushLocalPlaylists, isLocal, localIds, localPlaylist, localPlaylists, localTracks, MAX_TRACKS, renameLocal, setLocalTracks } from "./local-playlists";
-import { flushLyrics, lyricsFor, pickLyrics, searchLyrics } from "./lyrics";
+import { flushLyrics, lyricsFor, pickLyrics, searchLyrics, setOwnLyrics } from "./lyrics";
 import { deleteModel, downloadModel, flushLyricsSync, onSyncStatus, syncedBefore, syncStatus, syncWords } from "./lyrics-sync";
 import { auth, authStatus, chromeUserAgent, provider, ScError, scSession, finishBrowserSignIn, friendFromArgs, registerLinks, startBrowserSignIn, stopBrowserSignIn, toErrorInfo, tokenFromArgs, waitingForBrowser } from "./soundcloud";
 import { flushAlternatives } from "./soundcloud/alternatives";
@@ -100,7 +100,7 @@ const id = (v: unknown) => (typeof v === "number" && Number.isSafeInteger(v) && 
 const kinds: SearchKind[] = ["tracks", "playlists", "users"];
 function syncRequest(v: unknown): SyncRequest {
   const q = (typeof v === "object" && v !== null ? v : bad("request")) as Record<string, unknown>;
-  const source = q.source === "lrclib" || q.source === "betterlyrics" || q.source === "unison" ? q.source : bad("source");
+  const source = q.source === "lrclib" || q.source === "betterlyrics" || q.source === "unison" || q.source === "own" ? q.source : bad("source");
   const plain = typeof q.plain === "string" && q.plain.length < 50_000 ? q.plain : bad("words");
   const times = q.times === undefined ? undefined : Array.isArray(q.times) && q.times.length <= 2000 && q.times.every((t) => typeof t === "number" && Number.isFinite(t)) ? (q.times as number[]) : bad("times");
   return { trackId: id(q.trackId), source, lyricsId: typeof q.lyricsId === "number" && Number.isSafeInteger(q.lyricsId) && q.lyricsId >= 0 ? q.lyricsId : bad("lyrics id"), plain, ...(times ? { times } : {}) };
@@ -241,6 +241,12 @@ function registerIpc() {
   });
   handle("lyrics:search", (_e, text) => searchLyrics(str(text, "text")));
   handle("lyrics:pick", (_e, t, l) => pickLyrics(id(t), id(l)));
+  handle("lyrics:setOwn", (_e, q, text) => {
+    const o = (q ?? {}) as Record<string, unknown>;
+    // a whole song is longer than the usual argument
+    const words = text === null ? null : typeof text === "string" && text.length <= 30_000 ? text : bad("text");
+    return setOwnLyrics({ trackId: id(o.trackId), artist: str(o.artist, "artist"), title: str(o.title, "title") }, words);
+  });
   handle("lyricsSync:status", () => syncStatus());
   handle("lyricsSync:download", () => downloadModel());
   handle("lyricsSync:deleteModel", () => deleteModel());

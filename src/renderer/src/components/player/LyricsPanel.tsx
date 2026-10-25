@@ -20,6 +20,7 @@ const SOURCES = {
   lrclib: { name: "LRCLIB", url: "https://lrclib.net" },
   betterlyrics: { name: "Better Lyrics", url: "https://betterlyrics.org" },
   unison: { name: "Unison · Better Lyrics", url: "https://betterlyrics.org" },
+  own: { name: "", url: "" },
 } as const;
 
 /** Where the words came from, with a link to it (Better Lyrics asked for one), and how they are timed. */
@@ -32,9 +33,13 @@ export function LyricsSource({ lyrics, syncing = false }: { lyrics: Lyrics | nul
       {syncing ? (lyrics?.synced?.length ? t.lyricsChecking : t.lyricsSyncing) : lyrics?.aligned ? t.lyricsAligned : lyrics?.synced?.length ? (byWord ? t.syncedByWord : t.syncedByLine) : t.lyricsWord}
       {!syncing && lyrics?.fitted && `, ${Math.abs(lyrics.fitted.scale - 1) < 0.005 ? t.lyricsShifted(lyrics.fitted.shift) : t.lyricsStretched(lyrics.fitted.scale)}`}
       {" · "}
-      <button type="button" className="underline-offset-2 hover:text-text hover:underline" onClick={() => void call("shell:open", src.url)}>
-        {src.name}
-      </button>
+      {src.url ? (
+        <button type="button" className="underline-offset-2 hover:text-text hover:underline" onClick={() => void call("shell:open", src.url)}>
+          {src.name}
+        </button>
+      ) : (
+        t.lyricsOwnSource
+      )}
     </>
   );
 }
@@ -157,7 +162,74 @@ function SyncedLines({ lines }: { lines: NonNullable<Lyrics["synced"]> }) {
   );
 }
 
-/** Looking for the words by hand when none (or the wrong ones) were found. */
+/** Words as the user would type them back: timed lines in LRC form ("[01:23.45] …"), else plain lines. */
+function asText(l: Lyrics): string {
+  const at = (t: number) => `[${String(Math.floor(t / 60)).padStart(2, "0")}:${(t % 60).toFixed(2).padStart(5, "0")}]`;
+  return l.synced?.length && !l.aligned ? l.synced.map((x) => `${at(x.t)} ${x.text}`).join("\n") : (l.plain ?? "");
+}
+
+/** The user's own words for a track: pasted here, kept on this computer, shown instead of anything found. */
+function OwnWords({ track, onDone }: { track: Track; onDone: () => void }) {
+  const t = useT();
+  const client = useQueryClient();
+  const current = useLyrics(track).data;
+  const mine = current?.source === "own";
+  const [open, setOpen] = useState(mine);
+  const [text, setText] = useState(() => (mine && current ? asText(current) : ""));
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  const save = async (words: string | null) => {
+    setBusy(true);
+    setFailed(false);
+    try {
+      const l = await call("lyrics:setOwn", { trackId: track.id, artist: track.artist, title: track.title }, words);
+      if (l) client.setQueryData(key(track.id), l);
+      else await client.invalidateQueries({ queryKey: key(track.id) });
+      onDone();
+    } catch {
+      setFailed(true);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!open)
+    return (
+      <button type="button" onClick={() => setOpen(true)} className="mt-4 font-type text-xs text-muted underline-offset-2 hover:text-text hover:underline">
+        {t.lyricsOwn}
+      </button>
+    );
+  return (
+    <div className="mt-4" data-keys-own>
+      <p className="font-type text-xs text-muted">{t.lyricsOwnHint}</p>
+      <label className="field sketch sketch-thin paper-fill mt-2 flex rounded-md">
+        <textarea
+          autoFocus={!mine}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          maxLength={30_000}
+          rows={10}
+          aria-label={t.lyricsOwn}
+          className="min-w-0 flex-1 resize-y bg-transparent px-2.5 py-2 text-sm leading-relaxed text-text"
+        />
+      </label>
+      {failed && <p className="mt-2 text-sm text-muted">{t.lyricsOffline}</p>}
+      <div className="mt-2 flex flex-wrap items-center justify-end gap-2">
+        {mine && (
+          <button type="button" disabled={busy} onClick={() => void save(null)} className="s-btn">
+            {t.lyricsOwnBack}
+          </button>
+        )}
+        <button type="button" disabled={busy || !text.trim()} onClick={() => void save(text)} className="s-btn pri disabled:opacity-50">
+          {t.lyricsOwnSave}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Looking for the words by hand when none (or the wrong ones) were found, or pasting one's own. */
 export function ManualSearch({ track, onDone }: { track: Track; onDone: () => void }) {
   const t = useT();
   const client = useQueryClient();
@@ -221,6 +293,7 @@ export function ManualSearch({ track, onDone }: { track: Track; onDone: () => vo
           </li>
         ))}
       </ul>
+      <OwnWords track={track} onDone={onDone} />
     </div>
   );
 }

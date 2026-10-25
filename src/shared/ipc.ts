@@ -274,6 +274,8 @@ export interface InvokeMap {
   "lyrics:search": (text: string) => LyricsHit[];
   /** use this LRCLIB record for the track from now on */
   "lyrics:pick": (trackId: number, lyricsId: number) => Lyrics | null;
+  /** the user's own words for a track (plain, or LRC with times); null takes them away. The words now, or null to look again */
+  "lyrics:setOwn": (track: { trackId: number; artist: string; title: string }, text: string | null) => Lyrics | null;
   "lyricsSync:status": () => LyricsSyncStatus;
   /** starts the model download (progress comes as lyricsSync:status events) */
   "lyricsSync:download": () => LyricsSyncStatus;
@@ -473,6 +475,7 @@ export const INVOKE_CHANNELS = [
   "lyrics:get",
   "lyrics:search",
   "lyrics:pick",
+  "lyrics:setOwn",
   "lyricsSync:status",
   "lyricsSync:download",
   "lyricsSync:deleteModel",

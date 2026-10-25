@@ -126,7 +126,8 @@ export interface LyricWord {
   bg?: boolean;
 }
 
-export type LyricsSource = "lrclib" | "betterlyrics" | "unison";
+/** "own": words the user typed or pasted for this track (kept on this computer) */
+export type LyricsSource = "lrclib" | "betterlyrics" | "unison" | "own";
 
 export interface Lyrics {
   /** the record's id at its source (LRCLIB's for picks by hand; 0 when the source has none) */
