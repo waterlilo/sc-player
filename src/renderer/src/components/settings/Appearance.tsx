@@ -53,6 +53,17 @@ export default function Appearance() {
           <Row label={t.bgReact} hint={look.bgReact ? `${look.bgReact}%` : t.bgReactOff}>
             <Slider value={look.bgReact} min={0} max={100} step={1} onChange={(v) => set({ bgReact: v })} label={t.bgReact} />
           </Row>
+          <Row label={t.surface} hint={t.surfaceHint}>
+            <Choice<"default" | "own">
+              value={look.surface ? "own" : "default"}
+              onChange={(v) => set({ surface: v === "default" ? "" : look.surface || "#1c1730" })}
+              label={t.surface}
+              options={[["default", t.surfaceDefault], ["own", t.surfaceCustom]]}
+            />
+            {look.surface && (
+              <input type="color" value={look.surface} onChange={(e) => set({ surface: e.target.value })} aria-label={t.surface} className="h-8 w-10 cursor-pointer rounded-md border border-white/10 bg-transparent p-0.5" />
+            )}
+          </Row>
           <Row label={t.accent} hint={look.accent ? look.accent : t.accentAuto}>
             <Choice<"auto" | "fixed"> value={look.accent ? "fixed" : "auto"} onChange={(v) => set({ accent: v === "auto" ? "" : look.accent || "#b2a0e6" })} label={t.accent} options={[["auto", t.accentFromPicture], ["fixed", t.accentFixed]]} />
             {look.accent && (

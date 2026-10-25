@@ -166,6 +166,8 @@ export interface ThemeLook {
   panelBlur: number;
   /** "#rrggbb", or "" = from the cover */
   accent: string;
+  /** the interface colour "#rrggbb", or "" = graphite (missing in themes published before it existed) */
+  surface?: string;
 }
 
 export interface WsTheme {

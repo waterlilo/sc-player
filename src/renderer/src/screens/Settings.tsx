@@ -7,7 +7,7 @@ import LyricsSync from "@/components/settings/LyricsSync";
 import Messenger from "@/components/settings/Messenger";
 import { Choice, Row, Section, Slider, Toggle } from "@/components/settings/Controls";
 import { MarkerButton, PaperButton } from "@/components/ui/Buttons";
-import Chip from "@/components/ui/Chip";
+import Tabs from "@/components/ui/Tabs";
 import Icon from "@/components/ui/Icon";
 import { Screen, ScreenTitle } from "@/components/ui/Screen";
 import { useT } from "@/i18n";
@@ -319,13 +319,7 @@ export default function Settings() {
     <Screen label={t.settings}>
       <ScreenTitle meta={`${t.version} ${__APP_VERSION__}`}>{t.settings.toLowerCase()}</ScreenTitle>
 
-      <div role="tablist" aria-label={t.settings} className="mb-6 flex flex-wrap gap-2">
-        {tabs.map(([key, label], i) => (
-          <Chip key={key} index={i} active={tab === key} onClick={() => setTab(key)}>
-            {label}
-          </Chip>
-        ))}
-      </div>
+      <Tabs options={tabs} value={tab} onChange={setTab} label={t.settings} className="mb-6" />
 
       {tab === "playback" && (
         <>

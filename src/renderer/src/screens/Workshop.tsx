@@ -2,7 +2,7 @@ import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-quer
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import type { WsSort, WsTheme } from "@shared/social";
-import Chip from "@/components/ui/Chip";
+import Tabs from "@/components/ui/Tabs";
 import Icon from "@/components/ui/Icon";
 import { Screen } from "@/components/ui/Screen";
 import { EmptyState, ErrorState, Loading } from "@/components/ui/States";
@@ -300,13 +300,7 @@ export default function Workshop() {
         </button>
       </header>
       <div className="mb-5 flex flex-wrap items-center gap-2">
-        <div role="tablist" className="flex gap-2">
-          {tabs.map(([key, label], i) => (
-            <Chip key={key} index={i} active={tab === key} onClick={() => setTab(key)}>
-              {label}
-            </Chip>
-          ))}
-        </div>
+        <Tabs options={tabs} value={tab} onChange={setTab} />
         <label className="field sketch sketch-thin paper-fill ml-auto flex w-60 items-center rounded-md" data-keys-own>
           <Icon name="search" size={15} className="ml-2.5 text-muted" />
           <input value={text} onChange={(e) => setText(e.target.value)} placeholder={t.searchThemes} aria-label={t.searchThemes} className="min-w-0 flex-1 bg-transparent px-2 py-1.5 text-sm text-text placeholder:text-muted/70" />

@@ -52,7 +52,7 @@ export default function LivingBackdrop() {
     });
 
   return (
-    <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-0 overflow-hidden bg-[#050506]">
+    <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-0 overflow-hidden bg-[var(--bg)]">
       {layers.map((l) => (
         <div
           key={l.id}
@@ -73,7 +73,7 @@ export default function LivingBackdrop() {
 /** "nothing" is ready at once */
 function Ready({ onReady }: { onReady: () => void }) {
   useEffect(() => onReady(), [onReady]);
-  return <div className="absolute inset-0 bg-[#050506]" />;
+  return <div className="absolute inset-0 bg-[var(--bg)]" />;
 }
 
 /** a picture or a video, blurred by the knob, breathing a little with the bass */

@@ -329,7 +329,7 @@ export async function wsGet(id: string): Promise<WsThemeFull> {
 }
 
 function themeLook(l: Look): ThemeLook {
-  return { design: l.design, bg: l.bg, bgBlur: l.bgBlur, bgDim: l.bgDim, bgReact: l.bgReact, panelOpacity: l.panelOpacity, panelBlur: l.panelBlur, accent: l.accent };
+  return { design: l.design, bg: l.bg, bgBlur: l.bgBlur, bgDim: l.bgDim, bgReact: l.bgReact, panelOpacity: l.panelOpacity, panelBlur: l.panelBlur, accent: l.accent, surface: l.surface };
 }
 
 /** Publish the current look: the theme, its background (optional), then a picture of the window as its preview. */
@@ -363,7 +363,7 @@ export async function wsInstall(id: string): Promise<Look> {
     file = { bgFile: saved.file, bgFileType: saved.type };
   } else if (bg === "file") bg = "liquid";
   if (joined()) void api("POST", `/v1/themes/${encodeURIComponent(id)}/install`).catch(() => undefined);
-  return { ...current, ...t.look, bg, ...file, lite: current.lite };
+  return { ...current, ...t.look, surface: t.look.surface ?? "", bg, ...file, lite: current.lite };
 }
 
 export async function wsLike(id: string) {

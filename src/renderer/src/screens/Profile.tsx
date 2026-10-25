@@ -5,7 +5,7 @@ import { useUser, useUserTracks } from "@/api/queries";
 import ListFilter, { useListFilter } from "@/components/tracks/ListFilter";
 import TrackList from "@/components/tracks/TrackList";
 import { PaperButton } from "@/components/ui/Buttons";
-import Chip from "@/components/ui/Chip";
+import Tabs from "@/components/ui/Tabs";
 import Icon from "@/components/ui/Icon";
 import { Screen } from "@/components/ui/Screen";
 import { EmptyState, ErrorState, Loading } from "@/components/ui/States";
@@ -85,17 +85,16 @@ export default function Profile({ userId }: { userId: number }) {
           </div>
         </header>
       )}
-      <div role="tablist" className="mb-4 flex gap-2">
-        <Chip index={0} active={tab === "tracks"} onClick={() => setTab("tracks")}>
-          {t.tracksTab}
-        </Chip>
-        <Chip index={1} active={tab === "likes"} onClick={() => setTab("likes")}>
-          {t.likes}
-        </Chip>
-        <Chip index={2} active={tab === "playlists"} onClick={() => setTab("playlists")}>
-          {t.playlists}
-        </Chip>
-      </div>
+      <Tabs
+        options={[
+          ["tracks", t.tracksTab],
+          ["likes", t.likes],
+          ["playlists", t.playlists],
+        ]}
+        value={tab}
+        onChange={setTab}
+        className="mb-4"
+      />
       {!u && user.isPending ? (
         <Loading />
       ) : tab === "tracks" ? (

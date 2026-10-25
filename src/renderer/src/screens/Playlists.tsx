@@ -4,7 +4,7 @@ import NewPlaylist from "@/components/playlists/NewPlaylist";
 import PlaylistGrid from "@/components/playlists/PlaylistGrid";
 import { PaperButton } from "@/components/ui/Buttons";
 import Icon from "@/components/ui/Icon";
-import Chip from "@/components/ui/Chip";
+import Tabs from "@/components/ui/Tabs";
 import { Screen, ScreenTitle } from "@/components/ui/Screen";
 import { EmptyState, ErrorState, Loading } from "@/components/ui/States";
 import { useT } from "@/i18n";
@@ -36,13 +36,7 @@ export function PlaylistsView({ userId }: { userId: number | "me" }) {
   ];
   return (
     <>
-      <div role="tablist" className="mb-4 flex flex-wrap gap-2">
-        {filters.map(([key, label], i) => (
-          <Chip key={key} index={i} active={filter === key} onClick={() => setFilter(key)}>
-            {label}
-          </Chip>
-        ))}
-      </div>
+      <Tabs options={filters} value={filter} onChange={setFilter} className="mb-4" />
       <PlaylistGrid playlists={shown} hasMore={q.hasNextPage} loadingMore={q.isFetchingNextPage} onLoadMore={() => void q.fetchNextPage()} />
       {q.isFetchNextPageError && <ErrorState compact error={q.error} onRetry={() => void q.fetchNextPage()} />}
     </>

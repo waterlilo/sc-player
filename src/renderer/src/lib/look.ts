@@ -187,6 +187,26 @@ function applyKnobs(look: Look) {
   root.setProperty("--veil", String(look.bgDim / 100));
   root.setProperty("--glass-a", String(look.panelOpacity / 100));
   root.setProperty("--pblur", `${look.panelBlur}px`);
+  applySurface(look.surface);
+}
+
+/**
+ * The interface colour: its hue and saturation, kept dark (white text must stay readable on it) — the panels at the
+ * picked shade, the window behind them darker still. "" = the graphite of the stylesheet.
+ */
+function applySurface(hex: string) {
+  const root = document.documentElement.style;
+  const c = hexRgb(hex);
+  if (!c) {
+    root.removeProperty("--glass-rgb");
+    root.removeProperty("--bg");
+    return;
+  }
+  const [h, s, l] = hsl(c);
+  const panel = rgb([h, Math.min(s, 0.6), Math.min(Math.max(l, 0.05), 0.2)]).map(Math.round);
+  const base = rgb([h, Math.min(s, 0.6), Math.min(Math.max(l, 0.05), 0.2) * 0.35]).map(Math.round);
+  root.setProperty("--glass-rgb", panel.join(", "));
+  root.setProperty("--bg", `rgb(${base.join(" ")})`);
 }
 
 export function initLook() {

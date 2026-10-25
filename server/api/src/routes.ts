@@ -380,7 +380,7 @@ function look(v: unknown) {
   if (!v || typeof v !== "object") return fail(400, "look missing");
   const l = v as Record<string, unknown>;
   const pick = <T extends string>(x: unknown, ok: readonly T[], field: string): T => (ok.includes(x as T) ? (x as T) : fail(400, `look.${field} bad`));
-  const accent = l.accent === undefined || l.accent === "" ? "" : typeof l.accent === "string" && /^#[0-9a-f]{6}$/i.test(l.accent) ? l.accent : fail(400, "look.accent bad");
+  const colour = (x: unknown, field: string) => (x === undefined || x === "" ? "" : typeof x === "string" && /^#[0-9a-f]{6}$/i.test(x) ? x : fail(400, `look.${field} bad`));
   return {
     design: pick(l.design, ["studio", "og"] as const, "design"),
     bg: pick(l.bg, ["liquid", "cover", "file", "none"] as const, "bg"),
@@ -389,7 +389,8 @@ function look(v: unknown) {
     bgReact: int(l.bgReact, 0, 100, "look.bgReact"),
     panelOpacity: int(l.panelOpacity, 10, 100, "look.panelOpacity"),
     panelBlur: int(l.panelBlur, 0, 60, "look.panelBlur"),
-    accent,
+    accent: colour(l.accent, "accent"),
+    surface: colour(l.surface, "surface"),
   };
 }
 

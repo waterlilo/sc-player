@@ -24,7 +24,7 @@
 }
 html.lite .s-glass {
   backdrop-filter: none;
-  background: rgba(14, 14, 17, max(var(--glass-a), 0.86));
+  background: rgba(var(--glass-rgb), max(var(--glass-a), 0.86));
 }
 html.thin-glass .s-glass {
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
@@ -109,7 +109,7 @@ html.thin-glass .s-glass {
   height: 7px;
   border-radius: 50%;
   background: var(--accent);
-  box-shadow: 0 0 0 2px #0e0e11;
+  box-shadow: 0 0 0 2px var(--bg-2);
 }
 .s-search {
   display: flex;
@@ -704,7 +704,7 @@ html[data-design="studio"] .settings-card {
 }
 html[data-design="studio"].lite .settings-card {
   backdrop-filter: none;
-  background: rgba(14, 14, 17, max(var(--glass-a), 0.86));
+  background: rgba(var(--glass-rgb), max(var(--glass-a), 0.86));
 }
 html[data-design="studio"].thin-glass .settings-card {
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
