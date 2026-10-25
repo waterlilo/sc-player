@@ -81,8 +81,11 @@ export const LIMITS = {
   history: 300,
   rooms: 500,
   inviteMs: 6 * 60 * 60_000,
-  /** a host without an open stream this long hands the room on */
-  hostGoneMs: 15_000,
+  /**
+   * a host without an open stream this long hands the room on. Not shorter: a VPN or a network that drops for a few
+   * seconds (seen: every 3 hours on the hour, ~15 s) must not cost the host the room; leaving hands it on at once
+   */
+  hostGoneMs: 60_000,
   /** a member without one this long leaves */
   memberGoneMs: 2 * 60_000,
   /** "start together" waits at most this long for everyone */
