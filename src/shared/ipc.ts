@@ -294,6 +294,10 @@ export interface InvokeMap {
   "data:setPlaylistTracks": (playlistId: string, trackIds: number[]) => void;
   "data:renamePlaylist": (playlistId: string, title: string) => void;
   "data:deletePlaylist": (playlistId: string) => void;
+  /** all own playlists to a file the person picks: how many, or null (cancelled) */
+  "data:exportPlaylists": () => number | null;
+  /** own playlists from such a file, added: how many, or null (none picked) */
+  "data:importPlaylists": () => number | null;
   "data:search": (query: string, kind: SearchKind, cursor: string | null) => Page<Track> | Page<Playlist> | Page<User>;
   "data:suggest": (query: string) => string[];
   "data:stream": (trackId: number) => StreamInfo;
@@ -476,6 +480,8 @@ export const INVOKE_CHANNELS = [
   "data:setPlaylistTracks",
   "data:renamePlaylist",
   "data:deletePlaylist",
+  "data:exportPlaylists",
+  "data:importPlaylists",
   "data:search",
   "data:suggest",
   "data:stream",

@@ -7,6 +7,8 @@ import { duration } from "@/lib/format";
 import { player, usePlayer } from "@/state/player";
 import { useRoom } from "@/state/room";
 import { useSettings } from "@/state/settings";
+import { useUi } from "@/state/ui";
+import { createPlaylist } from "@/lib/playlists";
 import RoomPanel from "../room/RoomPanel";
 import Icon from "../ui/Icon";
 
@@ -192,6 +194,18 @@ export default function StudioQueue() {
   const setPref = useSettings((s) => s.setPref);
   const hasUpcoming = usePlayer((s) => s.queue.length > s.index + 1);
   const inRoom = useRoom((s) => !!s.room);
+  const toast = useUi((s) => s.showToast);
+  // what plays now and what comes after it, as a playlist of your own
+  const saveQueue = async () => {
+    const { queue, index } = usePlayer.getState();
+    const date = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+    try {
+      const p = await createPlaylist(t.queuePlaylistTitle(date), queue.slice(index).map((x) => x.id).slice(0, 500));
+      toast(t.savedQueue(p.title));
+    } catch {
+      toast(t.playlistFailed);
+    }
+  };
 
   // in a listening room its panel takes the queue's place (the room's queue is in it)
   if (inRoom)
@@ -208,6 +222,11 @@ export default function StudioQueue() {
         {tab === "next" && hasUpcoming && (
           <button type="button" onClick={player.clearUpcoming} className="ml-3 text-[11px] text-[var(--s-dim)] hover:text-text">
             {t.clearQueue}
+          </button>
+        )}
+        {tab === "next" && hasUpcoming && (
+          <button type="button" onClick={() => void saveQueue()} title={t.saveQueueHint} className="ml-3 text-[11px] text-[var(--s-dim)] hover:text-text">
+            {t.saveQueue}
           </button>
         )}
         <div className="s-seg ml-auto" role="tablist">

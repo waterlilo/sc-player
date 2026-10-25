@@ -1,4 +1,5 @@
 import { existsSync, renameSync } from "node:fs";
+import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { app, BrowserWindow, clipboard, dialog, ipcMain, session, shell, type IpcMainInvokeEvent } from "electron";
 import { RENDERER_DEFAULTS, type AuthStatus, type InvokeChannel, type InvokeMap, type PlayerCommand, type PlayerInfo, type RendererState, type Result } from "@shared/ipc";
@@ -6,7 +7,7 @@ import type { MusicProvider, SearchKind } from "@shared/provider";
 import type { RoomOp, SocialTrack } from "@shared/social";
 import type { QueueSource, SyncRequest, Track } from "@shared/types";
 import { DemoProvider } from "./demo";
-import { addLocal, createLocal, deleteLocal, flushLocalPlaylists, isLocal, localIds, localPlaylist, localPlaylists, localTracks, MAX_TRACKS, renameLocal, setLocalTracks } from "./local-playlists";
+import { addLocal, createLocal, deleteLocal, exportLocal, importLocal, flushLocalPlaylists, isLocal, localIds, localPlaylist, localPlaylists, localTracks, MAX_TRACKS, renameLocal, setLocalTracks } from "./local-playlists";
 import { flushLyrics, lyricsFor, pickLyrics, searchLyrics } from "./lyrics";
 import { deleteModel, downloadModel, flushLyricsSync, onSyncStatus, syncedBefore, syncStatus, syncWords } from "./lyrics-sync";
 import { auth, authStatus, chromeUserAgent, provider, ScError, scSession, finishBrowserSignIn, startBrowserSignIn, stopBrowserSignIn, toErrorInfo, tokenFromArgs, waitingForBrowser } from "./soundcloud";
@@ -267,6 +268,27 @@ function registerIpc() {
   handle("data:setPlaylistTracks", (_e, p, ids) => setLocalTracks(localId(p), Array.isArray(ids) ? ids.slice(0, MAX_TRACKS).map(id) : bad("ids")));
   handle("data:renamePlaylist", (_e, p, title) => renameLocal(localId(p), str(title, "title").slice(0, 100)));
   handle("data:deletePlaylist", (_e, p) => deleteLocal(localId(p)));
+  /** a file with all of them (a backup, another PC): how many were saved, or null when the save was cancelled */
+  handle("data:exportPlaylists", async () => {
+    const { text, count } = exportLocal();
+    const date = new Date().toISOString().slice(0, 10);
+    const r = await dialog.showSaveDialog(...((main ? [main] : []) as [BrowserWindow]), {
+      defaultPath: join(app.getPath("documents"), `sc player playlists ${date}.json`),
+      filters: [{ name: "sc player playlists", extensions: ["json"] }],
+    });
+    if (r.canceled || !r.filePath) return null;
+    await writeFile(r.filePath, text, "utf8");
+    return count;
+  });
+  /** playlists from such a file, added next to these: how many, or null when none was picked */
+  handle("data:importPlaylists", async () => {
+    const r = await dialog.showOpenDialog(...((main ? [main] : []) as [BrowserWindow]), { properties: ["openFile"], filters: [{ name: "sc player playlists", extensions: ["json"] }] });
+    const path = r.filePaths[0];
+    if (r.canceled || !path) return null;
+    const text = await readFile(path, "utf8");
+    if (text.length > 20 * 1024 * 1024) return bad("file");
+    return importLocal(text);
+  });
   handle("data:resolve", (_e, url) => data.resolve(str(url, "url")));
   handle("data:search", (_e, q, kind, c) => data.search(str(q, "query"), kinds.includes(kind) ? kind : bad("kind"), cursor(c)));
   handle("data:suggest", (_e, q) => data.searchSuggestions(str(q, "query")));

@@ -9,7 +9,9 @@ import { Screen, ScreenTitle } from "@/components/ui/Screen";
 import { EmptyState, ErrorState, Loading } from "@/components/ui/States";
 import { useT } from "@/i18n";
 import { useAuth } from "@/state/auth";
+import { exportPlaylists, importPlaylists } from "@/lib/playlists";
 import { useNav } from "@/state/nav";
+import { useUi } from "@/state/ui";
 import { useViewState } from "@/state/viewState";
 
 type Filter = "all" | "mine" | "liked" | "albums";
@@ -49,14 +51,39 @@ export default function Playlists() {
   const go = useNav((s) => s.go);
   const status = useAuth((s) => s.status);
   const [making, setMaking] = useState(false);
+  const toast = useUi((s) => s.showToast);
+  const backup = async () => {
+    try {
+      const n = await exportPlaylists();
+      if (n !== null) toast(t.exportedPlaylists(n));
+    } catch {
+      toast(t.playlistFailed);
+    }
+  };
+  const restore = async () => {
+    try {
+      const n = await importPlaylists();
+      if (n !== null) toast(t.importedPlaylists(n));
+    } catch (err) {
+      toast(err instanceof Error && err.message ? err.message : t.playlistFailed);
+    }
+  };
   if (!status) return <Loading />;
   return (
     <Screen label={t.playlists}>
       <div className="mb-2 flex flex-wrap items-center gap-3">
         <ScreenTitle>{t.playlists.toLowerCase()}</ScreenTitle>
-        <PaperButton className="ml-auto" aria-expanded={making} onClick={() => setMaking((v) => !v)}>
-          <Icon name="plus" size={16} /> {t.newPlaylist}
-        </PaperButton>
+        <div className="ml-auto flex items-center gap-2">
+          <PaperButton title={t.exportPlaylistsHint} onClick={() => void backup()}>
+            {t.exportPlaylists}
+          </PaperButton>
+          <PaperButton title={t.importPlaylistsHint} onClick={() => void restore()}>
+            {t.importPlaylists}
+          </PaperButton>
+          <PaperButton aria-expanded={making} onClick={() => setMaking((v) => !v)}>
+            <Icon name="plus" size={16} /> {t.newPlaylist}
+          </PaperButton>
+        </div>
       </div>
       {making && <NewPlaylist className="mb-4 max-w-md" onMade={(p) => go({ name: "playlist", id: p.id })} />}
       <p className="mb-4 max-w-xl text-sm text-muted">{t.localPlaylistsHint}</p>

@@ -61,6 +61,22 @@ export async function renamePlaylist(id: string, title: string) {
   refresh(id);
 }
 
+/** Someone else's playlist (or SoundCloud's own) as one of yours, to change: its tracks, up to 500. */
+export async function copyPlaylist(p: Playlist): Promise<Playlist> {
+  const ids = await call("data:sourceIds", { kind: "playlist", playlistId: p.id, cursor: null });
+  return createPlaylist(p.title, ids.slice(0, 500));
+}
+
+export async function exportPlaylists() {
+  return call("data:exportPlaylists");
+}
+
+export async function importPlaylists() {
+  const n = await call("data:importPlaylists");
+  if (n) refresh();
+  return n;
+}
+
 export async function deletePlaylist(id: string) {
   await call("data:deletePlaylist", id);
   repin(id, null);

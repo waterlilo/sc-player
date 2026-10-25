@@ -105,6 +105,43 @@ export function deleteLocal(id: string) {
 
 export const flushLocalPlaylists = () => file?.flush();
 
+/** All playlists on this computer as a file's text (a backup, or to take to another PC). */
+export function exportLocal(): { text: string; count: number } {
+  const all = lists().map(({ title, items, created }) => ({ title, created, items }));
+  return { text: JSON.stringify({ app: "sc player", kind: "playlists", version: 1, playlists: all }, null, 1), count: all.length };
+}
+
+/**
+ * Playlists from such a file, added next to the ones here (never replacing them); one that is already here — the
+ * same name and the same tracks — is skipped. Returns how many were added.
+ */
+export function importLocal(text: string): number {
+  let data: unknown;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new ScError("unknown", "This isn't a playlists file from sc player");
+  }
+  const d = data as { app?: unknown; kind?: unknown; playlists?: unknown };
+  if (d.app !== "sc player" || d.kind !== "playlists" || !Array.isArray(d.playlists)) throw new ScError("unknown", "This isn't a playlists file from sc player");
+  const have = new Set(lists().map((l) => key(l.title, l.items)));
+  const added: LocalList[] = [];
+  for (const raw of d.playlists.slice(0, 1000) as Record<string, unknown>[]) {
+    const title = typeof raw.title === "string" ? raw.title.slice(0, 100).trim() : "";
+    const items = (Array.isArray(raw.items) ? raw.items : [])
+      .filter((i): i is Item => !!i && typeof i === "object" && Number.isSafeInteger((i as Item).id) && (i as Item).id > 0)
+      .slice(0, MAX_TRACKS)
+      .map((i) => ({ id: i.id, durationMs: Number.isFinite(i.durationMs) ? Math.max(0, i.durationMs) : 0, artworkUrl: typeof i.artworkUrl === "string" && /^https:\/\/[\w.-]+\.sndcdn\.com\//.test(i.artworkUrl) ? i.artworkUrl : null }));
+    if (!title || have.has(key(title, items))) continue;
+    have.add(key(title, items));
+    added.push({ id: LOCAL_PREFIX + randomBytes(8).toString("hex"), title, items, created: typeof raw.created === "number" ? raw.created : Date.now() });
+  }
+  if (added.length) save([...lists(), ...added]);
+  return added.length;
+}
+
+const key = (title: string, items: Item[]) => `${title}\u0000${items.map((i) => i.id).join(",")}`;
+
 function dedupe(tracks: Track[]) {
   const seen = new Set<number>();
   return tracks.filter((t) => !seen.has(t.id) && seen.add(t.id));

@@ -12,7 +12,7 @@ import { useT } from "@/i18n";
 import { duration } from "@/lib/format";
 import { call } from "@/lib/sky";
 import { togglePin } from "@/lib/links";
-import { canEdit, deletePlaylist, isLocal } from "@/lib/playlists";
+import { canEdit, copyPlaylist, deletePlaylist, isLocal } from "@/lib/playlists";
 import { useUi } from "@/state/ui";
 import { useNav } from "@/state/nav";
 import { useSettings } from "@/state/settings";
@@ -36,6 +36,19 @@ export default function Playlist({ id }: { id: string }) {
   const local = isLocal(id);
   const own = canEdit(p);
 
+  const copy = async () => {
+    if (!p) return;
+    setBusy(true);
+    try {
+      const made = await copyPlaylist(p);
+      toast(t.copiedPlaylist(made.title));
+      go({ name: "playlist", id: made.id });
+    } catch {
+      toast(t.playlistFailed);
+    } finally {
+      setBusy(false);
+    }
+  };
   const remove = async () => {
     if (!p || !window.confirm(t.deletePlaylistConfirm(p.title))) return;
     setBusy(true);
@@ -102,6 +115,11 @@ export default function Playlist({ id }: { id: string }) {
               {own && !editing && (
                 <PaperButton disabled={busy} onClick={() => setEditing(true)}>
                   <Icon name="brush" size={16} /> {t.editPlaylist}
+                </PaperButton>
+              )}
+              {p && !own && (
+                <PaperButton disabled={busy || !p.trackCount} onClick={() => void copy()}>
+                  <Icon name="copy" size={16} /> {t.copyToMine}
                 </PaperButton>
               )}
               {own && !editing && (
