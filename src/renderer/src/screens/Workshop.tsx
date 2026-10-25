@@ -7,6 +7,7 @@ import Icon from "@/components/ui/Icon";
 import { Screen } from "@/components/ui/Screen";
 import { EmptyState, ErrorState, Loading } from "@/components/ui/States";
 import { useT } from "@/i18n";
+import { ask, askText } from "@/state/dialog";
 import { call } from "@/lib/sky";
 import { useNav } from "@/state/nav";
 import { useSettings } from "@/state/settings";
@@ -90,7 +91,7 @@ function ThemeDialog({ id, onClose }: { id: string; onClose: () => void }) {
     }
   };
   const report = async () => {
-    const reason = window.prompt(t.reportWhy);
+    const reason = await askText(t.reportWhy, t.report, t.reportReason, 300);
     if (reason === null) return;
     await call("ws:report", id, reason).then(
       () => toast(t.reported),
@@ -99,8 +100,9 @@ function ThemeDialog({ id, onClose }: { id: string; onClose: () => void }) {
     onClose();
   };
   const remove = async () => {
-    if (!window.confirm(t.deleteThemeConfirm)) return;
-    await call("ws:delete", id).then(
+    const asModerator = !theme?.mine;
+    if (!(await ask(asModerator ? t.deleteOthersThemeConfirm(theme?.author || t.someone) : t.deleteThemeConfirm, t.delete, true))) return;
+    await call("ws:delete", id, asModerator).then(
       () => void client.invalidateQueries({ queryKey: ["ws"] }),
       () => toast(t.serverOffline),
     );
@@ -108,6 +110,7 @@ function ThemeDialog({ id, onClose }: { id: string; onClose: () => void }) {
   };
 
   const mine = !!theme?.mine;
+  const moderator = useQuery({ queryKey: ["ws-moderator"], queryFn: () => call("ws:moderator"), staleTime: Infinity }).data === true;
   const likes = liked?.likes ?? theme?.likes ?? 0;
   const isLiked = liked?.liked ?? theme?.liked ?? false;
 
@@ -156,7 +159,7 @@ function ThemeDialog({ id, onClose }: { id: string; onClose: () => void }) {
                     {t.report}
                   </button>
                 )}
-                {mine && (
+                {(mine || moderator) && (
                   <button type="button" onClick={() => void remove()} className="rounded-md px-2 py-1 text-xs text-muted hover:text-blood">
                     {t.delete}
                   </button>

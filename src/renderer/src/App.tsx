@@ -30,6 +30,7 @@ import TrackMenu from "@/components/tracks/TrackMenu";
 import Toast from "@/components/ui/Toast";
 import PlaylistPicker from "@/components/tracks/PlaylistPicker";
 import CheckDialog from "@/components/CheckDialog";
+import Dialog from "@/components/Dialog";
 import { useNav, type Route } from "@/state/nav";
 
 function ScreenFor({ route }: { route: Route }) {
@@ -111,6 +112,7 @@ export default function App() {
         <NowPlaying />
       </div>
       <AppearancePopover />
+      <Dialog />
     </>
   );
 }

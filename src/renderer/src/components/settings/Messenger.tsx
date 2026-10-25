@@ -1,5 +1,7 @@
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 import { useT } from "@/i18n";
+import { ask } from "@/state/dialog";
 import { call } from "@/lib/sky";
 import { useSettings } from "@/state/settings";
 import { useSocial } from "@/state/social";
@@ -45,7 +47,7 @@ export default function Messenger() {
     }
   };
   const leave = async () => {
-    if (!window.confirm(t.leaveConfirm)) return;
+    if (!(await ask(t.leaveConfirm, t.leaveMessenger, true))) return;
     setBusy(true);
     try {
       setStatus(await call("social:leave"));
@@ -92,6 +94,65 @@ export default function Messenger() {
           </PaperButton>
         </Row>
       )}
+      <ModeratorKey />
     </Section>
+  );
+}
+
+/** The workshop moderator's key: folded away behind a quiet link, as nobody else needs it. */
+function ModeratorKey() {
+  const t = useT();
+  const client = useQueryClient();
+  const toast = useUi((s) => s.showToast);
+  const on = useQuery({ queryKey: ["ws-moderator"], queryFn: () => call("ws:moderator"), staleTime: Infinity }).data === true;
+  const [open, setOpen] = useState(false);
+  const [key, setKey] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const save = async (value: string | null) => {
+    setBusy(true);
+    try {
+      client.setQueryData(["ws-moderator"], await call("ws:setModerator", value));
+      setKey("");
+      setOpen(false);
+      toast(t.saved);
+    } catch (e) {
+      toast((e as { code?: string }).code === "not_found" ? t.moderatorWrong : t.serverOffline);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (on)
+    return (
+      <Row label={t.moderatorKey} hint={t.moderatorOn}>
+        <PaperButton disabled={busy} onClick={() => void save(null)}>
+          {t.removeKey}
+        </PaperButton>
+      </Row>
+    );
+  if (!open)
+    return (
+      <button type="button" onClick={() => setOpen(true)} className="ml-3 mt-1 font-type text-xs text-muted/70 hover:text-text">
+        {t.moderatorOpen}
+      </button>
+    );
+  return (
+    <Row label={t.moderatorKey} hint={t.moderatorKeyHint}>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (key.trim()) void save(key.trim());
+        }}
+        className="flex items-center gap-2"
+      >
+        <label className="field sketch sketch-thin paper-fill flex rounded-md">
+          <input type="password" autoFocus value={key} onChange={(e) => setKey(e.target.value)} aria-label={t.moderatorKey} className="w-44 px-3 py-1.5 text-sm text-text" />
+        </label>
+        <PaperButton type="submit" disabled={busy || !key.trim()}>
+          {t.save}
+        </PaperButton>
+      </form>
+    </Row>
   );
 }

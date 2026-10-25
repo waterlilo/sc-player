@@ -603,6 +603,14 @@ html[data-activity="blurred"] .s-eq i {
 .s-btn.pri:hover:not(:disabled) {
   background: #fff;
 }
+.s-btn.danger {
+  background: #d9434b;
+  color: #fff;
+  border-color: transparent;
+}
+.s-btn.danger:hover:not(:disabled) {
+  background: #e8545c;
+}
 .s-btn:disabled {
   opacity: 0.5;
 }

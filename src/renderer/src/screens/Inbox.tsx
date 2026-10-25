@@ -6,6 +6,7 @@ import { IconButton } from "@/components/ui/Buttons";
 import Icon from "@/components/ui/Icon";
 import { EmptyState } from "@/components/ui/States";
 import { useT } from "@/i18n";
+import { ask } from "@/state/dialog";
 import { duration } from "@/lib/format";
 import { call } from "@/lib/sky";
 import { usePlayer } from "@/state/player";
@@ -355,8 +356,8 @@ function Chat({ code }: { code: string }) {
           icon="close"
           size={15}
           label={t.removeFriend}
-          onClick={() => {
-            if (!window.confirm(t.removeFriendConfirm(friend.name || friend.code))) return;
+          onClick={async () => {
+            if (!(await ask(t.removeFriendConfirm(friend.name || friend.code), t.remove, true))) return;
             void call("social:removeFriend", code).then((f) => {
               setFriends(f);
               openChat(null);

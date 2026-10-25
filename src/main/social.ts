@@ -58,12 +58,13 @@ function saveLocal() {
 
 // ---- requests -----------------------------------------------------------------------------------------------------
 
-export async function api<T>(method: string, path: string, opts: { body?: unknown; raw?: Buffer; auth?: boolean; timeout?: number } = {}): Promise<T> {
+export async function api<T>(method: string, path: string, opts: { body?: unknown; raw?: Buffer; auth?: boolean; timeout?: number; admin?: string } = {}): Promise<T> {
   if (!BASE) throw new ScError("unavailable", "no server in this build");
   // what this app can do: the server sends room invitations only to apps that can join
   const headers: Record<string, string> = { "user-agent": `scplayer/${app.getVersion()}`, "x-sc-features": "rooms" };
   const secret = getSecret("socialSecret");
-  if (opts.auth !== false && secret) headers.authorization = `Bearer ${secret}`;
+  if (opts.admin) headers.authorization = `Admin ${opts.admin}`;
+  else if (opts.auth !== false && secret) headers.authorization = `Bearer ${secret}`;
   if (opts.body !== undefined) headers["content-type"] = "application/json";
   let res: Response;
   try {
@@ -80,7 +81,7 @@ export async function api<T>(method: string, path: string, opts: { body?: unknow
   const data = text && res.headers.get("content-type")?.includes("json") ? (JSON.parse(text) as unknown) : null;
   if (res.ok) return data as T;
   const message = (data as { error?: string } | null)?.error ?? `HTTP ${res.status}`;
-  if (res.status === 401 && secret) {
+  if (res.status === 401 && secret && !opts.admin) {
     // the server doesn't know this device (its data was reset, or the profile was deleted elsewhere)
     setSecret("socialSecret", null);
     profile = null;
@@ -386,9 +387,28 @@ export async function wsReport(id: string, reason: string) {
   await api("POST", `/v1/themes/${encodeURIComponent(id)}/report`, { body: { reason } });
 }
 
-export async function wsDelete(id: string) {
-  needProfile();
-  await api("DELETE", `/v1/themes/${encodeURIComponent(id)}`);
+/** `moderator`: someone else's theme, deleted with the moderator's key (Settings → Friends) */
+export async function wsDelete(id: string, moderator = false) {
+  const key = moderator ? getSecret("moderatorToken") : null;
+  if (moderator && !key) throw new ScError("unauthorized", "no moderator key on this computer");
+  if (!key) needProfile();
+  await api("DELETE", `/v1/themes/${encodeURIComponent(id)}`, key ? { admin: key } : {});
+}
+
+// ---- moderation ---------------------------------------------------------------------------------------------------
+
+/** whether this computer holds the workshop moderator's key */
+export const isModerator = () => !!getSecret("moderatorToken");
+
+/** Keeps the moderator's key after the server accepts it (a wrong one is "not found"); null forgets it. */
+export async function setModerator(key: string | null): Promise<boolean> {
+  if (!key) {
+    setSecret("moderatorToken", null);
+    return false;
+  }
+  await api("GET", "/v1/admin/themes", { admin: key });
+  setSecret("moderatorToken", key);
+  return true;
 }
 
 // ---- start --------------------------------------------------------------------------------------------------------

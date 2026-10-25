@@ -386,7 +386,12 @@ export interface InvokeMap {
   "ws:install": (id: string) => Look;
   "ws:like": (id: string) => { likes: number; liked: boolean };
   "ws:report": (id: string, reason: string) => void;
-  "ws:delete": (id: string) => void;
+  /** `moderator`: someone else's theme, with the moderator's key */
+  "ws:delete": (id: string, moderator?: boolean) => void;
+  /** whether this computer holds the workshop moderator's key */
+  "ws:moderator": () => boolean;
+  /** checks the key with the server and keeps it (null forgets it) */
+  "ws:setModerator": (key: string | null) => boolean;
 }
 
 export interface EventMap {
@@ -448,6 +453,8 @@ export const INVOKE_CHANNELS = [
   "ws:like",
   "ws:report",
   "ws:delete",
+  "ws:moderator",
+  "ws:setModerator",
   "bg:pick",
   "auth:status",
   "auth:login",

@@ -354,7 +354,9 @@ function registerIpc() {
   handle("ws:install", (_e, t) => social.wsInstall(themeId(t)));
   handle("ws:like", (_e, t) => social.wsLike(themeId(t)));
   handle("ws:report", (_e, t, reason) => social.wsReport(themeId(t), str(reason ?? "", "reason").slice(0, 300)));
-  handle("ws:delete", (_e, t) => social.wsDelete(themeId(t)));
+  handle("ws:delete", (_e, t, moderator) => social.wsDelete(themeId(t), moderator === true));
+  handle("ws:moderator", () => social.isModerator());
+  handle("ws:setModerator", (_e, key) => social.setModerator(key === null ? null : str(key, "key").trim().slice(0, 200) || null));
   handle("win:minimize", () => main?.minimize());
   handle("win:toggleMaximize", () => {
     if (main?.isMaximized()) main.unmaximize();

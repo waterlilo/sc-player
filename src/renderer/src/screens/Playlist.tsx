@@ -9,6 +9,7 @@ import Icon from "@/components/ui/Icon";
 import { Screen } from "@/components/ui/Screen";
 import { EmptyState, ErrorState, Loading } from "@/components/ui/States";
 import { useT } from "@/i18n";
+import { ask } from "@/state/dialog";
 import { duration } from "@/lib/format";
 import { call } from "@/lib/sky";
 import { togglePin } from "@/lib/links";
@@ -50,7 +51,7 @@ export default function Playlist({ id }: { id: string }) {
     }
   };
   const remove = async () => {
-    if (!p || !window.confirm(t.deletePlaylistConfirm(p.title))) return;
+    if (!p || !(await ask(t.deletePlaylistConfirm(p.title), t.delete, true))) return;
     setBusy(true);
     try {
       await deletePlaylist(id);
