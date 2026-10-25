@@ -322,6 +322,8 @@ export interface InvokeMap {
   "log:write": (message: string) => void;
   "diag:openLogs": () => void;
   "diag:netcheck": () => NetCheck[];
+  /** a report file the person saves (version, Windows, a few settings, the end of the log), then the page to write on; false when cancelled */
+  "diag:report": () => boolean;
   "diag:clearCache": () => void;
   /** the proxy password, kept encrypted; "" removes it. Returns whether one is set. */
   "proxy:setPassword": (password: string) => boolean;
@@ -504,6 +506,7 @@ export const INVOKE_CHANNELS = [
   "app:info",
   "log:write",
   "diag:openLogs",
+  "diag:report",
   "diag:netcheck",
   "diag:clearCache",
   "proxy:setPassword",

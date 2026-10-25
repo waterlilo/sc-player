@@ -1,5 +1,6 @@
 import { existsSync, renameSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
+import { release } from "node:os";
 import { join } from "node:path";
 import { app, BrowserWindow, clipboard, dialog, ipcMain, session, shell, type IpcMainInvokeEvent } from "electron";
 import { RENDERER_DEFAULTS, type AuthStatus, type InvokeChannel, type InvokeMap, type PlayerCommand, type PlayerInfo, type RendererState, type Result } from "@shared/ipc";
@@ -385,6 +386,37 @@ function registerIpc() {
     await shell.openPath(logsDir());
   });
   handle("diag:netcheck", () => netCheck());
+  /**
+   * "Report a problem": what the app knows that helps (version, Windows, a few settings, the end of the log) in a file
+   * the person saves and attaches; then the page to write on opens. Nothing secret: no tokens, codes or names — only
+   * whether one is signed in — and anything token-like in the log is blanked.
+   */
+  handle("diag:report", async () => {
+    const p = prefs();
+    const read = async (name: string) => (await readFile(join(logsDir(), name), "utf8").catch(() => "")).split(/\r?\n/);
+    const lines = [...(await read("main.old.log")), ...(await read("main.log"))].filter(Boolean).slice(-400);
+    const version = app.getVersion();
+    const text = [
+      `sc player ${version}${app.isPackaged ? "" : " (development)"}${process.env.PORTABLE_EXECUTABLE_DIR ? " portable" : ""}`,
+      `Windows ${release()}`,
+      `signed in to SoundCloud: ${signedIn() ? "yes" : "no"}; messenger: ${social.myCode() ? "yes" : "no"}`,
+      `proxy: ${p.proxy.mode}${proxyRoute() ? ` (${proxyRoute()})` : ""}; stream quality: ${p.streamQuality}; lyrics auto-sync: ${p.autoSyncLyrics ? "on" : "off"}`,
+      "",
+      "--- the end of the log ---",
+      ...lines.map((l) => l.replace(/[A-Za-z0-9_-]{24,}/g, "…")),
+    ].join("\n");
+    const date = new Date().toISOString().slice(0, 10);
+    const r = await dialog.showSaveDialog(...((main ? [main] : []) as [BrowserWindow]), {
+      defaultPath: join(app.getPath("documents"), `sc player report ${date}.txt`),
+      filters: [{ name: "Text", extensions: ["txt"] }],
+    });
+    if (r.canceled || !r.filePath) return false;
+    await writeFile(r.filePath, text, "utf8");
+    shell.showItemInFolder(r.filePath);
+    const body = `sc player ${version}, Windows ${release()}\n\nWhat happened:\n\n\nWhat I expected:\n\n\n(The report file ${r.filePath.split(/[\\/]/).pop()} is attached.)`;
+    void shell.openExternal(`https://github.com/waterlilo/sc-player/issues/new?title=${encodeURIComponent("Problem: ")}&body=${encodeURIComponent(body)}`);
+    return true;
+  });
   handle("proxy:setPassword", (_e, password) => {
     const p = str(password, "password");
     setSecret("proxyPassword", p ? p : null);

@@ -233,6 +233,17 @@ function Proxy() {
   );
 }
 
+/** "Report a problem": a report file to attach, and the page to write on. */
+function ReportButton() {
+  const t = useT();
+  const toast = useUi((s) => s.showToast);
+  return (
+    <PaperButton onClick={() => void call("diag:report").then((saved) => saved && toast(t.reportSaved), () => toast(t.reportFailed))}>
+      {t.reportProblem}
+    </PaperButton>
+  );
+}
+
 function Diagnostics() {
   const t = useT();
   const toast = useUi((s) => s.showToast);
@@ -260,6 +271,7 @@ function Diagnostics() {
               <Icon name="link" size={16} /> {t.copyReport}
             </PaperButton>
           )}
+          <ReportButton />
           <PaperButton onClick={() => void call("diag:openLogs")}>{t.openLogs}</PaperButton>
           <PaperButton onClick={() => void call("diag:clearCache").then(() => toast(t.cacheCleared))}>{t.clearCache}</PaperButton>
         </div>
@@ -493,6 +505,9 @@ export default function Settings() {
 
           <Section title={t.secAbout}>
             <p className="px-3 text-sm text-muted">{t.unofficial}</p>
+            <Row label={t.reportProblem} hint={t.reportProblemHint}>
+              <ReportButton />
+            </Row>
             <div className="px-3 pt-2">
               <button type="button" onClick={() => void call("shell:open", REPO)} className="inline-flex items-center gap-1.5 font-type text-xs text-muted underline-offset-2 hover:text-text hover:underline">
                 <Icon name="external" size={13} /> {t.sourceCode}
