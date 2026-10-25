@@ -37,6 +37,7 @@ function Join() {
   return (
     <div className="grid h-full place-items-center px-8">
       <form onSubmit={submit} className="w-[26rem] max-w-full" data-keys-own>
+        <LinkedFriend onFriends={() => undefined} />
         <div className="mb-4 grid h-12 w-12 place-items-center rounded-full bg-white/[0.06] text-glow">
           <Icon name="send" size={22} />
         </div>
@@ -58,12 +59,61 @@ function Join() {
 function MyCode({ code }: { code: string }) {
   const t = useT();
   const toast = useUi((s) => s.showToast);
+  const copyLink = async () => {
+    const link = await call("social:inviteLink");
+    if (link) await call("clipboard:write", link);
+    toast(link ? t.inviteLinkCopied : t.serverOffline);
+  };
   return (
-    <button type="button" onClick={() => void call("clipboard:write", code).then(() => toast(t.codeCopied))} title={t.copyCode} className="flex w-full items-center gap-2 rounded-md bg-white/[0.04] px-3 py-2 text-left text-xs text-muted hover:bg-white/[0.07]">
-      {t.yourCode}
-      <b className="font-type text-sm font-semibold tracking-wider text-text">{code}</b>
-      <Icon name="copy" size={14} className="ml-auto" />
-    </button>
+    <div className="flex flex-col gap-1.5">
+      <button type="button" onClick={() => void call("clipboard:write", code).then(() => toast(t.codeCopied))} title={t.copyCode} className="flex w-full items-center gap-2 rounded-md bg-white/[0.04] px-3 py-2 text-left text-xs text-muted hover:bg-white/[0.07]">
+        {t.yourCode}
+        <b className="font-type text-sm font-semibold tracking-wider text-text">{code}</b>
+        <Icon name="copy" size={14} className="ml-auto" />
+      </button>
+      <button type="button" onClick={() => void copyLink()} title={t.inviteLinkHint} className="flex w-full items-center gap-2 rounded-md bg-white/[0.04] px-3 py-2 text-left text-xs text-muted hover:bg-white/[0.07] hover:text-text">
+        <Icon name="link" size={14} />
+        {t.copyInviteLink}
+      </button>
+    </div>
+  );
+}
+
+/** Opened by a friend's link: their code, added with one press (or not). */
+function LinkedFriend({ onFriends }: { onFriends: (f: Friends) => void }) {
+  const t = useT();
+  const code = useSocial((s) => s.linked);
+  const joined = useSocial((s) => !!s.status?.profile);
+  const toast = useUi((s) => s.showToast);
+  const [busy, setBusy] = useState(false);
+  if (!code) return null;
+  const done = () => useSocial.setState({ linked: null });
+  const add = async () => {
+    setBusy(true);
+    try {
+      onFriends(await call("social:addFriend", code));
+      toast(t.friendRequestSent(code));
+      done();
+    } catch (err) {
+      toast(errText(err, t.serverOffline));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div role="status" className="mb-3 rounded-md border border-[var(--s-line,var(--edge))] bg-white/[0.04] p-3 text-sm text-text">
+      <p>{joined ? t.linkedFriendAsk(code) : t.linkedFriendJoinFirst(code)}</p>
+      <div className="mt-2 flex gap-2">
+        {joined && (
+          <button type="button" disabled={busy} onClick={() => void add()} className="s-btn pri">
+            {t.add}
+          </button>
+        )}
+        <button type="button" onClick={done} className="s-btn">
+          {t.notNow}
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -119,6 +169,7 @@ function People() {
         <h1 className="display-heading text-2xl text-text">{t.inbox.toLowerCase()}</h1>
       </div>
       <div className="space-y-2 px-3">
+        <LinkedFriend onFriends={setFriends} />
         <MyCode code={status!.profile!.code} />
         <AddFriend onFriends={setFriends} />
       </div>

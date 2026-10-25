@@ -10,7 +10,7 @@ import { DemoProvider } from "./demo";
 import { addLocal, createLocal, deleteLocal, exportLocal, importLocal, flushLocalPlaylists, isLocal, localIds, localPlaylist, localPlaylists, localTracks, MAX_TRACKS, renameLocal, setLocalTracks } from "./local-playlists";
 import { flushLyrics, lyricsFor, pickLyrics, searchLyrics } from "./lyrics";
 import { deleteModel, downloadModel, flushLyricsSync, onSyncStatus, syncedBefore, syncStatus, syncWords } from "./lyrics-sync";
-import { auth, authStatus, chromeUserAgent, provider, ScError, scSession, finishBrowserSignIn, startBrowserSignIn, stopBrowserSignIn, toErrorInfo, tokenFromArgs, waitingForBrowser } from "./soundcloud";
+import { auth, authStatus, chromeUserAgent, provider, ScError, scSession, finishBrowserSignIn, friendFromArgs, registerLinks, startBrowserSignIn, stopBrowserSignIn, toErrorInfo, tokenFromArgs, waitingForBrowser } from "./soundcloud";
 import { flushAlternatives } from "./soundcloud/alternatives";
 import * as rooms from "./rooms";
 import * as social from "./social";
@@ -304,6 +304,10 @@ function registerIpc() {
     return social.updateProfile({ ...(p.name !== undefined ? { name: str(p.name, "name").slice(0, 32) } : {}), ...(p.shareNow !== undefined ? { shareNow: p.shareNow === true } : {}) });
   });
   handle("social:leave", () => social.leave());
+  handle("social:inviteLink", () => {
+    const code = social.myCode();
+    return code && social.serverBase() ? `${social.serverBase()}/v1/invite/${code}` : "";
+  });
   handle("social:friends", () => social.getFriends());
   handle("social:addFriend", (_e, code) => social.friendAction("add", str(code, "code").slice(0, 16)));
   handle("social:accept", (_e, code) => social.friendAction("accept", str(code, "code").slice(0, 16)));
@@ -469,9 +473,16 @@ async function signInFromBrowser(argv: string[]) {
   send(main, "auth:changed", status);
 }
 
+/** A friend's link (scplayer://friend/SKY-XXXXX): the page opens the Inbox and asks before adding them. */
+function friendLink(argv: string[]) {
+  const code = friendFromArgs(argv);
+  if (code) send(main, "social:friendLink", code);
+}
+
 app.on("second-instance", (_e, argv) => {
   showWindow(main);
   void signInFromBrowser(argv);
+  friendLink(argv);
 });
 
 app.on("window-all-closed", () => app.quit());
@@ -499,7 +510,12 @@ void app.whenReady().then(async () => {
   onSyncStatus((s) => send(main, "lyricsSync:status", s));
   main.on("closed", () => (main = null));
   // started by the browser sign-in's link (the app wasn't running)
-  main.webContents.once("did-finish-load", () => void signInFromBrowser(process.argv));
+  main.webContents.once("did-finish-load", () => {
+    void signInFromBrowser(process.argv);
+    friendLink(process.argv);
+  });
+  // links open the installed app (in development they would point at this checkout)
+  if (app.isPackaged) registerLinks();
   // Windows forgets the taskbar buttons while the window is hidden
   main.on("show", () => updateThumbar(main, playerInfo, command, true));
   createTray({

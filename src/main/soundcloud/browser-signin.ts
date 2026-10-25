@@ -28,9 +28,24 @@ export function waitingForBrowser() {
   return Date.now() < waitingUntil;
 }
 
-export function startBrowserSignIn() {
+/** scplayer:// links open this app: a sign-in from the browser, a friend's link. Set at every start (installed). */
+export function registerLinks() {
   const [exe, args] = handlerArgs();
   app.setAsDefaultProtocolClient(PROTOCOL, exe, args);
+}
+
+/** The code from a friend link (`scplayer://friend/SKY-XXXXX`) among a new instance's arguments, if there is one. */
+export function friendFromArgs(argv: string[]): string | null {
+  for (const arg of argv) {
+    if (!arg.toLowerCase().startsWith(`${PROTOCOL}://friend/`)) continue;
+    const code = arg.slice(`${PROTOCOL}://friend/`.length).replace(/\/+$/, "").toUpperCase();
+    if (/^SKY-[2-9A-HJ-NP-Z]{5}$/.test(code)) return code;
+  }
+  return null;
+}
+
+export function startBrowserSignIn() {
+  registerLinks();
   waitingUntil = Date.now() + WAIT_MS;
   const page = join(app.getPath("temp"), "sc-player-sign-in.html");
   writeFileSync(page, helperPage(), "utf8");
@@ -44,15 +59,14 @@ export function finishBrowserSignIn() {
 }
 
 export function stopBrowserSignIn() {
+  // the link handler stays: friend links use it too
   waitingUntil = 0;
-  const [exe, args] = handlerArgs();
-  app.removeAsDefaultProtocolClient(PROTOCOL, exe, args);
 }
 
 /** The token from a `scplayer://signin?token=…` link among a new instance's arguments, if there is one. */
 export function tokenFromArgs(argv: string[]): string | null {
   for (const arg of argv) {
-    if (!arg.toLowerCase().startsWith(`${PROTOCOL}:`)) continue;
+    if (!arg.toLowerCase().startsWith(`${PROTOCOL}://signin`)) continue;
     try {
       const token = new URL(arg).searchParams.get("token") ?? "";
       if (/^[\w.-]{8,256}$/.test(token)) return token;

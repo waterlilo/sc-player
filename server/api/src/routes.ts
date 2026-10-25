@@ -649,8 +649,40 @@ type Handler = (c: Ctx) => unknown;
 const CODE = "([A-Za-z0-9-]{4,16})";
 const TID = "([A-Za-z0-9_-]{10})";
 
+/**
+ * A friend link (sc player: Inbox → Copy invite link): a small page that opens the app with the code
+ * (scplayer://friend/SKY-XXXXX), or says where to get it. It shows only the code — nothing about its owner.
+ */
+function invitePage(c: Ctx) {
+  const code = c.params[0]!;
+  const app = `scplayer://friend/${code}`;
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Add ${code} on sc player</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #050506; color: #ececef; font: 16px/1.55 system-ui, "Segoe UI", sans-serif; }
+  main { max-width: 440px; padding: 32px 20px; text-align: center; }
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 6px; }
+  p { color: #9b9ba4; margin: 0 0 22px; }
+  .code { font: 600 20px ui-monospace, monospace; letter-spacing: 0.08em; margin: 0 0 22px; }
+  a.open { display: inline-block; padding: 10px 22px; border-radius: 8px; background: #ececef; color: #050506; font-weight: 600; text-decoration: none; }
+  .get { display: block; margin-top: 18px; color: #9b9ba4; font-size: 14px; }
+  .get a { color: #ececef; }
+</style></head>
+<body><main>
+  <h1>A friend invites you to sc player</h1>
+  <p>Open the app to add them as a friend: then you can send each other tracks and listen together.</p>
+  <div class="code">${code}</div>
+  <a class="open" href="${app}">Open sc player</a>
+  <span class="get">No sc player yet? <a href="https://github.com/waterlilo/sc-player/releases/latest">Download it</a>, then open this link again.</span>
+</main></body></html>`;
+  c.res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=3600", "x-content-type-options": "nosniff", "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'" });
+  c.res.end(html);
+}
+
 const ROUTES: [string, RegExp, Handler][] = [
   ["GET", /^\/v1\/health$/, (c) => send(c.res, 200, { ok: true })],
+  ["GET", /^\/v1\/invite\/(SKY-[2-9A-HJ-NP-Z]{5})$/, invitePage],
   ["POST", /^\/v1\/register$/, register],
   ["GET", /^\/v1\/me$/, getMe],
   ["PUT", /^\/v1\/me$/, putMe],

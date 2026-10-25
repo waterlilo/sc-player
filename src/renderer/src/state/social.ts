@@ -25,6 +25,8 @@ interface SocialStore {
   sending: SocialTrack | null;
   /** invitations to friends' listening rooms */
   invites: RoomInvite[];
+  /** a friend link opened the app: this code, waiting for "Add" in the Inbox */
+  linked: string | null;
   setStatus(s: SocialStatus): void;
   setFriends(f: Friends): void;
   openChat(code: string | null): void;
@@ -42,6 +44,7 @@ export const useSocial = create<SocialStore>((set) => ({
   open: null,
   sending: null,
   invites: [],
+  linked: null,
   setStatus: (status) => set({ status }),
   setFriends: (friends) => set({ friends }),
   openChat: (open) => set((s) => ({ open, unread: open ? { ...s.unread, [open]: 0 } : s.unread })),
@@ -87,6 +90,10 @@ export function initSocial() {
     }));
     const open = useSocial.getState().open;
     if (open && u.messages.some((m) => m.from === open) && useNav.getState().route.name === "inbox") void call("social:seen", open).catch(() => undefined);
+  });
+  on("social:friendLink", (code) => {
+    useSocial.setState({ linked: code });
+    useNav.getState().open("inbox", { name: "inbox" });
   });
   on("social:open", (code) => {
     useNav.getState().open("inbox", { name: "inbox" });

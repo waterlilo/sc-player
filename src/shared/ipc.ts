@@ -335,6 +335,8 @@ export interface InvokeMap {
   /** "Get my code": a new profile on the server with this name */
   "social:join": (name: string) => SocialStatus;
   "social:profile": (patch: { name?: string; shareNow?: boolean }) => SocialStatus;
+  /** the link that adds me as a friend (a page on sc player's server that opens the app); "" without a code */
+  "social:inviteLink": () => string;
   /** forget the profile here and on the server (friends, tracks, themes) */
   "social:leave": () => SocialStatus;
   "social:friends": () => Friends;
@@ -398,6 +400,8 @@ export interface EventMap {
   "social:update": SocialUpdate;
   /** a pop-up about a sent track was clicked: open the inbox (at this friend) */
   "social:open": string;
+  /** a friend link opened the app: the code to add (asked first) */
+  "social:friendLink": string;
   "room:state": RoomState;
   "lyricsSync:status": LyricsSyncStatus;
 }
@@ -411,6 +415,7 @@ export const INVOKE_CHANNELS = [
   "social:join",
   "social:profile",
   "social:leave",
+  "social:inviteLink",
   "social:friends",
   "social:addFriend",
   "social:accept",
@@ -507,7 +512,7 @@ export const INVOKE_CHANNELS = [
   "update:download",
   "update:install",
 ] as const satisfies readonly InvokeChannel[];
-export const EVENT_CHANNELS = ["win:activity", "win:maximized", "auth:changed", "auth:browserRefused", "player:command", "hotkeys:failed", "update:status", "social:update", "social:open", "lyricsSync:status", "room:state"] as const satisfies readonly (keyof EventMap)[];
+export const EVENT_CHANNELS = ["win:activity", "win:maximized", "auth:changed", "auth:browserRefused", "player:command", "hotkeys:failed", "update:status", "social:update", "social:open", "social:friendLink", "lyricsSync:status", "room:state"] as const satisfies readonly (keyof EventMap)[];
 
 type MissingInvoke = Exclude<InvokeChannel, (typeof INVOKE_CHANNELS)[number]>;
 type MissingEvent = Exclude<keyof EventMap, (typeof EVENT_CHANNELS)[number]>;
