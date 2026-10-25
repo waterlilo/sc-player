@@ -442,6 +442,32 @@ html[data-quality] .sketch-boil::after {
   outline-offset: 4px;
 }
 
+/* the colour picker's ranges (settings/ColorPicker): the track shows the colours it goes through (--track) */
+.color-range {
+  appearance: none;
+  height: 18px;
+  background: transparent;
+  cursor: pointer;
+}
+.color-range::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--track);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+.color-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -4px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.35);
+}
+.color-range:focus-visible {
+  outline-offset: 4px;
+}
+
 /* text fields: paper with a rough --line outline that turns --glow while focused (the field, not the bare input,
    shows the focus) */
 .field {

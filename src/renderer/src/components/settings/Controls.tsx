@@ -13,10 +13,10 @@ export function Section({ title, children }: { title: string; children: ReactNod
   );
 }
 
-/** One setting: label and hint on the left, the control on the right. */
-export function Row({ label, hint, children, htmlFor }: { label: string; hint?: ReactNode; children: ReactNode; htmlFor?: string }) {
+/** One setting: label and hint on the left, the control on the right — or, `wide` (many choices), under them. */
+export function Row({ label, hint, children, htmlFor, wide = false }: { label: string; hint?: ReactNode; children: ReactNode; htmlFor?: string; wide?: boolean }) {
   return (
-    <div className="flex items-center gap-6 rounded-md px-3 py-2.5 hover:bg-[var(--row-hover)]">
+    <div className={`flex rounded-md px-3 py-2.5 hover:bg-[var(--row-hover)] ${wide ? "flex-col items-start gap-2.5" : "items-center gap-6"}`}>
       <div className="min-w-0 flex-1">
         <label htmlFor={htmlFor} className="block font-medium text-text">
           {label}

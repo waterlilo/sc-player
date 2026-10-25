@@ -202,9 +202,10 @@ function applySurface(hex: string) {
     root.removeProperty("--bg");
     return;
   }
+  // the picker already stops at 20% lightness; an older or a theme's colour is kept there too
   const [h, s, l] = hsl(c);
-  const panel = rgb([h, Math.min(s, 0.6), Math.min(Math.max(l, 0.05), 0.2)]).map(Math.round);
-  const base = rgb([h, Math.min(s, 0.6), Math.min(Math.max(l, 0.05), 0.2) * 0.35]).map(Math.round);
+  const panel = rgb([h, s, Math.min(l, 0.2)]).map(Math.round);
+  const base = rgb([h, s, Math.min(l, 0.2) * 0.35]).map(Math.round);
   root.setProperty("--glass-rgb", panel.join(", "));
   root.setProperty("--bg", `rgb(${base.join(" ")})`);
 }

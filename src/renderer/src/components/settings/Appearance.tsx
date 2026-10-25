@@ -4,7 +4,12 @@ import { useT } from "@/i18n";
 import { call } from "@/lib/sky";
 import { useSettings } from "@/state/settings";
 import { useUi } from "@/state/ui";
+import { ColorPicker, Unfold } from "./ColorPicker";
 import { Choice, Row, Section, Slider, Toggle } from "./Controls";
+
+/** dark ones for the interface, bright ones for the accent */
+const SURFACES = ["#0e0e11", "#1c1730", "#14213d", "#0f2a24", "#2a1220", "#2b1d0e", "#1b1b1b", "#0b1a2e"];
+const ACCENTS = ["#b2a0e6", "#7aa2f7", "#5ad1c8", "#9ece6a", "#f2dc1a", "#ff9e64", "#f7768e", "#e8e8ec"];
 
 /**
  * Settings → Appearance: the design (studio or the og night sky) and, for studio, the background (living colours,
@@ -18,6 +23,7 @@ export default function Appearance() {
   const toast = useUi((s) => s.showToast);
   const look = prefs.look;
   const set = (patch: Partial<Look>) => setPref("look", { ...useSettings.getState().prefs.look, ...patch });
+  const colorLabels = { hue: t.colorHue, saturation: t.colorSaturation, lightness: t.colorLightness, code: t.colorCode };
 
   const pick = async () => {
     try {
@@ -60,16 +66,16 @@ export default function Appearance() {
               label={t.surface}
               options={[["default", t.surfaceDefault], ["own", t.surfaceCustom]]}
             />
-            {look.surface && (
-              <input type="color" value={look.surface} onChange={(e) => set({ surface: e.target.value })} aria-label={t.surface} className="h-8 w-10 cursor-pointer rounded-md border border-white/10 bg-transparent p-0.5" />
-            )}
           </Row>
-          <Row label={t.accent} hint={look.accent ? look.accent : t.accentAuto}>
+          <Unfold open={!!look.surface}>
+            <ColorPicker value={look.surface || "#1c1730"} onChange={(surface) => set({ surface })} presets={SURFACES} maxLight={20} labels={colorLabels} />
+          </Unfold>
+          <Row label={t.accent} hint={look.accent ? undefined : t.accentAuto}>
             <Choice<"auto" | "fixed"> value={look.accent ? "fixed" : "auto"} onChange={(v) => set({ accent: v === "auto" ? "" : look.accent || "#b2a0e6" })} label={t.accent} options={[["auto", t.accentFromPicture], ["fixed", t.accentFixed]]} />
-            {look.accent && (
-              <input type="color" value={look.accent} onChange={(e) => set({ accent: e.target.value })} aria-label={t.accent} className="h-8 w-10 cursor-pointer rounded-md border border-white/10 bg-transparent p-0.5" />
-            )}
           </Row>
+          <Unfold open={!!look.accent}>
+            <ColorPicker value={look.accent || "#b2a0e6"} onChange={(accent) => set({ accent })} presets={ACCENTS} labels={colorLabels} />
+          </Unfold>
           <Row label={t.panelOpacity} hint={`${look.panelOpacity}%`}>
             <Slider value={look.panelOpacity} min={10} max={100} step={1} onChange={(v) => set({ panelOpacity: v })} label={t.panelOpacity} />
           </Row>

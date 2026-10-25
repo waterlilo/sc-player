@@ -181,7 +181,7 @@ function Proxy() {
 
   return (
     <>
-      <Row label={t.proxy} hint={t.proxyHint}>
+      <Row label={t.proxy} hint={t.proxyHint} wide>
         <Choice
           label={t.proxy}
           value={mode}
