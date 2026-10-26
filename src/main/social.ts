@@ -344,10 +344,11 @@ export async function wsCapture() {
 }
 
 /** Publish the current look: the theme, its background (optional), then the picture taken by wsCapture. */
-export async function wsPublish(t: { name: string; description: string; withBackground: boolean }): Promise<string> {
+export async function wsPublish(t: { name: string; description: string; withBackground: boolean; video?: Uint8Array }): Promise<string> {
   needProfile();
   const look = prefs().look;
-  const bg = t.withBackground && look.bg === "file" ? readBackground(look.bgFile) : null;
+  // a big video comes fitted to 25 MB by the page (2K, shortened to a smooth loop when needed)
+  const bg = !t.withBackground || look.bg !== "file" ? null : t.video ? { data: Buffer.from(t.video), ext: "mp4" } : readBackground(look.bgFile);
   if (bg && bg.data.length > 25 * 1024 * 1024) throw new ScError("unknown", "The background is too big for the workshop (25 MB at most)");
   const picture = preview;
   if (!picture) throw new ScError("unknown", "no picture of the look");

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { PREFS_DEFAULTS, type BackgroundKind, type Look } from "@shared/ipc";
 import { PaperButton } from "@/components/ui/Buttons";
 import { useT } from "@/i18n";
@@ -6,6 +7,7 @@ import { useSettings } from "@/state/settings";
 import { useUi } from "@/state/ui";
 import { ColorPicker, Unfold } from "./ColorPicker";
 import { Choice, Row, Section, Slider, Toggle } from "./Controls";
+import SteamImport from "./SteamImport";
 
 /** dark ones for the interface, bright ones for the accent */
 const SURFACES = ["#0e0e11", "#1c1730", "#14213d", "#0f2a24", "#2a1220", "#2b1d0e", "#1b1b1b", "#0b1a2e"];
@@ -24,6 +26,7 @@ export default function Appearance() {
   const look = prefs.look;
   const set = (patch: Partial<Look>) => setPref("look", { ...useSettings.getState().prefs.look, ...patch });
   const colorLabels = { hue: t.colorHue, saturation: t.colorSaturation, lightness: t.colorLightness, code: t.colorCode };
+  const [steam, setSteam] = useState(false);
 
   const pick = async () => {
     try {
@@ -44,6 +47,10 @@ export default function Appearance() {
           options={[["liquid", t.bgLiquid], ["cover", t.bgCover], ["file", t.bgFile], ["none", t.bgNone]]}
         />
         {look.bg === "file" && <PaperButton onClick={() => void pick()}>{t.bgChoose}</PaperButton>}
+        <PaperButton onClick={() => setSteam(true)} title={t.steamImport}>
+          {t.bgSteam}
+        </PaperButton>
+        {steam && <SteamImport onClose={() => setSteam(false)} />}
       </Row>
       <Row label={t.bgBlur} hint={`${look.bgBlur} px`}>
         <Slider value={look.bgBlur} min={0} max={40} step={1} onChange={(v) => set({ bgBlur: v })} label={t.bgBlur} />

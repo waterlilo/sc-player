@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { copyFileSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { basename, extname, join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -25,11 +26,26 @@ export function registerBackgroundScheme() {
   protocol.registerSchemesAsPrivileged([{ scheme: BG_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true, bypassCSP: true } }]);
 }
 
+/**
+ * Files the page may read once to make a background of them (a Steam wallpaper's video, scbg://import/<token>): only
+ * those main found itself, by a random token.
+ */
+const imports = new Map<string, string>();
+export function allowImport(path: string): string {
+  for (const [token, p] of imports) if (p === path) return `${BG_SCHEME}://import/${token}`;
+  const token = randomBytes(12).toString("hex");
+  imports.set(token, path);
+  return `${BG_SCHEME}://import/${token}`;
+}
+const importPath = (url: string) => imports.get(basename(new URL(url).pathname)) ?? null;
+
 export function serveBackgrounds() {
   protocol.handle(BG_SCHEME, async (req) => {
-    const name = basename(decodeURIComponent(new URL(req.url).pathname));
-    if (!NAME.test(name)) return new Response("not found", { status: 404 });
-    const res = await net.fetch(pathToFileURL(join(folder(), name)).toString(), { headers: req.headers });
+    const u = new URL(req.url);
+    const name = basename(decodeURIComponent(u.pathname));
+    const path = u.host === "import" ? imports.get(name) : NAME.test(name) ? join(folder(), name) : null;
+    if (!path) return new Response("not found", { status: 404 });
+    const res = await net.fetch(pathToFileURL(path).toString(), { headers: req.headers });
     // the page reads a few pixels of it for the accent colour, which needs CORS
     const headers = new Headers(res.headers);
     headers.set("Access-Control-Allow-Origin", "*");
@@ -52,6 +68,27 @@ export async function pickBackground(win: BrowserWindow | null): Promise<{ file:
   const file = `bg-${Date.now()}${ext}`;
   copyFileSync(src, join(folder(), file));
   return { file, type };
+}
+
+/** An imported video kept as it is (no 2K copy): copied like a picked file. */
+export function keepImport(url: string): { file: string; type: "video" } {
+  const src = importPath(url);
+  if (!src) throw new Error("This video isn't there any more");
+  if (statSync(src).size > MAX_BYTES) throw new Error("The file is too big for a background (300 MB at most)");
+  mkdirSync(folder(), { recursive: true });
+  for (const old of readdirSync(folder())) if (NAME.test(old)) rmSync(join(folder(), old), { force: true });
+  const file = `bg-${Date.now()}${extname(src).toLowerCase()}`;
+  copyFileSync(src, join(folder(), file));
+  return { file, type: "video" };
+}
+
+/** The size of the current own background (to know whether it fits the workshop); 0 when there is none. */
+export function backgroundSize(file: string): number {
+  try {
+    return NAME.test(file) ? statSync(join(folder(), file)).size : 0;
+  } catch {
+    return 0;
+  }
 }
 
 /** A background that came from elsewhere (a workshop theme): replaces the current one, like a picked file. */

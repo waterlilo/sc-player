@@ -132,6 +132,11 @@ export interface LyricWord {
  */
 export type LyricsSource = "lrclib" | "betterlyrics" | "unison" | "own" | "community";
 
+/** A Wallpaper Engine wallpaper from the Steam Workshop, looked for on this computer (main/system/steam-wallpaper). */
+export type SteamWallpaper =
+  | { found: true; id: string; title: string; sizeMb: number; /** scbg://import/… for the page to read it */ url: string }
+  | { found: false; id: string; reason: "link" | "missing" | "not-video" };
+
 /** What became of my lyrics sent for review ("" — none sent). */
 export type LyricsSuggestionState = "" | "pending" | "approved" | "rejected" | "replaced";
 

@@ -1,6 +1,6 @@
 import type { SearchKind } from "./provider";
 import type { Friends, Message, Room, RoomOp, RoomState, SocialStatus, SocialTrack, SocialUpdate, WsPage, WsSort, WsThemeFull, SharedPlaylist } from "./social";
-import type { AppErrorInfo, Lyrics, LyricsHit, LyricsSyncStatus, Page, Playlist, QueueSource, Resolved, SavedProfile, StreamInfo, SyncRequest, SyncResult, Track, TrackDetails, User, LyricsForReview, LyricsSuggestionState } from "./types";
+import type { AppErrorInfo, Lyrics, LyricsHit, LyricsSyncStatus, Page, Playlist, QueueSource, Resolved, SavedProfile, StreamInfo, SyncRequest, SyncResult, Track, TrackDetails, User, LyricsForReview, LyricsSuggestionState, SteamWallpaper } from "./types";
 
 /**
  * The one contract between main and renderer. main registers a handler for every InvokeMap channel, preload exposes
@@ -313,6 +313,16 @@ export interface InvokeMap {
 
   /** Settings → background: pick an image, GIF or video; main copies it into userData. null when cancelled */
   "bg:pick": () => { file: string; type: "image" | "video" } | null;
+  /** a Wallpaper Engine wallpaper by its Steam Workshop link, if Steam has it on this computer */
+  "bg:steamFind": (link: string) => SteamWallpaper;
+  /** the wallpaper's page in Steam (to subscribe, so Steam downloads it) */
+  "bg:steamOpen": (id: string) => void;
+  /** the imported video as it is (no 2K copy) */
+  "bg:keepImport": (url: string) => { file: string; type: "video" };
+  /** a video made here (the 2K copy) as the background */
+  "bg:saveVideo": (data: Uint8Array) => { file: string; type: "video" };
+  /** the current own background's size in bytes */
+  "bg:size": (file: string) => number;
   "win:minimize": () => void;
   "win:toggleMaximize": () => void;
   "win:close": () => void;
@@ -389,7 +399,8 @@ export interface InvokeMap {
   /** publish the current look (with its own background when `withBackground`) and a picture of the window; the theme's id */
   /** a picture of the window for the theme being published (taken while the page has stepped aside) */
   "ws:capture": () => void;
-  "ws:publish": (t: { name: string; description: string; withBackground: boolean }) => string;
+  /** `video`: the background fitted to the workshop's 25 MB here, sent in place of the file */
+  "ws:publish": (t: { name: string; description: string; withBackground: boolean; video?: Uint8Array }) => string;
   /** download a theme (and its background): the look to apply */
   "ws:install": (id: string) => Look;
   "ws:like": (id: string) => { likes: number; liked: boolean };
@@ -465,6 +476,11 @@ export const INVOKE_CHANNELS = [
   "ws:moderator",
   "ws:setModerator",
   "bg:pick",
+  "bg:steamFind",
+  "bg:steamOpen",
+  "bg:keepImport",
+  "bg:saveVideo",
+  "bg:size",
   "auth:status",
   "auth:login",
   "auth:logout",

@@ -19,7 +19,8 @@ import * as social from "./social";
 import { patchRenderer, prefs, store } from "./store";
 import { getSecret, setSecret, unopenedSecrets } from "./store/secrets";
 import { applyAutostart, startedHidden } from "./system/autostart";
-import { pickBackground, registerBackgroundScheme, serveBackgrounds } from "./system/background";
+import { backgroundSize, keepImport, pickBackground, registerBackgroundScheme, saveBackground, serveBackgrounds } from "./system/background";
+import { findWallpaper, workshopId } from "./system/steam-wallpaper";
 import { applyHotkeys, initHotkeys, suspendHotkeys } from "./system/hotkeys";
 import { log, logsDir } from "./system/log";
 import { netCheck } from "./system/netcheck";
@@ -319,6 +320,18 @@ function registerIpc() {
   handle("data:waveform", (_e, url) => data.getWaveform(str(url, "url")));
 
   handle("bg:pick", () => pickBackground(main));
+  handle("bg:steamFind", (_e, link) => {
+    const wid = workshopId(str(link, "link"));
+    return wid ? findWallpaper(wid) : { found: false as const, id: "", reason: "link" as const };
+  });
+  handle("bg:steamOpen", (_e, wid) => {
+    const item = workshopId(str(wid, "id")) ?? bad("id");
+    // Steam opens the page itself (subscribing there downloads it); without Steam, the page on the web
+    void shell.openExternal(`steam://url/CommunityFilePage/${item}`).catch(() => shell.openExternal(`https://steamcommunity.com/sharedfiles/filedetails/?id=${item}`));
+  });
+  handle("bg:keepImport", (_e, url) => keepImport(str(url, "url")));
+  handle("bg:saveVideo", (_e, data) => (data instanceof Uint8Array && data.length > 0 && data.length <= 300 * 1024 * 1024 ? saveBackground(Buffer.from(data), "mp4") : bad("video")) as { file: string; type: "video" });
+  handle("bg:size", (_e, file) => backgroundSize(str(file, "file")));
 
   handle("social:status", () => social.status());
   handle("social:join", (_e, name) => social.join(str(name, "name").slice(0, 32)));
@@ -376,7 +389,8 @@ function registerIpc() {
   handle("ws:capture", () => social.wsCapture());
   handle("ws:publish", (_e, t) => {
     const o = (typeof t === "object" && t !== null ? t : bad("theme")) as Record<string, unknown>;
-    return social.wsPublish({ name: str(o.name, "name").slice(0, 40), description: str(o.description ?? "", "description").slice(0, 300), withBackground: o.withBackground === true });
+    const video = o.video === undefined ? undefined : o.video instanceof Uint8Array && o.video.length > 0 && o.video.length <= 25 * 1024 * 1024 ? o.video : bad("video");
+    return social.wsPublish({ name: str(o.name, "name").slice(0, 40), description: str(o.description ?? "", "description").slice(0, 300), withBackground: o.withBackground === true, video });
   });
   handle("ws:install", (_e, t) => social.wsInstall(themeId(t)));
   handle("ws:like", (_e, t) => social.wsLike(themeId(t)));

@@ -9,6 +9,7 @@ import { EmptyState, ErrorState, Loading } from "@/components/ui/States";
 import { useT } from "@/i18n";
 import { ask, askText } from "@/state/dialog";
 import { call } from "@/lib/sky";
+import { fitTo } from "@/lib/videoFit";
 import { useNav } from "@/state/nav";
 import { useSettings } from "@/state/settings";
 import { useSocial } from "@/state/social";
@@ -173,6 +174,8 @@ function ThemeDialog({ id, onClose }: { id: string; onClose: () => void }) {
   );
 }
 
+const WORKSHOP_MAX = 25 * 1024 * 1024;
+
 function PublishDialog({ onClose }: { onClose: () => void }) {
   const t = useT();
   const client = useQueryClient();
@@ -182,9 +185,24 @@ function PublishDialog({ onClose }: { onClose: () => void }) {
   const [description, setDescription] = useState("");
   const [withBackground, setWithBackground] = useState(true);
   const hasOwnBg = look.bg === "file" && !!look.bgFile;
+  // a video over the workshop's 25 MB is fitted here before it goes (the own background stays as it is)
+  const bgSize = useQuery({ queryKey: ["bg-size", look.bgFile], queryFn: () => call("bg:size", look.bgFile), enabled: hasOwnBg }).data ?? 0;
+  const needsFit = hasOwnBg && withBackground && look.bgFileType === "video" && bgSize > WORKSHOP_MAX;
+  const [fitting, setFitting] = useState<number | null>(null);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
+    let video: Uint8Array | undefined;
+    if (needsFit) {
+      setFitting(0);
+      try {
+        video = await fitTo(`scbg://file/${look.bgFile}`, WORKSHOP_MAX, (p) => setFitting(p));
+      } catch (err) {
+        setFitting(null);
+        toast(err instanceof Error && err.message ? err.message : t.serverOffline);
+        return;
+      }
+    }
     // the preview is a picture of the window: the dialog, the page and the toasts leave first, so the middle shows the
     // background rather than the workshop's own grid of themes
     onClose();
@@ -201,7 +219,7 @@ function PublishDialog({ onClose }: { onClose: () => void }) {
     setPosing(false);
     toast(t.publishing);
     try {
-      await call("ws:publish", { name: name.trim(), description: description.trim(), withBackground: hasOwnBg && withBackground });
+      await call("ws:publish", { name: name.trim(), description: description.trim(), withBackground: hasOwnBg && withBackground, video });
       toast(t.published);
       void client.invalidateQueries({ queryKey: ["ws"] });
     } catch (err) {
@@ -226,11 +244,20 @@ function PublishDialog({ onClose }: { onClose: () => void }) {
             {t.includeBackground}
           </label>
         )}
+        {needsFit && fitting === null && <p className="mt-2 text-xs leading-relaxed text-muted">{t.fitNote(Math.round(bgSize / 1048576))}</p>}
+        {fitting !== null && (
+          <div className="mt-3">
+            <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.08]">
+              <div className="h-full rounded-full bg-[var(--accent)] transition-[width] duration-300" style={{ width: `${Math.round(fitting * 100)}%` }} />
+            </div>
+            <p className="mt-2 text-xs text-muted">{t.fittingVideo(Math.round(fitting * 100))}</p>
+          </div>
+        )}
         <div className="mt-5 flex justify-end gap-2">
           <button type="button" onClick={onClose} className="rounded-md px-3 py-1.5 text-sm text-muted hover:text-text">
             {t.cancel}
           </button>
-          <button type="submit" disabled={!name.trim()} className="marker-fill sketch sketch-thin rounded-md px-4 py-1.5 text-sm font-semibold disabled:opacity-50">
+          <button type="submit" disabled={!name.trim() || fitting !== null} className="marker-fill sketch sketch-thin rounded-md px-4 py-1.5 text-sm font-semibold disabled:opacity-50">
             {t.publish}
           </button>
         </div>
