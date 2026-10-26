@@ -72,6 +72,12 @@ export function getSecret(key: Key): string | null {
   return restored;
 }
 
+/** The stored values this run can't open (nothing is changed): a sign that it started with another encryption key. */
+export function unopenedSecrets(): string[] {
+  if (!safeStorage.isEncryptionAvailable()) return [];
+  return Object.entries(load()).flatMap(([k, v]) => (!k.includes("~") && typeof v === "string" && v && open(v) === null ? [v] : []));
+}
+
 export function setSecret(key: Key, value: string | null) {
   if (value === null) memory.delete(key);
   else memory.set(key, value);

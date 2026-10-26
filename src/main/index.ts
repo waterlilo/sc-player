@@ -1,4 +1,5 @@
-import { existsSync, renameSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { release } from "node:os";
 import { join } from "node:path";
@@ -16,7 +17,7 @@ import { flushAlternatives } from "./soundcloud/alternatives";
 import * as rooms from "./rooms";
 import * as social from "./social";
 import { patchRenderer, prefs, store } from "./store";
-import { getSecret, setSecret } from "./store/secrets";
+import { getSecret, setSecret, unopenedSecrets } from "./store/secrets";
 import { applyAutostart, startedHidden } from "./system/autostart";
 import { pickBackground, registerBackgroundScheme, serveBackgrounds } from "./system/background";
 import { applyHotkeys, initHotkeys, suspendHotkeys } from "./system/hotkeys";
@@ -536,7 +537,35 @@ app.on("before-quit", () => {
 });
 process.on("uncaughtException", (err) => log("main", `uncaught: ${err.stack ?? err.message}`));
 
+/**
+ * Started with an encryption key other than the one on disk (seen right after an update, while the old copy was still
+ * closing): nothing saved opens, so the friend code and the sign-in look gone. One restart reads the key again. Tried
+ * once for the same values, so a key that is really gone (another Windows user) doesn't restart the app every time.
+ */
+function restartForKey(): boolean {
+  const bad = unopenedSecrets();
+  if (!bad.length) return false;
+  const mark = join(app.getPath("userData"), "key-restart");
+  const tried = createHash("sha1").update(bad.join("|")).digest("hex");
+  let last = "";
+  try {
+    last = readFileSync(mark, "utf8");
+  } catch {
+    /* never restarted */
+  }
+  if (last === tried) {
+    log("main", `${bad.length} saved secret(s) can't be opened, even after a restart`);
+    return false;
+  }
+  writeFileSync(mark, tried);
+  log("main", `${bad.length} saved secret(s) can't be opened: restarting once to read the key again`);
+  app.relaunch({ args: process.argv.slice(1).filter((a) => a !== "--updated") });
+  app.exit(0);
+  return true;
+}
+
 void app.whenReady().then(async () => {
+  if (restartForKey()) return;
   scSession().setUserAgent(chromeUserAgent());
   initProxyAuth(() => prefs().proxy.username);
   initProxyAuto();
