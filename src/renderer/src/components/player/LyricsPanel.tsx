@@ -5,6 +5,7 @@ import { largestMove } from "@shared/fitTiming";
 import type { Lyrics, LyricsHit, SyncRequest, Track } from "@shared/types";
 import { useT } from "@/i18n";
 import { duration } from "@/lib/format";
+import { currentTime } from "@/audio/engine";
 import { syncLyrics, useLyricsSync } from "@/lib/lyricsSync";
 import { call } from "@/lib/sky";
 import { player, useCurrentTrack, usePlayer, usePosition, useStreamTrack } from "@/state/player";
@@ -71,6 +72,8 @@ export function useLyrics(track: Track | null) {
 /** What Auto-sync is asked for these words in this upload: plain words to place, or a source's lines to check. */
 function syncRequest(l: Lyrics | null | undefined, soundId: number): SyncRequest | null {
   if (!l) return null;
+  // one's own words timed by hand are kept as they are
+  if (l.source === "own" && l.synced?.length) return null;
   const timed = l.synced?.filter((x) => x.text.trim()) ?? [];
   const words = timed.length ? timed.map((x) => x.text).join("\n") : l.plain;
   if (!words) return null;
@@ -162,10 +165,113 @@ function SyncedLines({ lines }: { lines: NonNullable<Lyrics["synced"]> }) {
   );
 }
 
+/** A time as LRC writes it: "[01:23.45]". */
+const lrcTime = (t: number) => `[${String(Math.floor(t / 60)).padStart(2, "0")}:${(t % 60).toFixed(2).padStart(5, "0")}]`;
+
 /** Words as the user would type them back: timed lines in LRC form ("[01:23.45] …"), else plain lines. */
 function asText(l: Lyrics): string {
-  const at = (t: number) => `[${String(Math.floor(t / 60)).padStart(2, "0")}:${(t % 60).toFixed(2).padStart(5, "0")}]`;
-  return l.synced?.length && !l.aligned ? l.synced.map((x) => `${at(x.t)} ${x.text}`).join("\n") : (l.plain ?? "");
+  return l.synced?.length && !l.aligned ? l.synced.map((x) => `${lrcTime(x.t)} ${x.text}`).join("\n") : (l.plain ?? "");
+}
+
+/** The lines of pasted words, without any times they carry. */
+const linesOf = (text: string) =>
+  text
+    .split(/\r?\n/)
+    .map((l) => l.replace(/\[[^\]]*\]/g, "").trim())
+    .filter(Boolean);
+
+// a tap comes a little after the voice: the line is put this much earlier
+const TAP_LEAD = 0.15;
+
+/**
+ * Timing one's own words by tapping: the song plays from the start and Space (or the button) marks where each line
+ * begins; Backspace takes the last mark back and goes a few seconds back. The result is the words in LRC form.
+ */
+function TapSync({ lines, onCancel, onDone }: { lines: string[]; onCancel: () => void; onDone: (lrc: string) => void }) {
+  const t = useT();
+  const [times, setTimes] = useState<number[]>([]);
+  const [started, setStarted] = useState(false);
+  const box = useRef<HTMLOListElement>(null);
+  const done = times.length >= lines.length;
+
+  const start = () => {
+    setTimes([]);
+    setStarted(true);
+    player.seek(0);
+    void player.play();
+  };
+  const tap = () => {
+    if (!started) return start();
+    // never before the line above: the lines keep their order
+    setTimes((x) => (x.length >= lines.length ? x : [...x, Math.max(0, x[x.length - 1] ?? 0, currentTime() - TAP_LEAD)]));
+  };
+  const undo = () => {
+    setTimes((x) => {
+      const last = x[x.length - 1];
+      if (last !== undefined) player.seek(Math.max(0, x[x.length - 2] ?? 0, last - 3));
+      return x.slice(0, -1);
+    });
+  };
+
+  // the window's own keys (Space pauses) wait while tapping
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const k = e.code === "Space" || e.code === "Enter" ? "tap" : e.code === "Backspace" ? "undo" : e.code === "Escape" ? "cancel" : null;
+      if (!k) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      if (e.repeat) return;
+      if (k === "tap") tap();
+      else if (k === "undo") undo();
+      else onCancel();
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  });
+
+  useEffect(() => {
+    const row = box.current?.children[Math.min(times.length, lines.length - 1)] as HTMLElement | undefined;
+    row?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [times.length, lines.length]);
+
+  return (
+    <div className="mt-4" data-keys-own>
+      <p className="font-type text-xs text-muted">{t.tapSyncHint}</p>
+      <ol ref={box} className="mt-3 max-h-[42vh] space-y-0.5 overflow-y-auto rounded-md bg-white/[0.03] p-2">
+        {lines.map((l, i) => (
+          <li key={i} className={`flex gap-3 rounded px-2 py-1 text-sm ${i === times.length && started ? "bg-white/[0.08] font-semibold text-text" : i < times.length ? "text-muted" : "text-text/70"}`}>
+            <span className="w-12 shrink-0 font-type text-xs tabular-nums leading-5 text-muted">{times[i] !== undefined ? lrcTime(times[i]).slice(1, -1) : ""}</span>
+            <span className="min-w-0">{l}</span>
+          </li>
+        ))}
+      </ol>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <span className="mr-auto font-type text-xs text-muted">{done ? t.tapDone(lines.length) : started ? t.tapProgress(times.length + 1, lines.length) : ""}</span>
+        <button type="button" onClick={onCancel} className="s-btn">
+          {t.cancel}
+        </button>
+        {started && (
+          <button type="button" disabled={!times.length} onClick={undo} className="s-btn">
+            {t.tapUndo}
+          </button>
+        )}
+        {done ? (
+          <>
+            <button type="button" onClick={start} className="s-btn">
+              {t.tapRestart}
+            </button>
+            <button type="button" onClick={() => onDone(lines.map((l, i) => `${lrcTime(times[i]!)} ${l}`).join("\n"))} className="s-btn pri">
+              {t.lyricsOwnSave}
+            </button>
+          </>
+        ) : (
+          <button type="button" onPointerDown={(e) => (e.preventDefault(), tap())} className="s-btn pri min-w-24">
+            {started ? t.tap : t.tapStart}
+          </button>
+        )}
+      </div>
+    </div>
+  );
 }
 
 /** The user's own words for a track: pasted here, kept on this computer, shown instead of anything found. */
@@ -178,6 +284,7 @@ function OwnWords({ track, onDone }: { track: Track; onDone: () => void }) {
   const [text, setText] = useState(() => (mine && current ? asText(current) : ""));
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [tapping, setTapping] = useState(false);
 
   const save = async (words: string | null) => {
     setBusy(true);
@@ -194,6 +301,18 @@ function OwnWords({ track, onDone }: { track: Track; onDone: () => void }) {
     }
   };
 
+  if (tapping)
+    return (
+      <TapSync
+        lines={linesOf(text)}
+        onCancel={() => setTapping(false)}
+        onDone={(lrc) => {
+          setText(lrc);
+          setTapping(false);
+          void save(lrc);
+        }}
+      />
+    );
   if (!open)
     return (
       <button type="button" onClick={() => setOpen(true)} className="mt-4 font-type text-xs text-muted underline-offset-2 hover:text-text hover:underline">
@@ -216,6 +335,9 @@ function OwnWords({ track, onDone }: { track: Track; onDone: () => void }) {
       </label>
       {failed && <p className="mt-2 text-sm text-muted">{t.lyricsOffline}</p>}
       <div className="mt-2 flex flex-wrap items-center justify-end gap-2">
+        <button type="button" disabled={busy || linesOf(text).length < 2} onClick={() => setTapping(true)} className="s-btn mr-auto" title={t.tapSyncTitle}>
+          {t.tapSync}
+        </button>
         {mine && (
           <button type="button" disabled={busy} onClick={() => void save(null)} className="s-btn">
             {t.lyricsOwnBack}
