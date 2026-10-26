@@ -19,7 +19,7 @@ import * as social from "./social";
 import { patchRenderer, prefs, store } from "./store";
 import { getSecret, setSecret, unopenedSecrets } from "./store/secrets";
 import { applyAutostart, startedHidden } from "./system/autostart";
-import { backgroundSize, keepImport, pickBackground, registerBackgroundScheme, saveBackground, serveBackgrounds } from "./system/background";
+import { backgroundSize, dropBackgrounds, keepImport, pickBackground, registerBackgroundScheme, saveBackground, serveBackgrounds } from "./system/background";
 import { findWallpaper, workshopId } from "./system/steam-wallpaper";
 import { applyHotkeys, initHotkeys, suspendHotkeys } from "./system/hotkeys";
 import { log, logsDir } from "./system/log";
@@ -612,6 +612,8 @@ void app.whenReady().then(async () => {
   await applyProxy(prefs().proxy);
   allowAudioCors();
   serveBackgrounds();
+  // backgrounds left over from a change while the old one was still playing
+  dropBackgrounds(prefs().look.bgFile);
   registerIpc();
   await auth.restore();
   const p = prefs();

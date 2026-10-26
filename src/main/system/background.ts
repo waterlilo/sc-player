@@ -53,6 +53,26 @@ export function serveBackgrounds() {
   });
 }
 
+/**
+ * The earlier backgrounds go (one at a time is kept). A video still playing can't be removed on Windows — it stays
+ * "pending delete" and a second try fails with EPERM — so whatever can't go now goes next time, or at the next start.
+ */
+export function dropBackgrounds(keep = "") {
+  let names: string[];
+  try {
+    names = readdirSync(folder());
+  } catch {
+    return;
+  }
+  for (const old of names)
+    if (NAME.test(old) && old !== keep)
+      try {
+        rmSync(join(folder(), old), { force: true });
+      } catch {
+        /* still open: next time */
+      }
+}
+
 export async function pickBackground(win: BrowserWindow | null): Promise<{ file: string; type: "image" | "video" } | null> {
   const options = { title: "Background", properties: ["openFile" as const], filters: [{ name: "Image, GIF or video", extensions: [...IMAGE, ...VIDEO].map((e) => e.slice(1)) }] };
   const res = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
@@ -64,7 +84,7 @@ export async function pickBackground(win: BrowserWindow | null): Promise<{ file:
   if (statSync(src).size > MAX_BYTES) throw new Error("The file is too big for a background (300 MB at most)");
   mkdirSync(folder(), { recursive: true });
   // one background at a time: the previous copy goes
-  for (const old of readdirSync(folder())) if (NAME.test(old)) rmSync(join(folder(), old), { force: true });
+  dropBackgrounds();
   const file = `bg-${Date.now()}${ext}`;
   copyFileSync(src, join(folder(), file));
   return { file, type };
@@ -76,7 +96,7 @@ export function keepImport(url: string): { file: string; type: "video" } {
   if (!src) throw new Error("This video isn't there any more");
   if (statSync(src).size > MAX_BYTES) throw new Error("The file is too big for a background (300 MB at most)");
   mkdirSync(folder(), { recursive: true });
-  for (const old of readdirSync(folder())) if (NAME.test(old)) rmSync(join(folder(), old), { force: true });
+  dropBackgrounds();
   const file = `bg-${Date.now()}${extname(src).toLowerCase()}`;
   copyFileSync(src, join(folder(), file));
   return { file, type: "video" };
@@ -97,7 +117,7 @@ export function saveBackground(data: Buffer, ext: string): { file: string; type:
   const type = VIDEO.includes(e) ? "video" : IMAGE.includes(e) ? "image" : null;
   if (!type) throw new Error("This file type can't be a background");
   mkdirSync(folder(), { recursive: true });
-  for (const old of readdirSync(folder())) if (NAME.test(old)) rmSync(join(folder(), old), { force: true });
+  dropBackgrounds();
   const file = `bg-${Date.now()}${e}`;
   writeFileSync(join(folder(), file), data);
   return { file, type };

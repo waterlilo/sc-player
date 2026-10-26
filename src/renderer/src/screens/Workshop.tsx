@@ -77,8 +77,8 @@ function ThemeDialog({ id, onClose }: { id: string; onClose: () => void }) {
       setPref("look", await call("ws:install", id));
       toast(t.themeApplied(theme?.name ?? ""));
       onClose();
-    } catch {
-      toast(t.themeFailed);
+    } catch (err) {
+      toast(err instanceof Error && err.message && !/^HTTP d+$/.test(err.message) ? err.message : t.themeFailed);
     } finally {
       setBusy("");
     }
