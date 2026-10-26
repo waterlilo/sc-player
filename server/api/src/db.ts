@@ -88,6 +88,8 @@ CREATE TABLE IF NOT EXISTS theme_votes (
 const columns = (table: string) => (db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).map((c) => c.name);
 // what the app on this device can do, from its X-SC-Features header ("rooms"): invitations go only to apps that can join
 if (!columns("devices").includes("features")) db.exec("ALTER TABLE devices ADD COLUMN features TEXT NOT NULL DEFAULT ''");
+// a playlist from the sender's computer (JSON: title, ids); `track` is then its first track, which older apps show
+if (!columns("messages").includes("playlist")) db.exec("ALTER TABLE messages ADD COLUMN playlist TEXT");
 
 export type Row = Record<string, string | number | null>;
 

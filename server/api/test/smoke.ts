@@ -45,6 +45,18 @@ assert.equal((await api("POST", `/v1/messages/${sent.ids[0]}/state`, { secret: b
 assert.equal((await api("POST", `/v1/messages/${sent.ids[0]}/state`, { secret: a.secret, body: { state: "heard" } })).status, 404);
 assert.equal((await api("GET", "/v1/updates?since=0", { secret: a.secret })).body.states[sent.ids[0]], "heard");
 
+// a playlist from a's computer: its name and ids ride along, the first track stands in for older apps; b saves it
+assert.equal((await api("POST", "/v1/send", { secret: a.secret, body: { to: [b.code], track, playlist: { title: "Night", ids: [] } } })).status, 400);
+assert.equal((await api("POST", "/v1/send", { secret: a.secret, body: { to: [b.code], track, playlist: { title: "Night", ids: [1, "x"] } } })).status, 400);
+const plSent = (await api("POST", "/v1/send", { secret: a.secret, body: { to: [b.code], track, playlist: { title: "Night", ids: [track.id, 7, 7, 9] } } })).body;
+const plMsg = (await api("GET", `/v1/chat/${a.code}`, { secret: b.secret })).body.messages.at(-1);
+assert.deepEqual(plMsg.playlist, { title: "Night", ids: [track.id, 7, 9] });
+assert.equal(plMsg.track.title, "Orbit");
+assert.equal((await api("GET", `/v1/chat/${a.code}`, { secret: b.secret })).body.messages[0].playlist, undefined);
+assert.equal((await api("POST", `/v1/messages/${plSent.ids[0]}/state`, { secret: b.secret, body: { state: "saved" } })).status, 204);
+assert.equal((await api("POST", `/v1/messages/${plSent.ids[0]}/state`, { secret: b.secret, body: { state: "heard" } })).status, 204);
+assert.equal((await api("GET", "/v1/updates?since=0", { secret: a.secret })).body.states[plSent.ids[0]], "saved");
+
 // listening now, only when shared
 await api("PUT", "/v1/me/now", { secret: a.secret, body: { track } });
 assert.deepEqual((await api("GET", "/v1/updates", { secret: b.secret })).body.now, {});

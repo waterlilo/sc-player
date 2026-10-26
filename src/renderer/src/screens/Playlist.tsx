@@ -18,6 +18,7 @@ import { useUi } from "@/state/ui";
 import { useNav } from "@/state/nav";
 import { useSettings } from "@/state/settings";
 import { player } from "@/state/player";
+import { useSocial } from "@/state/social";
 
 export default function Playlist({ id }: { id: string }) {
   const t = useT();
@@ -36,6 +37,8 @@ export default function Playlist({ id }: { id: string }) {
   const [busy, setBusy] = useState(false);
   const local = isLocal(id);
   const own = canEdit(p);
+  const joined = useSocial((s) => !!s.status?.profile);
+  const openSendPlaylist = useSocial((s) => s.openSendPlaylist);
 
   const copy = async () => {
     if (!p) return;
@@ -121,6 +124,11 @@ export default function Playlist({ id }: { id: string }) {
               {p && !own && (
                 <PaperButton disabled={busy || !p.trackCount} onClick={() => void copy()}>
                   <Icon name="copy" size={16} /> {t.copyToMine}
+                </PaperButton>
+              )}
+              {p && local && joined && !editing && (
+                <PaperButton disabled={!p.trackCount} onClick={() => openSendPlaylist(p)}>
+                  <Icon name="send" size={16} /> {t.sendToFriends}
                 </PaperButton>
               )}
               {own && !editing && (

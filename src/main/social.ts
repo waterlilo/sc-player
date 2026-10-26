@@ -3,7 +3,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { join as joinPath } from "node:path";
 import { app, nativeImage, net, Notification, type BrowserWindow } from "electron";
 import type { Look } from "@shared/ipc";
-import type { Friends, Message, RoomInvite, SocialProfile, SocialStatus, SocialTrack, SocialUpdate, ThemeLook, WsPage, WsSort, WsThemeFull } from "@shared/social";
+import type { Friends, Message, RoomInvite, SocialProfile, SocialStatus, SocialTrack, SocialUpdate, ThemeLook, WsPage, WsSort, WsThemeFull, SharedPlaylist } from "@shared/social";
 import { ScError } from "./soundcloud";
 import { prefs } from "./store";
 import { getSecret, setSecret } from "./store/secrets";
@@ -157,9 +157,10 @@ export async function friendAction(kind: "add" | "accept" | "remove", code: stri
   return friends;
 }
 
-export async function sendTrack(codes: string[], track: SocialTrack): Promise<number[]> {
+/** `playlist`: one of my own playlists goes with it, `track` being its first track (what older apps show) */
+export async function sendTrack(codes: string[], track: SocialTrack, playlist?: SharedPlaylist): Promise<number[]> {
   needProfile();
-  return (await api<{ ids: number[] }>("POST", "/v1/send", { body: { to: codes, track } })).ids;
+  return (await api<{ ids: number[] }>("POST", "/v1/send", { body: { to: codes, track, ...(playlist ? { playlist } : {}) } })).ids;
 }
 
 export async function chat(code: string, before?: number): Promise<Message[]> {
@@ -178,7 +179,7 @@ export async function seen(code: string) {
   await api("POST", `/v1/chat/${encodeURIComponent(code)}/seen`);
 }
 
-export async function setState(id: number, state: "heard" | "liked" | "queued") {
+export async function setState(id: number, state: "heard" | "liked" | "queued" | "saved") {
   needProfile();
   await api("POST", `/v1/messages/${id}/state`, { body: { state } });
 }

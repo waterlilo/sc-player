@@ -321,9 +321,20 @@ function registerIpc() {
   handle("social:accept", (_e, code) => social.friendAction("accept", str(code, "code").slice(0, 16)));
   handle("social:removeFriend", (_e, code) => social.friendAction("remove", str(code, "code").slice(0, 16)));
   handle("social:send", (_e, codes, track) => social.sendTrack(Array.isArray(codes) ? codes.slice(0, 20).map((c) => str(c, "code").slice(0, 16)) : bad("codes"), socialTrack(track)));
+  handle("social:sendPlaylist", async (_e, codes, p) => {
+    const to = Array.isArray(codes) ? codes.slice(0, 20).map((c) => str(c, "code").slice(0, 16)) : bad("codes");
+    const list = localPlaylist(localId(p));
+    const ids = localIds(list.id).slice(0, MAX_TRACKS);
+    // the first track SoundCloud still has stands in for the playlist in older apps
+    const [first] = await data.getTracks(ids.slice(0, 20));
+    if (!first) return bad("playlist");
+    const track = socialTrack(first);
+    const playlist = { title: list.title, ids };
+    return { ids: await social.sendTrack(to, track, playlist), track, playlist };
+  });
   handle("social:chat", (_e, code, before) => social.chat(str(code, "code").slice(0, 16), before === undefined ? undefined : id(before)));
   handle("social:seen", (_e, code) => social.seen(str(code, "code").slice(0, 16)));
-  handle("social:state", (_e, m, state) => social.setState(id(m), state === "heard" || state === "liked" || state === "queued" ? state : bad("state")));
+  handle("social:state", (_e, m, state) => social.setState(id(m), state === "heard" || state === "liked" || state === "queued" || state === "saved" ? state : bad("state")));
   handle("social:now", (_e, track) => social.now(track === null ? null : socialTrack(track)));
   handle("social:poll", () => social.poll());
   handle("social:listened", (_e, t) => social.listened(id(t)));

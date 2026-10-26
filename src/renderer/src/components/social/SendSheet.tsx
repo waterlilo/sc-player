@@ -14,8 +14,11 @@ const NONE: Friend[] = [];
 /** "Send to friends": tick friends, send. Esc or a click outside closes. */
 export default function SendSheet() {
   const t = useT();
-  const track = useSocial((s) => s.sending);
+  const single = useSocial((s) => s.sending);
+  const list = useSocial((s) => s.sendingPlaylist);
   const close = useSocial((s) => s.closeSend);
+  // what the sheet is for: a track, or one of my own playlists
+  const track = single ?? list;
   const friends = useSocial((s) => s.friends?.friends ?? NONE);
   const now = useSocial((s) => s.now);
   const toast = useUi((s) => s.showToast);
@@ -40,10 +43,12 @@ export default function SendSheet() {
     if (!track || !picked.length) return;
     setBusy(true);
     try {
-      const ids = await call("social:send", picked, track);
+      const r = list ? await call("social:sendPlaylist", picked, list.id) : { ids: await call("social:send", picked, single!), track: single!, playlist: undefined };
       // an open conversation shows what I just sent
       const sent = Date.now();
-      useSocial.setState((s) => ({ arrived: [...s.arrived, ...ids.map((id, i) => ({ id, from: picked[i], mine: true, track, sent, seen: false, state: "" as const }))] }));
+      useSocial.setState((s) => ({
+        arrived: [...s.arrived, ...r.ids.map((id, i) => ({ id, from: picked[i], mine: true, track: r.track, ...(r.playlist ? { playlist: r.playlist } : {}), sent, seen: false, state: "" as const }))],
+      }));
       toast(picked.length === 1 ? t.sentTo(friends.find((f) => f.code === picked[0])?.name || picked[0]!) : t.sentToMany(picked.length));
       shut();
     } catch (e) {
@@ -69,7 +74,7 @@ export default function SendSheet() {
               <Cover url={track.artworkUrl} size={40} />
               <div className="min-w-0">
                 <div className="truncate text-sm font-semibold text-text">{track.title}</div>
-                <div className="truncate text-xs text-muted">{track.artist}</div>
+                <div className="truncate text-xs text-muted">{list ? t.sharedPlaylist(list.trackCount) : single?.artist}</div>
               </div>
             </div>
             <div className="max-h-[44vh] overflow-y-auto px-1.5">
@@ -115,10 +120,12 @@ export default function SendSheet() {
               })}
             </div>
             <div className="flex items-center justify-end gap-2 px-3 pb-1 pt-3">
-              <button type="button" onClick={() => void call("clipboard:write", track.permalinkUrl).then(() => toast(t.linkCopied))} className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-muted hover:text-text">
-                <Icon name="copy" size={15} />
-                {t.copyLink}
-              </button>
+              {single && (
+                <button type="button" onClick={() => void call("clipboard:write", single.permalinkUrl).then(() => toast(t.linkCopied))} className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-muted hover:text-text">
+                  <Icon name="copy" size={15} />
+                  {t.copyLink}
+                </button>
+              )}
               <button type="button" disabled={!picked.length || busy} onClick={() => void go()} className="marker-fill sketch sketch-thin flex items-center gap-1.5 rounded-md px-3.5 py-1.5 text-sm font-semibold disabled:opacity-50">
                 <Icon name="send" size={15} />
                 {picked.length > 1 ? t.sendToCount(picked.length) : t.send}

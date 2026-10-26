@@ -217,10 +217,19 @@ const msgOut = (m: Row, mine: boolean, code?: string) => ({
   ...(code ? { from: code } : {}),
   mine,
   track: JSON.parse(String(m.track)),
+  ...(m.playlist ? { playlist: JSON.parse(String(m.playlist)) } : {}),
   sent: m.sent,
   seen: !!m.seen,
   state: m.state,
 });
+
+/** A playlist kept on the sender's computer: its name and SoundCloud track ids (the apps read the rest from SoundCloud). */
+function playlist(v: unknown) {
+  if (!v || typeof v !== "object") return fail(400, "playlist: { title, ids }");
+  const p = v as Record<string, unknown>;
+  if (!Array.isArray(p.ids) || !p.ids.length || p.ids.length > 500) fail(400, "playlist.ids: 1..500 track ids");
+  return { title: text(p.title, 100, "playlist.title"), ids: [...new Set((p.ids as unknown[]).map((x) => int(x, 1, Number.MAX_SAFE_INTEGER, "playlist.ids")))] };
+}
 
 async function sendTrack(c: Ctx) {
   const d = me(c);
@@ -229,8 +238,9 @@ async function sendTrack(c: Ctx) {
   const to = [...new Set((body.to as unknown[]).map(normCode))].map((code) => friendOrFail(d, code));
   limit(`send:${d.id}`, 200, HOUR);
   const t = JSON.stringify(track(body.track));
+  const pl = body.playlist === undefined ? null : JSON.stringify(playlist(body.playlist));
   const now = Date.now();
-  const ids = tx(() => to.map((o) => Number(run("INSERT INTO messages (sender, recipient, track, sent) VALUES (?, ?, ?, ?)", d.id, o.id, t, now).lastInsertRowid)));
+  const ids = tx(() => to.map((o) => Number(run("INSERT INTO messages (sender, recipient, track, playlist, sent) VALUES (?, ?, ?, ?, ?)", d.id, o.id, t, pl, now).lastInsertRowid)));
   send(c.res, 201, { ids });
 }
 
@@ -300,9 +310,10 @@ async function messageState(c: Ctx) {
   const d = me(c);
   const body = await readJson(c.req);
   const state = String(body.state ?? "");
-  if (!["heard", "liked", "queued"].includes(state)) fail(400, "state: heard | liked | queued");
-  const r = run("UPDATE messages SET state = ? WHERE id = ? AND recipient = ?", state, Number(c.params[0]), d.id);
-  if (!r.changes) fail(404, "no such message");
+  if (!["heard", "liked", "queued", "saved"].includes(state)) fail(400, "state: heard | liked | queued | saved");
+  if (!one("SELECT 1 FROM messages WHERE id = ? AND recipient = ?", Number(c.params[0]), d.id)) fail(404, "no such message");
+  // a playlist kept stays "saved" when it is played afterwards
+  run("UPDATE messages SET state = ? WHERE id = ? AND recipient = ? AND NOT (state = 'saved' AND ? = 'heard')", state, Number(c.params[0]), d.id, state);
   send(c.res, 204, null);
 }
 

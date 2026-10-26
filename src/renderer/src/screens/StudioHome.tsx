@@ -13,7 +13,7 @@ import { useAuth } from "@/state/auth";
 import { useNav } from "@/state/nav";
 import { player, useCurrentTrack, usePlayer, usePosition } from "@/state/player";
 import { useSettings } from "@/state/settings";
-import { playShared, useSocial } from "@/state/social";
+import { playShared, playSharedPlaylist, useSocial } from "@/state/social";
 import { useUi } from "@/state/ui";
 import { useSourceLabel } from "@/components/studio/Queue";
 import { startStation } from "./Library";
@@ -250,18 +250,25 @@ function FromFriends() {
             key={m.id}
             type="button"
             onClick={() =>
-              void playShared(
-                list.slice(i).map((x) => x.track),
-                0,
-                [m.id],
+              void (
+                m.playlist
+                  ? playSharedPlaylist(m)
+                  : playShared(
+                      list
+                        .slice(i)
+                        .filter((x) => !x.playlist)
+                        .map((x) => x.track),
+                      0,
+                      [m.id],
+                    )
               ).catch(() => toast(t.trackGone))
             }
             className="flex h-11 w-full items-center gap-3 border-b border-[var(--s-line)] text-left text-[12.5px] hover:bg-[var(--s-hover)]"
           >
             <Cover url={m.track.artworkUrl} size={32} />
             <span className="min-w-0 flex-1">
-              <span className={`block truncate font-semibold ${m.track.id === currentId ? "text-[var(--accent)]" : "text-text"}`}>{m.track.title}</span>
-              <span className="block truncate text-[11.5px] text-[var(--s-dim)]">{m.track.artist}</span>
+              <span className={`block truncate font-semibold ${!m.playlist && m.track.id === currentId ? "text-[var(--accent)]" : "text-text"}`}>{m.playlist?.title ?? m.track.title}</span>
+              <span className="block truncate text-[11.5px] text-[var(--s-dim)]">{m.playlist ? t.sharedPlaylist(m.playlist.ids.length) : m.track.artist}</span>
             </span>
             <span className="flex w-44 items-center gap-2 text-muted">
               <Avatar name={name(m.from)} code={m.from ?? ""} size={22} />

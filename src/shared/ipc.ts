@@ -1,5 +1,5 @@
 import type { SearchKind } from "./provider";
-import type { Friends, Message, Room, RoomOp, RoomState, SocialStatus, SocialTrack, SocialUpdate, WsPage, WsSort, WsThemeFull } from "./social";
+import type { Friends, Message, Room, RoomOp, RoomState, SocialStatus, SocialTrack, SocialUpdate, WsPage, WsSort, WsThemeFull, SharedPlaylist } from "./social";
 import type { AppErrorInfo, Lyrics, LyricsHit, LyricsSyncStatus, Page, Playlist, QueueSource, Resolved, SavedProfile, StreamInfo, SyncRequest, SyncResult, Track, TrackDetails, User } from "./types";
 
 /**
@@ -350,12 +350,14 @@ export interface InvokeMap {
   "social:removeFriend": (code: string) => Friends;
   /** the new messages' ids, one per friend, in the order given */
   "social:send": (codes: string[], track: SocialTrack) => number[];
+  /** one of my own playlists (kept on this computer) to friends: the new messages' ids, and what they carry */
+  "social:sendPlaylist": (codes: string[], playlistId: string) => { ids: number[]; track: SocialTrack; playlist: SharedPlaylist };
   /** the conversation with one friend, oldest first; `before` = an older page */
   "social:chat": (code: string, before?: number) => Message[];
   "social:seen": (code: string) => void;
   /** the newest tracks friends sent (empty without a profile) */
   "social:recent": () => Message[];
-  "social:state": (messageId: number, state: "heard" | "liked" | "queued") => void;
+  "social:state": (messageId: number, state: "heard" | "liked" | "queued" | "saved") => void;
   /** what is playing, for friends (sent only when sharing is on) */
   "social:now": (track: SocialTrack | null) => void;
   /** poll now (the inbox opened) */
@@ -430,6 +432,7 @@ export const INVOKE_CHANNELS = [
   "social:accept",
   "social:removeFriend",
   "social:send",
+  "social:sendPlaylist",
   "social:chat",
   "social:seen",
   "social:recent",

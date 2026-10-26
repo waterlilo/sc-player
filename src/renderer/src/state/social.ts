@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { Friends, Message, MessageState, RoomInvite, SocialStatus, SocialTrack } from "@shared/social";
-import type { Track } from "@shared/types";
+import type { Playlist, Track } from "@shared/types";
 import { currentTime } from "@/audio/engine";
 import { call, on } from "@/lib/sky";
 import { useNav } from "./nav";
@@ -23,6 +23,8 @@ interface SocialStore {
   open: string | null;
   /** the "Send to friends" sheet, for this track */
   sending: SocialTrack | null;
+  /** …or for one of my own playlists */
+  sendingPlaylist: Playlist | null;
   /** invitations to friends' listening rooms */
   invites: RoomInvite[];
   /** a friend link opened the app: this code, waiting for "Add" in the Inbox */
@@ -31,6 +33,7 @@ interface SocialStore {
   setFriends(f: Friends): void;
   openChat(code: string | null): void;
   openSend(track: Track | SocialTrack): void;
+  openSendPlaylist(p: Playlist): void;
   closeSend(): void;
 }
 
@@ -43,13 +46,15 @@ export const useSocial = create<SocialStore>((set) => ({
   arrived: [],
   open: null,
   sending: null,
+  sendingPlaylist: null,
   invites: [],
   linked: null,
   setStatus: (status) => set({ status }),
   setFriends: (friends) => set({ friends }),
   openChat: (open) => set((s) => ({ open, unread: open ? { ...s.unread, [open]: 0 } : s.unread })),
-  openSend: (track) => set({ sending: toSocial(track) }),
-  closeSend: () => set({ sending: null }),
+  openSend: (track) => set({ sending: toSocial(track), sendingPlaylist: null }),
+  openSendPlaylist: (p) => set({ sendingPlaylist: p, sending: null }),
+  closeSend: () => set({ sending: null, sendingPlaylist: null }),
 }));
 
 export const unreadTotal = (u: Record<string, number>) => Object.values(u).reduce((n, x) => n + x, 0);
@@ -68,6 +73,25 @@ export async function playShared(list: SocialTrack[], index: number, messageIds:
   if (!tracks.length) throw new Error("gone");
   player.playFrom(tracks, Math.max(0, at), { kind: "static" });
   for (const id of messageIds) void call("social:state", id, "heard").catch(() => undefined);
+}
+
+/** A playlist a friend sent: its tracks read from SoundCloud (200 at a time), played from the first. */
+export async function playSharedPlaylist(m: Message) {
+  const ids = m.playlist?.ids ?? [];
+  const full: Track[] = [];
+  for (let i = 0; i < ids.length; i += 200) full.push(...(await call("data:tracks", ids.slice(i, i + 200))));
+  const byId = new Map(full.map((t) => [t.id, t]));
+  const tracks = ids.map((id) => byId.get(id)).filter((t): t is Track => !!t);
+  if (!tracks.length) throw new Error("gone");
+  player.playFrom(tracks, 0, { kind: "static" });
+  if (!m.mine && m.state !== "saved") void call("social:state", m.id, "heard").catch(() => undefined);
+}
+
+/** A playlist a friend sent, kept as one of mine. */
+export async function saveSharedPlaylist(m: Message) {
+  if (!m.playlist) return;
+  await call("data:createPlaylist", m.playlist.title, m.playlist.ids);
+  if (!m.mine) void call("social:state", m.id, "saved").catch(() => undefined);
 }
 
 export async function refreshSocial() {

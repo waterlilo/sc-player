@@ -51,14 +51,22 @@ export interface Friends {
   outgoing: FriendRequest[];
 }
 
-export type MessageState = "" | "heard" | "liked" | "queued";
+export type MessageState = "" | "heard" | "liked" | "queued" | "saved";
+
+/** A playlist from the sender's computer: its name and SoundCloud track ids (the tracks are read from SoundCloud). */
+export interface SharedPlaylist {
+  title: string;
+  ids: number[];
+}
 
 export interface Message {
   id: number;
   /** the sender's code (in updates) */
   from?: string;
   mine: boolean;
+  /** for a playlist: its first track (what older apps show) */
   track: SocialTrack;
+  playlist?: SharedPlaylist;
   sent: number;
   seen: boolean;
   state: MessageState;

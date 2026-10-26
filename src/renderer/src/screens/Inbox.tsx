@@ -11,7 +11,7 @@ import { duration } from "@/lib/format";
 import { call } from "@/lib/sky";
 import { usePlayer } from "@/state/player";
 import { useRoom } from "@/state/room";
-import { playShared, refreshSocial, useSocial } from "@/state/social";
+import { playShared, playSharedPlaylist, refreshSocial, saveSharedPlaylist, useSocial } from "@/state/social";
 import { useUi } from "@/state/ui";
 
 const errText = (e: unknown, fallback: string) => (e instanceof Error && e.message && !/^HTTP \d+$/.test(e.message) ? e.message.charAt(0).toUpperCase() + e.message.slice(1) : fallback);
@@ -235,7 +235,57 @@ function People() {
   );
 }
 
-const STATE_ICON = { heard: "check", liked: "heart", queued: "queue" } as const;
+const STATE_ICON = { heard: "check", liked: "heart", queued: "queue", saved: "playlists" } as const;
+
+/** A playlist from a friend's computer: play it, or keep it as one of mine. */
+function PlaylistBubble({ m }: { m: Message & { playlist: NonNullable<Message["playlist"]> } }) {
+  const t = useT();
+  const toast = useUi((s) => s.showToast);
+  const state = useSocial((s) => (m.mine ? (s.states[m.id] ?? m.state) : m.state));
+  const [saved, setSaved] = useState(m.state === "saved");
+  const save = async () => {
+    try {
+      await saveSharedPlaylist(m);
+      setSaved(true);
+      toast(t.playlistSaved);
+    } catch {
+      toast(t.playlistFailed);
+    }
+  };
+  return (
+    <div className={`flex ${m.mine ? "justify-end" : "justify-start"}`}>
+      <div className={`group flex w-[min(30rem,90%)] items-center gap-3 rounded-lg p-2 pr-3 ${m.mine ? "bg-white/[0.07]" : "bg-white/[0.035]"}`}>
+        <button type="button" onClick={() => void playSharedPlaylist(m).catch(() => toast(t.trackGone))} aria-label={t.playAll} className="relative shrink-0">
+          <Cover url={m.track.artworkUrl} size={46} />
+          <span className="absolute inset-0 grid place-items-center rounded-[5px] bg-black/45 text-white opacity-0 transition-opacity group-hover:opacity-100">
+            <Icon name="play" size={16} />
+          </span>
+        </button>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-medium text-text">{m.playlist.title}</span>
+          <span className="flex items-center gap-1 truncate text-xs text-muted">
+            <Icon name="playlists" size={12} />
+            {t.sharedPlaylist(m.playlist.ids.length)}
+          </span>
+        </span>
+        {!m.mine && (
+          <button type="button" disabled={saved} onClick={() => void save()} className="s-btn shrink-0">
+            {saved ? <Icon name="check" size={13} /> : <Icon name="plus" size={13} />}
+            {saved ? t.savedShort : t.save}
+          </button>
+        )}
+        <span className="flex flex-col items-end gap-1 font-type text-[0.65rem] text-muted">
+          {when(m.sent)}
+          {m.mine && state && (
+            <span title={t.messageState[state]} className="text-glow">
+              <Icon name={STATE_ICON[state]} size={12} filled={state === "liked"} />
+            </span>
+          )}
+        </span>
+      </div>
+    </div>
+  );
+}
 
 function Bubble({ m, onPlay, playing }: { m: Message; onPlay: () => void; playing: boolean }) {
   const t = useT();
@@ -314,7 +364,8 @@ function Chat({ code }: { code: string }) {
 
   const play = (i: number) => {
     if (!all) return;
-    const list = all.slice(i);
+    // the tracks from here on (playlists play on their own)
+    const list = all.slice(i).filter((m) => !m.playlist);
     playShared(
       list.map((m) => m.track),
       0,
@@ -323,7 +374,7 @@ function Chat({ code }: { code: string }) {
   };
 
   if (!friend) return null;
-  const fromThem = all?.filter((m) => !m.mine) ?? [];
+  const fromThem = all?.filter((m) => !m.mine && !m.playlist) ?? [];
 
   return (
     <section className="panel flex min-w-0 flex-1 flex-col overflow-hidden rounded-md">
@@ -371,7 +422,7 @@ function Chat({ code }: { code: string }) {
         ))}
         {failed && <p className="text-sm text-muted">{t.serverOffline}</p>}
         {all?.length === 0 && <p className="pt-10 text-center text-sm text-muted">{t.chatEmpty}</p>}
-        {all?.map((m, i) => <Bubble key={m.id} m={m} playing={currentId === m.track.id} onPlay={() => play(i)} />)}
+        {all?.map((m, i) => (m.playlist ? <PlaylistBubble key={m.id} m={{ ...m, playlist: m.playlist }} /> : <Bubble key={m.id} m={m} playing={currentId === m.track.id} onPlay={() => play(i)} />))}
       </div>
       <p className="border-t border-white/[0.06] px-4 py-2.5 text-xs text-muted">{t.chatHint}</p>
     </section>
