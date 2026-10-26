@@ -7,10 +7,10 @@ import { app, BrowserWindow, clipboard, dialog, ipcMain, session, shell, type Ip
 import { RENDERER_DEFAULTS, type AuthStatus, type InvokeChannel, type InvokeMap, type PlayerCommand, type PlayerInfo, type RendererState, type Result } from "@shared/ipc";
 import type { MusicProvider, SearchKind } from "@shared/provider";
 import type { RoomOp, SocialTrack } from "@shared/social";
-import type { QueueSource, SyncRequest, Track } from "@shared/types";
+import type { QueueSource, SyncRequest, Track, LyricsSuggestionState } from "@shared/types";
 import { DemoProvider } from "./demo";
 import { addLocal, createLocal, deleteLocal, exportLocal, importLocal, flushLocalPlaylists, isLocal, localIds, localPlaylist, localPlaylists, localTracks, MAX_TRACKS, renameLocal, setLocalTracks } from "./local-playlists";
-import { flushLyrics, lyricsFor, pickLyrics, searchLyrics, setOwnLyrics } from "./lyrics";
+import { communityLyrics, flushLyrics, forgetLyrics, lyricsFor, ownText, pickLyrics, searchLyrics, setCommunityLyrics, setOwnLyrics } from "./lyrics";
 import { deleteModel, downloadModel, flushLyricsSync, onSyncStatus, syncedBefore, syncStatus, syncWords } from "./lyrics-sync";
 import { auth, authStatus, chromeUserAgent, provider, ScError, scSession, finishBrowserSignIn, friendFromArgs, registerLinks, startBrowserSignIn, stopBrowserSignIn, toErrorInfo, tokenFromArgs, waitingForBrowser } from "./soundcloud";
 import { flushAlternatives } from "./soundcloud/alternatives";
@@ -70,6 +70,7 @@ async function tracksOf(ids: number[]): Promise<Track[]> {
 const status = async (): Promise<AuthStatus> => (DEMO ? { mode: "session", user: await data.getMe() } : authStatus());
 
 if (!app.requestSingleInstanceLock()) app.quit();
+setCommunityLyrics((t) => social.approvedLyrics(t));
 registerBackgroundScheme();
 app.setAppUserModelId("com.skythemontage.scplayer");
 
@@ -247,6 +248,20 @@ function registerIpc() {
     // a whole song is longer than the usual argument
     const words = text === null ? null : typeof text === "string" && text.length <= 30_000 ? text : bad("text");
     return setOwnLyrics({ trackId: id(o.trackId), artist: str(o.artist, "artist"), title: str(o.title, "title") }, words);
+  });
+  const suggestion = (s: string): LyricsSuggestionState => (s === "pending" || s === "approved" || s === "rejected" || s === "replaced" ? s : "");
+  handle("lyrics:suggest", async (_e, q) => {
+    const o = (q ?? {}) as Record<string, unknown>;
+    const trackId = id(o.trackId);
+    const lrc = ownText(trackId) ?? bad("lyrics");
+    const durationMs = typeof o.durationMs === "number" && Number.isFinite(o.durationMs) ? Math.max(0, Math.round(o.durationMs)) : 0;
+    return suggestion(await social.suggestLyrics({ track: trackId, title: str(o.title, "title").slice(0, 300), artist: str(o.artist, "artist").slice(0, 200), durationMs, lrc }));
+  });
+  handle("lyrics:suggestion", async (_e, t) => suggestion(await social.lyricsStatus(id(t))));
+  handle("lyrics:review", async () => (await social.reviewLyrics()).map(({ lrc, ...r }) => ({ ...r, lyrics: communityLyrics(r, lrc, r.by) })));
+  handle("lyrics:decide", async (_e, l, approve, t) => {
+    await social.decideLyrics(id(l), approve === true);
+    forgetLyrics(id(t));
   });
   handle("lyricsSync:status", () => syncStatus());
   handle("lyricsSync:download", () => downloadModel());

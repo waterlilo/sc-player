@@ -22,6 +22,12 @@
   backdrop-filter: blur(var(--pblur)) saturate(1.2);
   border: 1px solid var(--s-line);
 }
+/* a card over the page (dialogs): the glass, but solid enough that the page behind doesn't read through */
+.s-pop {
+  background: rgba(var(--glass-rgb), 0.95);
+  backdrop-filter: blur(24px);
+  border: 1px solid var(--s-line);
+}
 html.lite .s-glass {
   backdrop-filter: none;
   background: rgba(var(--glass-rgb), max(var(--glass-a), 0.86));

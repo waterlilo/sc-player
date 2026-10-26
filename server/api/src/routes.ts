@@ -611,6 +611,77 @@ function deleteTheme(c: Ctx) {
   send(c.res, 204, null);
 }
 
+// ---- lyrics people made -------------------------------------------------------------------------------------------
+
+/** Timed lyrics from an app: line breaks kept, other control characters dropped; at least two timed lines. */
+function lrcText(v: unknown): string {
+  if (typeof v !== "string") return fail(400, "lrc must be text");
+  // eslint-disable-next-line no-control-regex
+  const s = v.replace(/\r\n?/g, "\n").replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, " ").trim();
+  if (s.length > 30_000) fail(400, "lrc too long");
+  if ((s.match(/^\s*\[\d{1,2}:\d{2}(?:[.:]\d{1,3})?\]/gm) ?? []).length < 2) fail(400, "lrc: at least two timed lines");
+  return s;
+}
+
+/** Someone's timed lyrics for a track, waiting for the moderator; a newer one from them replaces their waiting one. */
+async function suggestLyrics(c: Ctx) {
+  const d = me(c);
+  limit(`lyrics:${d.id}`, 20, DAY);
+  const body = await readJson(c.req, 128 * 1024);
+  const trackId = int(body.track, 1, Number.MAX_SAFE_INTEGER, "track");
+  const title = text(body.title, 300, "title");
+  const artist = text(body.artist, 200, "artist");
+  const duration = int(body.durationMs ?? 0, 0, 24 * HOUR, "durationMs");
+  const lrc = lrcText(body.lrc);
+  const id = tx(() => {
+    run("DELETE FROM lyrics WHERE track = ? AND author = ? AND status = 'pending'", trackId, d.id);
+    return Number(run("INSERT INTO lyrics (track, author, author_name, title, artist, duration, lrc, created) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", trackId, d.id, d.name, title, artist, duration, lrc, Date.now()).lastInsertRowid);
+  });
+  send(c.res, 201, { id, status: "pending" });
+}
+
+/** What became of my latest lyrics for a track: pending | approved | rejected | replaced, or "" (none sent). */
+function myLyrics(c: Ctx) {
+  const d = me(c);
+  const r = one("SELECT status FROM lyrics WHERE track = ? AND author = ? ORDER BY id DESC LIMIT 1", int(Number(c.query.get("track")), 1, Number.MAX_SAFE_INTEGER, "track"), d.id);
+  send(c.res, 200, { status: r?.status ?? "" });
+}
+
+/** The approved lyrics of a track, for every app: the words and the name of who made them. */
+function trackLyrics(c: Ctx) {
+  limit(`lyrics-get:${c.ip}`, 1200, HOUR);
+  const r = one(
+    "SELECT l.lrc, COALESCE(d.name, l.author_name) by_name FROM lyrics l LEFT JOIN devices d ON d.id = l.author WHERE l.track = ? AND l.status = 'approved' ORDER BY l.decided DESC LIMIT 1",
+    Number(c.params[0]),
+  );
+  if (!r) return fail(404, "no lyrics");
+  send(c.res, 200, { lrc: r.lrc, by: r.by_name });
+}
+
+function adminLyrics(c: Ctx) {
+  admin(c);
+  const rows = all(
+    `SELECT l.*, COALESCE(d.name, l.author_name) by_name, d.code by_code,
+            (SELECT COUNT(*) FROM lyrics a WHERE a.track = l.track AND a.status = 'approved') approved
+       FROM lyrics l LEFT JOIN devices d ON d.id = l.author WHERE l.status = 'pending' ORDER BY l.created LIMIT 100`,
+  );
+  send(c.res, 200, {
+    lyrics: rows.map((r) => ({ id: r.id, track: r.track, title: r.title, artist: r.artist, durationMs: r.duration, lrc: r.lrc, created: r.created, by: r.by_name, byCode: r.by_code ?? "", replaces: Number(r.approved) > 0 })),
+  });
+}
+
+/** Approved: shown for everyone, in place of an earlier approved version. Rejected: the words are dropped. */
+function adminDecideLyrics(c: Ctx, approve: boolean) {
+  admin(c);
+  const l = one("SELECT id, track FROM lyrics WHERE id = ? AND status = 'pending'", Number(c.params[0]));
+  if (!l) return fail(404, "no such lyrics");
+  tx(() => {
+    if (approve) run("UPDATE lyrics SET status = 'replaced' WHERE track = ? AND status = 'approved'", l.track);
+    run(`UPDATE lyrics SET status = ?, decided = ?${approve ? "" : ", lrc = ''"} WHERE id = ?`, approve ? "approved" : "rejected", Date.now(), l.id);
+  });
+  send(c.res, 204, null);
+}
+
 // ---- moderation ---------------------------------------------------------------------------------------------------
 
 function isAdmin(c: Ctx) {
@@ -725,6 +796,12 @@ const ROUTES: [string, RegExp, Handler][] = [
   ["POST", new RegExp(`^/v1/themes/${TID}/like$`), (c) => vote(c, "like")],
   ["POST", new RegExp(`^/v1/themes/${TID}/install$`), (c) => vote(c, "install")],
   ["POST", new RegExp(`^/v1/themes/${TID}/report$`), (c) => vote(c, "report")],
+  ["POST", /^\/v1\/lyrics$/, suggestLyrics],
+  ["GET", /^\/v1\/lyrics\/mine$/, myLyrics],
+  ["GET", /^\/v1\/lyrics\/(\d{1,15})$/, trackLyrics],
+  ["GET", /^\/v1\/admin\/lyrics$/, adminLyrics],
+  ["POST", /^\/v1\/admin\/lyrics\/(\d{1,15})\/approve$/, (c) => adminDecideLyrics(c, true)],
+  ["POST", /^\/v1\/admin\/lyrics\/(\d{1,15})\/reject$/, (c) => adminDecideLyrics(c, false)],
   ["GET", /^\/v1\/admin\/themes$/, adminThemes],
   ["POST", new RegExp(`^/v1/admin/themes/${TID}/hide$`), (c) => adminSet(c, true)],
   ["POST", new RegExp(`^/v1/admin/themes/${TID}/keep$`), (c) => adminSet(c, false)],

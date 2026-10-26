@@ -57,6 +57,31 @@ assert.equal((await api("POST", `/v1/messages/${plSent.ids[0]}/state`, { secret:
 assert.equal((await api("POST", `/v1/messages/${plSent.ids[0]}/state`, { secret: b.secret, body: { state: "heard" } })).status, 204);
 assert.equal((await api("GET", "/v1/updates?since=0", { secret: a.secret })).body.states[plSent.ids[0]], "saved");
 
+// lyrics people made: sent, waiting, approved by the moderator, shown to everyone with the maker's name
+const lrc = "[00:01.00] first line\n[00:04.50] second line";
+assert.equal((await api("POST", "/v1/lyrics", { secret: a.secret, body: { track: 555, title: "Orbit", artist: "Sky", durationMs: 1000, lrc: "no times here" } })).status, 400);
+assert.equal((await api("POST", "/v1/lyrics", { body: { track: 555, title: "Orbit", artist: "Sky", lrc } })).status, 401);
+const sug = (await api("POST", "/v1/lyrics", { secret: a.secret, body: { track: 555, title: "Orbit", artist: "Sky", durationMs: 1000, lrc } })).body;
+assert.equal(sug.status, "pending");
+assert.equal((await api("GET", "/v1/lyrics/555")).status, 404);
+assert.equal((await api("GET", "/v1/lyrics/mine?track=555", { secret: a.secret })).body.status, "pending");
+assert.equal((await api("GET", "/v1/admin/lyrics", { secret: a.secret })).status, 404);
+const ADMIN = process.env.ADMIN_TOKEN;
+if (ADMIN) {
+  const queue = (await api("GET", "/v1/admin/lyrics", { admin: ADMIN })).body.lyrics;
+  assert.equal(queue.at(-1).by, "sky");
+  assert.equal((await api("POST", `/v1/admin/lyrics/${sug.id}/approve`, { admin: ADMIN })).status, 204);
+  const shown = (await api("GET", "/v1/lyrics/555")).body;
+  assert.equal(shown.by, "sky");
+  assert.equal(shown.lrc, lrc);
+  assert.equal((await api("GET", "/v1/lyrics/mine?track=555", { secret: a.secret })).body.status, "approved");
+  // a second version: rejected, the approved one stays
+  const second = (await api("POST", "/v1/lyrics", { secret: b.secret, body: { track: 555, title: "Orbit", artist: "Sky", lrc: "[00:02] x\n[00:03] y" } })).body;
+  assert.equal((await api("POST", `/v1/admin/lyrics/${second.id}/reject`, { admin: ADMIN })).status, 204);
+  assert.equal((await api("GET", "/v1/lyrics/555")).body.lrc, lrc);
+  assert.equal((await api("GET", "/v1/lyrics/mine?track=555", { secret: b.secret })).body.status, "rejected");
+}
+
 // listening now, only when shared
 await api("PUT", "/v1/me/now", { secret: a.secret, body: { track } });
 assert.deepEqual((await api("GET", "/v1/updates", { secret: b.secret })).body.now, {});

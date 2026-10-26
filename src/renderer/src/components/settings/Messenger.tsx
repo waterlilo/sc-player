@@ -8,6 +8,7 @@ import { useSocial } from "@/state/social";
 import { useUi } from "@/state/ui";
 import { PaperButton } from "../ui/Buttons";
 import { Row, Section, Toggle } from "./Controls";
+import LyricsReview, { useLyricsQueue } from "./LyricsReview";
 
 /** Settings → Messenger: what friends see, pop-ups, the anonymous count, deleting the code. */
 export default function Messenger() {
@@ -99,6 +100,19 @@ export default function Messenger() {
   );
 }
 
+/** The moderator's queue of lyrics people sent. */
+function LyricsQueueRow() {
+  const t = useT();
+  const q = useLyricsQueue();
+  const [open, setOpen] = useState(false);
+  return (
+    <Row label={t.lyricsReview} hint={q.data ? t.lyricsWaiting(q.data.length) : undefined}>
+      <PaperButton onClick={() => setOpen(true)}>{t.lyricsReviewOpen}</PaperButton>
+      {open && <LyricsReview onClose={() => setOpen(false)} />}
+    </Row>
+  );
+}
+
 /** The workshop moderator's key: folded away behind a quiet link, as nobody else needs it. */
 function ModeratorKey() {
   const t = useT();
@@ -125,11 +139,14 @@ function ModeratorKey() {
 
   if (on)
     return (
-      <Row label={t.moderatorKey} hint={t.moderatorOn}>
-        <PaperButton disabled={busy} onClick={() => void save(null)}>
-          {t.removeKey}
-        </PaperButton>
-      </Row>
+      <>
+        <Row label={t.moderatorKey} hint={t.moderatorOn}>
+          <PaperButton disabled={busy} onClick={() => void save(null)}>
+            {t.removeKey}
+          </PaperButton>
+        </Row>
+        <LyricsQueueRow />
+      </>
     );
   if (!open)
     return (

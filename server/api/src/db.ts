@@ -82,6 +82,22 @@ CREATE TABLE IF NOT EXISTS theme_votes (
   created INTEGER NOT NULL,
   PRIMARY KEY (theme, device, kind)
 );
+-- timed lyrics people made for a SoundCloud track, sent for the moderator; approved ones are shown in every app
+CREATE TABLE IF NOT EXISTS lyrics (
+  id INTEGER PRIMARY KEY,
+  track INTEGER NOT NULL,               -- SoundCloud track id
+  author INTEGER REFERENCES devices(id) ON DELETE SET NULL,
+  author_name TEXT NOT NULL DEFAULT '', -- the name when sent: shown if the author's code is deleted later
+  title TEXT NOT NULL,
+  artist TEXT NOT NULL,
+  duration INTEGER NOT NULL DEFAULT 0,
+  lrc TEXT NOT NULL,                    -- "[mm:ss.xx] line" rows; emptied when rejected
+  status TEXT NOT NULL DEFAULT 'pending', -- pending | approved | rejected | replaced
+  created INTEGER NOT NULL,
+  decided INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS lyrics_track ON lyrics (track, status);
+CREATE INDEX IF NOT EXISTS lyrics_status ON lyrics (status, created);
 `);
 
 // columns added after the first release (CREATE TABLE IF NOT EXISTS leaves existing tables as they were)

@@ -44,7 +44,7 @@ export default function Dialog() {
             onSubmit={submit}
             initial={{ y: 6, scale: 0.98 }}
             animate={{ y: 0, scale: 1 }}
-            className="s-glass w-[26rem] max-w-[92vw] rounded-[var(--r,10px)] p-5 shadow-[0_18px_50px_rgba(0,0,0,0.5)]"
+            className="s-pop w-[26rem] max-w-[92vw] rounded-[var(--r,10px)] p-5 shadow-[0_18px_50px_rgba(0,0,0,0.5)]"
           >
             <p className="text-[14px] leading-relaxed text-text">{pending.message}</p>
             {pending.input && (

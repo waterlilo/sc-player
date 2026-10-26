@@ -302,6 +302,20 @@ function ownLyrics(q: { artist: string; title: string }, text: string): Lyrics {
   return { id: 0, artist: q.artist, title: q.title, synced: timed.length >= 2 ? timed : null, plain: plain || null, instrumental: false, source: "own" };
 }
 
+/** The user's own words for a track, as typed (sent for review from here). */
+export const ownText = (trackId: number) => ownFile().get().byTrack[String(trackId)]?.text ?? null;
+
+// ---- lyrics people made (approved by the moderator, on sc player's server) ----------------------------------------
+
+type Community = (trackId: number) => Promise<{ lrc: string; by: string } | null>;
+let community: Community | null = null;
+/** where approved lyrics come from (main/social) */
+export const setCommunityLyrics = (fn: Community) => (community = fn);
+/** Someone's timed words, signed with their name. */
+export const communityLyrics = (q: { artist: string; title: string }, lrc: string, by: string): Lyrics => ({ ...ownLyrics(q, lrc), source: "community", by });
+/** Look the words up again next time (approved ones changed). */
+export const forgetLyrics = (trackId: number) => found.delete(trackId);
+
 /** The user's own words for a track (`text` null: back to what's found). The words now shown, or null to look again. */
 export function setOwnLyrics(q: { trackId: number; artist: string; title: string }, text: string | null): Lyrics | null {
   const byTrack = { ...ownFile().get().byTrack };
@@ -344,6 +358,8 @@ async function lookUp(q: LyricsQuery, signal: AbortSignal): Promise<Lyrics | nul
   const all = variants(q);
   const first = all[0]!;
   const picked = pickFile().get().byTrack[String(q.trackId)];
+  // lyrics people made and the moderator approved: after one's own pick, before every other source
+  const fromCommunity = community ? community(q.trackId).catch(() => null) : Promise.resolve(null);
 
   // Better Lyrics (word timing when it has the song) and the community catalog, unless the user picked a record by hand
   const better = picked ? [] : all.slice(0, 2).map((v) => betterLyrics(v, seconds));
@@ -374,6 +390,8 @@ async function lookUp(q: LyricsQuery, signal: AbortSignal): Promise<Lyrics | nul
     const raw = await lookups[0]!;
     if (raw) return done(toLyrics(raw));
   }
+  const made = await fromCommunity;
+  if (made) return done(communityLyrics(q, made.lrc, made.by));
   for (const b of better) {
     const l = await b;
     if (l) return done(l);

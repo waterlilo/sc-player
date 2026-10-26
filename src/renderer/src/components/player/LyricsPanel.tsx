@@ -9,7 +9,9 @@ import { currentTime } from "@/audio/engine";
 import { syncLyrics, useLyricsSync } from "@/lib/lyricsSync";
 import { call } from "@/lib/sky";
 import { player, useCurrentTrack, usePlayer, usePosition, useStreamTrack } from "@/state/player";
+import { ask } from "@/state/dialog";
 import { useSettings } from "@/state/settings";
+import { useSocial } from "@/state/social";
 import { useUi } from "@/state/ui";
 import { IconButton } from "../ui/Buttons";
 import MarkerEdge from "../deco/MarkerEdge";
@@ -22,6 +24,7 @@ const SOURCES = {
   betterlyrics: { name: "Better Lyrics", url: "https://betterlyrics.org" },
   unison: { name: "Unison · Better Lyrics", url: "https://betterlyrics.org" },
   own: { name: "", url: "" },
+  community: { name: "", url: "" },
 } as const;
 
 /** Where the words came from, with a link to it (Better Lyrics asked for one), and how they are timed. */
@@ -38,6 +41,8 @@ export function LyricsSource({ lyrics, syncing = false }: { lyrics: Lyrics | nul
         <button type="button" className="underline-offset-2 hover:text-text hover:underline" onClick={() => void call("shell:open", src.url)}>
           {src.name}
         </button>
+      ) : lyrics?.source === "community" ? (
+        t.lyricsBy(lyrics.by || t.someone)
       ) : (
         t.lyricsOwnSource
       )}
@@ -72,8 +77,8 @@ export function useLyrics(track: Track | null) {
 /** What Auto-sync is asked for these words in this upload: plain words to place, or a source's lines to check. */
 function syncRequest(l: Lyrics | null | undefined, soundId: number): SyncRequest | null {
   if (!l) return null;
-  // one's own words timed by hand are kept as they are
-  if (l.source === "own" && l.synced?.length) return null;
+  // words timed by hand (one's own, or someone's approved ones) are kept as they are
+  if ((l.source === "own" || l.source === "community") && l.synced?.length) return null;
   const timed = l.synced?.filter((x) => x.text.trim()) ?? [];
   const words = timed.length ? timed.map((x) => x.text).join("\n") : l.plain;
   if (!words) return null;
@@ -274,6 +279,40 @@ function TapSync({ lines, onCancel, onDone }: { lines: string[]; onCancel: () =>
   );
 }
 
+/** My timed words, sent for the moderator: once approved, everyone sees them for this track, with my name. */
+function SuggestLyrics({ track, name }: { track: Track; name: string }) {
+  const t = useT();
+  const client = useQueryClient();
+  const toast = useUi((s) => s.showToast);
+  const q = useQuery({ queryKey: ["lyrics-suggestion", track.id], queryFn: () => call("lyrics:suggestion", track.id), staleTime: 60_000 });
+  const [busy, setBusy] = useState(false);
+  const state = q.data ?? "";
+
+  const send = async () => {
+    if (!(await ask(t.suggestConfirm(name), t.suggestSend))) return;
+    setBusy(true);
+    try {
+      client.setQueryData(["lyrics-suggestion", track.id], await call("lyrics:suggest", { trackId: track.id, artist: track.artist, title: track.title, durationMs: track.durationMs }));
+      toast(t.suggestSent);
+    } catch {
+      toast(t.serverOffline);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="mt-3 flex items-center justify-between gap-3 rounded-md bg-white/[0.03] px-3 py-2">
+      <span className="min-w-0 text-xs text-muted">{state ? t.suggestState[state] : t.suggestHint}</span>
+      {state !== "pending" && (
+        <button type="button" disabled={busy} onClick={() => void send()} className="s-btn shrink-0">
+          {state === "approved" || state === "replaced" ? t.suggestAgain : t.suggestLyrics}
+        </button>
+      )}
+    </div>
+  );
+}
+
 /** The user's own words for a track: pasted here, kept on this computer, shown instead of anything found. */
 function OwnWords({ track, onDone }: { track: Track; onDone: () => void }) {
   const t = useT();
@@ -285,6 +324,7 @@ function OwnWords({ track, onDone }: { track: Track; onDone: () => void }) {
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   const [tapping, setTapping] = useState(false);
+  const profile = useSocial((s) => s.status?.profile ?? null);
 
   const save = async (words: string | null) => {
     setBusy(true);
@@ -334,6 +374,7 @@ function OwnWords({ track, onDone }: { track: Track; onDone: () => void }) {
         />
       </label>
       {failed && <p className="mt-2 text-sm text-muted">{t.lyricsOffline}</p>}
+      {mine && !!current?.synced?.length && profile && <SuggestLyrics track={track} name={profile.name || profile.code} />}
       <div className="mt-2 flex flex-wrap items-center justify-end gap-2">
         <button type="button" disabled={busy || linesOf(text).length < 2} onClick={() => setTapping(true)} className="s-btn mr-auto" title={t.tapSyncTitle}>
           {t.tapSync}

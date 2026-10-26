@@ -1,6 +1,6 @@
 import type { SearchKind } from "./provider";
 import type { Friends, Message, Room, RoomOp, RoomState, SocialStatus, SocialTrack, SocialUpdate, WsPage, WsSort, WsThemeFull, SharedPlaylist } from "./social";
-import type { AppErrorInfo, Lyrics, LyricsHit, LyricsSyncStatus, Page, Playlist, QueueSource, Resolved, SavedProfile, StreamInfo, SyncRequest, SyncResult, Track, TrackDetails, User } from "./types";
+import type { AppErrorInfo, Lyrics, LyricsHit, LyricsSyncStatus, Page, Playlist, QueueSource, Resolved, SavedProfile, StreamInfo, SyncRequest, SyncResult, Track, TrackDetails, User, LyricsForReview, LyricsSuggestionState } from "./types";
 
 /**
  * The one contract between main and renderer. main registers a handler for every InvokeMap channel, preload exposes
@@ -276,6 +276,12 @@ export interface InvokeMap {
   "lyrics:pick": (trackId: number, lyricsId: number) => Lyrics | null;
   /** the user's own words for a track (plain, or LRC with times); null takes them away. The words now, or null to look again */
   "lyrics:setOwn": (track: { trackId: number; artist: string; title: string }, text: string | null) => Lyrics | null;
+  /** my own timed words for a track, sent for the moderator to approve for everyone */
+  "lyrics:suggest": (track: { trackId: number; artist: string; title: string; durationMs: number }) => LyricsSuggestionState;
+  "lyrics:suggestion": (trackId: number) => LyricsSuggestionState;
+  /** the moderator's queue (with the moderator's key) */
+  "lyrics:review": () => LyricsForReview[];
+  "lyrics:decide": (id: number, approve: boolean, trackId: number) => void;
   "lyricsSync:status": () => LyricsSyncStatus;
   /** starts the model download (progress comes as lyricsSync:status events) */
   "lyricsSync:download": () => LyricsSyncStatus;
@@ -486,6 +492,10 @@ export const INVOKE_CHANNELS = [
   "lyrics:search",
   "lyrics:pick",
   "lyrics:setOwn",
+  "lyrics:suggest",
+  "lyrics:suggestion",
+  "lyrics:review",
+  "lyrics:decide",
   "lyricsSync:status",
   "lyricsSync:download",
   "lyricsSync:deleteModel",

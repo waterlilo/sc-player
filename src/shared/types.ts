@@ -126,8 +126,31 @@ export interface LyricWord {
   bg?: boolean;
 }
 
-/** "own": words the user typed or pasted for this track (kept on this computer) */
-export type LyricsSource = "lrclib" | "betterlyrics" | "unison" | "own";
+/**
+ * "own": words the user typed or pasted for this track (kept on this computer); "community": someone's timed words,
+ * approved by the moderator on sc player's server
+ */
+export type LyricsSource = "lrclib" | "betterlyrics" | "unison" | "own" | "community";
+
+/** What became of my lyrics sent for review ("" — none sent). */
+export type LyricsSuggestionState = "" | "pending" | "approved" | "rejected" | "replaced";
+
+/** Lyrics someone sent, waiting for the moderator. */
+export interface LyricsForReview {
+  id: number;
+  /** SoundCloud track id */
+  track: number;
+  title: string;
+  artist: string;
+  durationMs: number;
+  created: number;
+  /** the sender's name in the messenger, and code */
+  by: string;
+  byCode: string;
+  /** the track has approved lyrics already: these would take their place */
+  replaces: boolean;
+  lyrics: Lyrics;
+}
 
 export interface Lyrics {
   /** the record's id at its source (LRCLIB's for picks by hand; 0 when the source has none) */
@@ -140,6 +163,8 @@ export interface Lyrics {
   instrumental: boolean;
   /** where the words came from (shown with them); LRCLIB when missing (older answers) */
   source?: LyricsSource;
+  /** "community": the name of who made them */
+  by?: string;
   /** the plain words were matched to the song on this computer (Settings → Lyrics → Auto-sync) */
   aligned?: boolean;
   /** the source's times were made for another upload: moved (and stretched, `scale` ≠ 1) to fit this one (Auto-sync) */

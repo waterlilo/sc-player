@@ -12,6 +12,7 @@ import { useSettings } from "@/state/settings";
 import { useSocial } from "@/state/social";
 import { useUi, type FullTab } from "@/state/ui";
 import RoomPanel from "../room/RoomPanel";
+import { ReviewBar } from "../settings/LyricsReview";
 import { Avatar } from "../social/bits";
 import { IconButton } from "../ui/Buttons";
 import Icon from "../ui/Icon";
@@ -537,6 +538,7 @@ function StudioFull() {
           )}
         </p>
       )}
+      {track && tab === "lyrics" && <ReviewBar track={track} />}
       {track && bottomBand && <BottomSpectrum look={spec} />}
       <SpectrumPopover open={specOpen} onClose={() => setSpecOpen(false)} />
       <div className="s-dock s-glass" role="tablist">

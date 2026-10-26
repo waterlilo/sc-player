@@ -396,6 +396,43 @@ export async function wsDelete(id: string, moderator = false) {
   await api("DELETE", `/v1/themes/${encodeURIComponent(id)}`, key ? { admin: key } : {});
 }
 
+// ---- lyrics people made -------------------------------------------------------------------------------------------
+
+/** The approved lyrics of a track (null: none). Quick: the words wait for it. */
+export async function approvedLyrics(trackId: number): Promise<{ lrc: string; by: string } | null> {
+  if (!BASE) return null;
+  try {
+    return await api<{ lrc: string; by: string }>("GET", `/v1/lyrics/${trackId}`, { auth: false, timeout: 4000 });
+  } catch (e) {
+    if (e instanceof ScError && e.code === "not_found") return null;
+    throw e;
+  }
+}
+
+export async function suggestLyrics(body: { track: number; title: string; artist: string; durationMs: number; lrc: string }): Promise<string> {
+  needProfile();
+  return (await api<{ status: string }>("POST", "/v1/lyrics", { body })).status;
+}
+
+export async function lyricsStatus(trackId: number): Promise<string> {
+  if (!joined()) return "";
+  return (await api<{ status: string }>("GET", `/v1/lyrics/mine?track=${trackId}`)).status;
+}
+
+function moderatorKey() {
+  const key = getSecret("moderatorToken");
+  if (!key) throw new ScError("unauthorized", "no moderator key on this computer");
+  return key;
+}
+
+export async function reviewLyrics() {
+  return (await api<{ lyrics: { id: number; track: number; title: string; artist: string; durationMs: number; lrc: string; created: number; by: string; byCode: string; replaces: boolean }[] }>("GET", "/v1/admin/lyrics", { admin: moderatorKey() })).lyrics;
+}
+
+export async function decideLyrics(id: number, approve: boolean) {
+  await api("POST", `/v1/admin/lyrics/${id}/${approve ? "approve" : "reject"}`, { admin: moderatorKey() });
+}
+
 // ---- moderation ---------------------------------------------------------------------------------------------------
 
 /** whether this computer holds the workshop moderator's key */
