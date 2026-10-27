@@ -63,17 +63,36 @@ export function stopBrowserSignIn() {
   waitingUntil = 0;
 }
 
+/**
+ * Any printable token without spaces is taken: SoundCloud checks it right after (the account is asked for), and
+ * some accounts' cookies are longer or carry other characters than "2-123-456-abc" — those links were refused here.
+ */
+const TOKEN = /^[\x21-\x7e]{8,4096}$/;
+
 /** The token from a `scplayer://signin?token=…` link among a new instance's arguments, if there is one. */
 export function tokenFromArgs(argv: string[]): string | null {
   for (const arg of argv) {
     if (!arg.toLowerCase().startsWith(`${PROTOCOL}://signin`)) continue;
+    let token: string;
     try {
-      const token = new URL(arg).searchParams.get("token") ?? "";
-      if (/^[\w.-]{8,256}$/.test(token)) return token;
+      token = (new URL(arg).searchParams.get("token") ?? "").trim().replace(/\/+$/, "");
     } catch {
-      /* not a link */
+      log("main", "login: browser link that isn't a link");
+      continue;
     }
-    log("main", "login: browser link without a usable token");
+    // a cookie kept percent-encoded arrives encoded once more
+    if (/%[0-9a-f]{2}/i.test(token))
+      try {
+        token = decodeURIComponent(token);
+      } catch {
+        /* kept as it came */
+      }
+    // a cookie value may come in quotes
+    token = token.replace(/^"(.*)"$/, "$1");
+    if (TOKEN.test(token)) return token;
+    // what was wrong with it, never the token itself
+    const odd = [...new Set(token.replace(/[\w.-]/g, ""))].map((c) => (c.charCodeAt(0) < 0x21 || c.charCodeAt(0) > 0x7e ? `U+${c.charCodeAt(0).toString(16)}` : c)).join(" ");
+    log("main", `login: browser link without a usable token (length ${token.length}${odd ? `, other characters: ${odd}` : ""})`);
   }
   return null;
 }
