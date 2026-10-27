@@ -1,8 +1,8 @@
 import { randomBytes } from "node:crypto";
-import { copyFileSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { copyFileSync, createReadStream, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { basename, extname, join } from "node:path";
-import { pathToFileURL } from "node:url";
-import { app, dialog, net, protocol, type BrowserWindow } from "electron";
+import { Readable } from "node:stream";
+import { app, dialog, protocol, type BrowserWindow } from "electron";
 
 /**
  * Your own background for the studio design: an image, a GIF or a video picked in Settings. It is copied into
@@ -45,12 +45,41 @@ export function serveBackgrounds() {
     const name = basename(decodeURIComponent(u.pathname));
     const path = u.host === "import" ? imports.get(name) : NAME.test(name) ? join(folder(), name) : null;
     if (!path) return new Response("not found", { status: 404 });
-    const res = await net.fetch(pathToFileURL(path).toString(), { headers: req.headers });
-    // the page reads a few pixels of it for the accent colour, which needs CORS
-    const headers = new Headers(res.headers);
-    headers.set("Access-Control-Allow-Origin", "*");
-    return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
+    return serveFile(path, req.headers.get("range"));
   });
+}
+
+const TYPES: Record<string, string> = { ".mp4": "video/mp4", ".webm": "video/webm", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp" };
+
+/**
+ * The file, or the part of it a Range header asks for (206): video seeking and the video converter (lib/videoFit)
+ * read big files piece by piece — a file:// fetch answered every range with the whole file, and the converter ran
+ * out of its cache on long videos.
+ */
+function serveFile(path: string, range: string | null): Response {
+  let size: number;
+  try {
+    size = statSync(path).size;
+  } catch {
+    return new Response("not found", { status: 404 });
+  }
+  // the page reads a few pixels of it for the accent colour, which needs CORS
+  const headers = new Headers({ "Access-Control-Allow-Origin": "*", "Accept-Ranges": "bytes", "Content-Type": TYPES[extname(path).toLowerCase()] ?? "application/octet-stream" });
+  const m = range && /^bytes=(\d*)-(\d*)$/.exec(range.trim());
+  if (!m || (!m[1] && !m[2])) {
+    headers.set("Content-Length", String(size));
+    return new Response(Readable.toWeb(createReadStream(path)) as ReadableStream, { status: 200, headers });
+  }
+  // "bytes=a-b", "bytes=a-" or the last n bytes ("bytes=-n")
+  const start = m[1] ? Number(m[1]) : Math.max(0, size - Number(m[2]));
+  const end = m[1] && m[2] ? Math.min(Number(m[2]), size - 1) : size - 1;
+  if (start >= size || start > end) {
+    headers.set("Content-Range", `bytes */${size}`);
+    return new Response(null, { status: 416, headers });
+  }
+  headers.set("Content-Range", `bytes ${start}-${end}/${size}`);
+  headers.set("Content-Length", String(end - start + 1));
+  return new Response(Readable.toWeb(createReadStream(path, { start, end })) as ReadableStream, { status: 206, headers });
 }
 
 /**
