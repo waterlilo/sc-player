@@ -16,6 +16,12 @@ interface AuthStore {
   logout(): Promise<void>;
 }
 
+/** SoundCloud ended the session (it refused the token twice): said once, instead of a quiet "Sign in" */
+const said = (status: AuthStatus) => {
+  if (status.ended) useUi.getState().showToast(t.sessionEnded);
+  return status;
+};
+
 export const useAuth = create<AuthStore>((set) => ({
   status: null,
   busy: false,
@@ -33,11 +39,11 @@ export const useAuth = create<AuthStore>((set) => ({
       const st = useAuth.getState().status;
       if (st?.mode !== "session" || st.user) return;
       void call("auth:status")
-        .then((status) => set({ status }))
+        .then((status) => set({ status: said(status) }))
         .catch(() => undefined);
     }, 15_000);
     try {
-      set({ status: await call("auth:status") });
+      set({ status: said(await call("auth:status")) });
     } catch {
       set({ status: { mode: "public", user: null } });
     }

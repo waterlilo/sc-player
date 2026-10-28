@@ -11,6 +11,8 @@ export type AuthMode = "session" | "public";
 export interface AuthStatus {
   mode: AuthMode;
   user: User | null;
+  /** SoundCloud ended the session just now (it refused the token): the page says so instead of quietly showing "Sign in" */
+  ended?: boolean;
 }
 
 /** active — visible and focused; blurred — visible, another app has focus; hidden — minimized, hidden or in the tray */

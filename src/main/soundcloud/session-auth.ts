@@ -223,6 +223,11 @@ export class SessionAuth {
     });
     this.checkWindow = win;
     log("main", "check: window opened");
+    // what the site does with the sign-in cookie meanwhile (never its value): for the log
+    const onCookie = (_e: Electron.Event, c: Electron.Cookie, cause: string, removed: boolean) => {
+      if (c.name === "oauth_token") log("main", `check: the site ${removed ? `removed the sign-in cookie (${cause})` : "set the sign-in cookie"}${!removed && c.value === token ? " (the same token)" : ""}`);
+    };
+    ses.cookies.on("changed", onCookie);
     // links away from SoundCloud open in the real browser
     win.webContents.setWindowOpenHandler(({ url: to }) => {
       if (/^https:\/\//.test(to)) void shell.openExternal(to);
@@ -234,10 +239,26 @@ export class SessionAuth {
     await new Promise<void>((resolve) =>
       win.on("closed", () => {
         this.checkWindow = null;
+        ses.cookies.removeListener("changed", onCookie);
         log("main", "check: window closed");
         resolve();
       }),
     );
+    await this.adoptCookieToken();
+  }
+
+  /**
+   * SoundCloud's own pages (the check window) may give the session a new token, after which the copy kept here is
+   * refused (seen 2026-10-28: every request 401 right after a check). The cookie's token is taken when it differs.
+   * True when it changed.
+   */
+  async adoptCookieToken(): Promise<boolean> {
+    const [cookie] = await scSession().cookies.get({ name: "oauth_token" });
+    const value = cookie?.value ?? "";
+    if (!value || value === this.token()) return false;
+    setSecret("sessionToken", value);
+    log("main", "login: the site gave the session a new token — taken");
+    return true;
   }
 
   /** The token was refused: drop our copy (the site data stays; signing in again replaces it). */

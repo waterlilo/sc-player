@@ -685,6 +685,7 @@ export const en = {
   loginWithBrowser: "Sign in with your browser",
   browserWaiting: "Finish in your browser: sign in on soundcloud.com, then click the “sc player sign-in” bookmark. The instructions are open in a browser tab.",
   browserAgain: "Show the instructions again",
+  sessionEnded: "SoundCloud ended your session — sign in again (your library, playlists and friends are all still here)",
   browserRefused: "SoundCloud didn't accept that sign-in. Sign in on soundcloud.com again, then click the bookmark.",
   cancel: "Cancel",
   loginTrouble: "Trouble signing in?",

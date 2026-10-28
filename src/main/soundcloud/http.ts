@@ -35,6 +35,8 @@ export class ScHttp {
   constructor(
     private readonly clientId: ClientId,
     private readonly token: () => string | null,
+    /** a refused token: look for a newer one (the session's cookie); true when there is one to try */
+    private readonly renew?: () => Promise<boolean>,
   ) {}
 
   clearCache() {
@@ -91,6 +93,7 @@ export class ScHttp {
 
   private async send<T>(url: URL, method: string, token: string | null, body: unknown): Promise<T> {
     let clientIdRetried = false;
+    let tokenRenewed = false;
     let networkRetried = false;
     let serverRetried = false;
     for (let attempt = 0; attempt < MAX_TRIES; attempt++) {
@@ -134,6 +137,14 @@ export class ScHttp {
         if (!clientIdRetried) {
           clientIdRetried = true;
           if (await this.clientId.recheck()) continue;
+        }
+        // the site may have given the session a newer token (its check page): that one, once
+        if (token && !tokenRenewed && this.renew) {
+          tokenRenewed = true;
+          if (await this.renew()) {
+            token = this.token();
+            continue;
+          }
         }
         throw new ScError(token ? "unauthorized" : "unavailable", `SoundCloud answered ${res.status}`);
       }
