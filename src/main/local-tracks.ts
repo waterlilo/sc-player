@@ -3,7 +3,7 @@ import { basename, extname, join } from "node:path";
 import { app, dialog, protocol, shell, type BrowserWindow } from "electron";
 import { parseFile } from "music-metadata";
 import type { MusicProvider } from "@shared/provider";
-import { isLocalTrack, LOCAL_TRACK_BASE, type Page, type StreamInfo, type Track, type TrackDetails } from "@shared/types";
+import { isLocalTrack, LOCAL_TRACK_BASE, type StreamInfo, type Track, type TrackDetails } from "@shared/types";
 import { ScError } from "./soundcloud";
 import { JsonFile } from "./store/json-file";
 import { serveFile } from "./system/background";
