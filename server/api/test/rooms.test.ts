@@ -258,3 +258,35 @@ test("the host hands the room to another member", () => {
   assert.throws(() => rooms.next(id, 1), /only the host/);
   rooms.next(id, 3);
 });
+
+test("a member suggests a whole playlist: one suggestion, its name and size shown, taken after what is put on", () => {
+  const { rooms, id, later } = room();
+  const list = [track(20), track(21), track(22)];
+  assert.equal(rooms.suggestList(id, 2, list, "Night"), "suggested");
+  assert.equal(rooms.suggestList(id, 2, list, "Night"), "already");
+  const view = rooms.view(rooms.get(id)!);
+  assert.equal(view.suggestions.length, 1);
+  assert.deepEqual((view.suggestions[0] as { list?: unknown }).list, { title: "Night", count: 3 });
+  assert.equal(view.suggestions[0]!.track.id, 20);
+  // it counts as one of the member's few
+  for (let i = 0; i < LIMITS.suggestionsEach - 1; i++) rooms.suggest(id, 2, track(40 + i));
+  assert.throws(() => rooms.suggestList(id, 2, [track(50)], "More"), /at most/);
+  // the host takes it: it plays after the current track, in order
+  rooms.decide(id, 1, view.suggestions[0]!.uid, true);
+  assert.deepEqual(rooms.get(id)!.list?.items.map((x) => x.track.id), [20, 21, 22]);
+  later(101_000);
+  assert.equal(rooms.get(id)!.track?.id, 20);
+  // the host suggesting a list just puts it on
+  rooms.suggestList(id, 1, [track(30), track(31)], "Mine");
+  assert.equal(rooms.get(id)!.track?.id, 30);
+});
+
+test("a playlist taken when the room has stopped starts at once", () => {
+  const { rooms, id, later } = room();
+  later(101_000);
+  assert.equal(rooms.get(id)!.playing, false);
+  rooms.suggestList(id, 3, [track(60), track(61)], "Late");
+  rooms.decide(id, 1, rooms.get(id)!.suggestions[0]!.uid, true);
+  assert.equal(rooms.get(id)!.track?.id, 60);
+  assert.equal(rooms.get(id)!.playing, true);
+});

@@ -9,14 +9,16 @@ import { Avatar, Cover } from "../social/bits";
 import Icon from "../ui/Icon";
 
 /** One row of the room's queue or suggestions: the cover, the track, who put it there; the host's buttons on the right. */
-function Row({ item, who, children }: { item: RoomItem; who: string; children?: React.ReactNode }) {
+function Row({ item, who, children }: { item: RoomItem & { list?: { title: string; count: number } }; who: string; children?: React.ReactNode }) {
+  const t = useT();
   return (
     <li className="group flex items-center gap-2.5 rounded-md px-1.5 py-1.5 hover:bg-[var(--row-hover)]">
       <Cover url={item.track.artworkUrl} size={34} />
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[12.5px] font-medium text-text">{item.track.title}</span>
-        <span className="block truncate text-[11px] text-muted">
-          {item.track.artist}
+        <span className="block truncate text-[12.5px] font-medium text-text">{item.list ? item.list.title || t.roomListPlaylist : item.track.title}</span>
+        <span className="flex items-center gap-1 truncate text-[11px] text-muted">
+          {item.list && <Icon name="playlists" size={11} />}
+          {item.list ? t.sharedPlaylist(item.list.count) : item.track.artist}
           {who && ` · ${who}`}
         </span>
       </span>
@@ -121,7 +123,7 @@ export default function RoomPanel() {
             <ul>
               {r.suggestions.map((s) => (
                 <Row key={s.uid} item={s} who={name(s.by)}>
-                  <button type="button" className={small} aria-label={t.roomTake} title={t.roomTake} onClick={() => room.decide(s.uid, true)}>
+                  <button type="button" className={small} aria-label={s.list ? t.roomTakeList : t.roomTake} title={s.list ? t.roomTakeList : t.roomTake} onClick={() => room.decide(s.uid, true)}>
                     <Icon name="check" size={15} />
                   </button>
                   <button type="button" className={small} aria-label={t.roomDismiss} title={t.roomDismiss} onClick={() => room.decide(s.uid, false)}>

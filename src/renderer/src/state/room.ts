@@ -287,6 +287,18 @@ export const room = {
   remove: (item: string) => void act({ op: "queueRemove", item }),
   move: (item: string, to: number) => void act({ op: "queueMove", item, to }),
   decide: (item: string, take: boolean) => void act({ op: "decide", item, take }),
+  /**
+   * A whole list (a playlist, the likes…) suggested to the host: up to 500 of its tracks, files from this computer left
+   * out. The host's own suggestion just puts it on.
+   */
+  async suggestList(tracks: Track[], source: QueueSource) {
+    const known = new Map(tracks.map((x) => [x.id, x]));
+    const ids = source.kind === "static" ? tracks.map((x) => x.id) : await call("data:sourceIds", source).catch(() => tracks.map((x) => x.id));
+    const all = (await tracksOf(ids.filter((id) => !isLocalTrack(id)).slice(0, LIST_MAX), known)).map(toSocial);
+    if (!all.length) return void toast(t.roomNoLocal);
+    const r = await act({ op: "suggestList", tracks: all, title: (await listTitle(source)) || t.roomListPlaylist });
+    if (r.result) toast(r.result === "already" ? t.roomAlreadySuggested : isHost() ? t.roomListOn : t.roomListSuggested(all.length));
+  },
   listRemove: (item: string) => void act({ op: "listRemove", item }),
   listClear: () => void act({ op: "listClear" }),
   /** the host role to another member */

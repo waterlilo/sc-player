@@ -66,7 +66,8 @@ export interface Room {
   queue: Item[];
   /** what the host put on (a playlist, the likes…): played on after the queue, in order */
   list: { title: string; items: Item[] } | null;
-  suggestions: (Item & { at: number })[];
+  /** `list`: a whole playlist suggested (its first track is `track`, which older apps show) */
+  suggestions: (Item & { at: number; list?: { title: string; tracks: RoomTrack[] } })[];
   history: { track: RoomTrack; at: number }[];
 }
 
@@ -446,14 +447,43 @@ export class Rooms {
     return "suggested";
   }
 
-  /** The host takes a suggestion into the queue (at its end) or lets it go. */
+  /**
+   * A member suggests a whole playlist: one suggestion (of the member's few) that the host takes in one go. The host
+   * suggesting is just putting it on.
+   */
+  suggestList(id: string, device: number, tracks: RoomTrack[], title: string): "suggested" | "already" {
+    const r = this.room(id);
+    const m = this.member(r, device);
+    if (!tracks.length) fail(400, "no tracks");
+    if (r.host === device) {
+      this.playList(id, device, tracks, title);
+      return "suggested";
+    }
+    if (r.suggestions.some((s) => s.list && s.list.title === title && s.track.id === tracks[0]!.id)) return "already";
+    if (r.suggestions.filter((s) => s.by === m.code).length >= LIMITS.suggestionsEach) fail(429, `at most ${LIMITS.suggestionsEach} suggestions waiting at a time`);
+    if (r.suggestions.length >= LIMITS.suggestions) fail(429, "the host has enough suggestions for now");
+    r.suggestions.push({ uid: uid(), track: tracks[0]!, by: m.code, at: this.now(), list: { title, tracks: tracks.slice(0, LIMITS.list) } });
+    this.changed(r);
+    return "suggested";
+  }
+
+  /**
+   * The host takes a suggestion or lets it go. A track goes to the end of the queue; a playlist after what is put on
+   * (it starts at once when nothing is playing).
+   */
   decide(id: string, device: number, item: string, take: boolean) {
     const r = this.room(id);
     this.onlyHost(r, device);
     const s = r.suggestions.find((x) => x.uid === item);
     if (!s) return;
     r.suggestions = r.suggestions.filter((x) => x.uid !== item);
-    if (take && r.queue.length < LIMITS.queue) r.queue.push({ uid: s.uid, track: s.track, by: s.by });
+    if (take && s.list) {
+      const list = (r.list ??= { title: s.list.title, items: [] });
+      for (const track of s.list.tracks.slice(0, LIMITS.list - list.items.length)) list.items.push({ uid: uid(), track, by: s.by });
+      if (!list.items.length) r.list = null;
+      const ended = !r.track || (!r.playing && r.position * 1000 >= r.track.durationMs);
+      if (ended && !r.queue.length && r.list) this.advance(r);
+    } else if (take && r.queue.length < LIMITS.queue) r.queue.push({ uid: s.uid, track: s.track, by: s.by });
     this.changed(r);
   }
 
@@ -516,7 +546,8 @@ export class Rooms {
       queue: r.queue,
       // the next few of the list and how many are left (the whole list would go out with every change)
       list: r.list ? { title: r.list.title, left: r.list.items.length, next: r.list.items.slice(0, 20) } : null,
-      suggestions: r.suggestions,
+      // a suggested playlist goes out as its name and size (all its tracks with every change would be too much)
+      suggestions: r.suggestions.map(({ list, ...s }) => (list ? { ...s, list: { title: list.title, count: list.tracks.length } } : s)),
       // the latest few; the whole history comes on request (saving it as a playlist)
       history: r.history.slice(-30),
     };

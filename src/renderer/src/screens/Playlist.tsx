@@ -18,6 +18,7 @@ import { useUi } from "@/state/ui";
 import { useNav } from "@/state/nav";
 import { useSettings } from "@/state/settings";
 import { player } from "@/state/player";
+import { room, useRoom } from "@/state/room";
 import { useSocial } from "@/state/social";
 
 export default function Playlist({ id }: { id: string }) {
@@ -38,6 +39,8 @@ export default function Playlist({ id }: { id: string }) {
   const local = isLocal(id);
   const own = canEdit(p);
   const joined = useSocial((s) => !!s.status?.profile);
+  // in a listening room, not hosting it: the whole list can be suggested to the host
+  const member = useRoom((s) => !!s.room && s.room.host !== s.me);
   const openSendPlaylist = useSocial((s) => s.openSendPlaylist);
 
   const copy = async () => {
@@ -124,6 +127,11 @@ export default function Playlist({ id }: { id: string }) {
               {p && !own && (
                 <PaperButton disabled={busy || !p.trackCount} onClick={() => void copy()}>
                   <Icon name="copy" size={16} /> {t.copyToMine}
+                </PaperButton>
+              )}
+              {member && !editing && (
+                <PaperButton disabled={!f.tracks.length} onClick={() => void room.suggestList(f.tracks, f.source).catch(() => toast(t.roomFailed))}>
+                  <Icon name="users" size={16} /> {t.roomSuggestList}
                 </PaperButton>
               )}
               {p && local && joined && !editing && (

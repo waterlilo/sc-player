@@ -126,6 +126,11 @@ export function roomRoutes(h: Helpers): [string, RegExp, (c: Ctx) => unknown][] 
       case "suggest":
         answer = { result: rooms.suggest(id, me, h.track(b.track)) };
         break;
+      case "suggestList": {
+        if (!Array.isArray(b.tracks) || !b.tracks.length || b.tracks.length > 500) fail(400, "tracks: 1..500");
+        answer = { result: rooms.suggestList(id, me, (b.tracks as unknown[]).map(h.track), text(b.title, 200, "title", false)) };
+        break;
+      }
       case "decide":
         rooms.decide(id, me, item(), b.take === true);
         break;

@@ -132,6 +132,11 @@ function roomOp(v: unknown): RoomOp {
       return { op: "queueMove", item: item(), to: Math.max(0, Math.floor(num(o.to, "to"))) };
     case "suggest":
       return { op: "suggest", track: socialTrack(o.track) };
+    case "suggestList": {
+      if (!Array.isArray(o.tracks) || !o.tracks.length || o.tracks.length > 500) return bad("tracks");
+      const tracks = o.tracks.filter((t: unknown) => !isLocalTrack(Number((t as { id?: unknown })?.id))).map(socialTrack);
+      return tracks.length ? { op: "suggestList", tracks, title: typeof o.title === "string" ? o.title.slice(0, 200) : "" } : bad("tracks");
+    }
     case "decide":
       return { op: "decide", item: item(), take: o.take === true };
     case "ready":

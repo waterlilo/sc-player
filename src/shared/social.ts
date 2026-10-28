@@ -130,7 +130,8 @@ export interface Room {
   queue: RoomItem[];
   /** what the host put on (a playlist, the likes…), after the queue: its name, the next few, how many are left */
   list?: { title: string; left: number; next: RoomItem[] } | null;
-  suggestions: (RoomItem & { at: number })[];
+  /** `list`: a whole playlist suggested (`track` is its first track) — its name and how many tracks */
+  suggestions: (RoomItem & { at: number; list?: { title: string; count: number } })[];
   history: { track: SocialTrack; at: number }[];
 }
 
@@ -143,6 +144,7 @@ export type RoomOp =
   | { op: "queueRemove"; item: string }
   | { op: "queueMove"; item: string; to: number }
   | { op: "suggest"; track: SocialTrack }
+  | { op: "suggestList"; tracks: SocialTrack[]; title: string }
   | { op: "decide"; item: string; take: boolean }
   | { op: "ready"; trackId: number }
   | { op: "playList"; tracks: SocialTrack[]; title: string }
