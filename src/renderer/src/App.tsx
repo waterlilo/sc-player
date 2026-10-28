@@ -10,6 +10,7 @@ import StudioTitleBar from "@/components/studio/TitleBar";
 import { useUi } from "@/state/ui";
 import ScreenBoundary from "@/components/ui/ScreenBoundary";
 import History from "@/screens/History";
+import Local from "@/screens/Local";
 import Home from "@/screens/Home";
 import Inbox from "@/screens/Inbox";
 import { Albums, Following, Stations } from "@/screens/Library";
@@ -51,6 +52,8 @@ function ScreenFor({ route }: { route: Route }) {
       return <Profile userId={route.userId} />;
     case "history":
       return <History />;
+    case "local":
+      return <Local />;
     case "search":
       return <Search />;
     case "albums":

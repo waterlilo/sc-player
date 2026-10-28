@@ -23,7 +23,12 @@ const folder = () => join(app.getPath("userData"), "backgrounds");
  * check").
  */
 export function registerBackgroundScheme() {
-  protocol.registerSchemesAsPrivileged([{ scheme: BG_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true, bypassCSP: true } }]);
+  // sclocal (main/local-tracks): music from this computer, played like a stream (seeking, the spectrum reads it)
+  const privileges = { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true, bypassCSP: true };
+  protocol.registerSchemesAsPrivileged([
+    { scheme: BG_SCHEME, privileges },
+    { scheme: "sclocal", privileges },
+  ]);
 }
 
 /**
@@ -49,14 +54,14 @@ export function serveBackgrounds() {
   });
 }
 
-const TYPES: Record<string, string> = { ".mp4": "video/mp4", ".webm": "video/webm", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp" };
+const TYPES: Record<string, string> = { ".mp3": "audio/mpeg", ".m4a": "audio/mp4", ".aac": "audio/aac", ".flac": "audio/flac", ".ogg": "audio/ogg", ".opus": "audio/ogg", ".wav": "audio/wav", ".mp4": "video/mp4", ".webm": "video/webm", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp" };
 
 /**
  * The file, or the part of it a Range header asks for (206): video seeking and the video converter (lib/videoFit)
  * read big files piece by piece — a file:// fetch answered every range with the whole file, and the converter ran
  * out of its cache on long videos.
  */
-function serveFile(path: string, range: string | null): Response {
+export function serveFile(path: string, range: string | null): Response {
   let size: number;
   try {
     size = statSync(path).size;

@@ -1,7 +1,7 @@
 import CoverRing from "./CoverRing";
 import { useSettings } from "@/state/settings";
 import { useState, type CSSProperties } from "react";
-import { artwork, type Track } from "@shared/types";
+import { isLocalTrack, artwork, type Track } from "@shared/types";
 import { errorText, useT } from "@/i18n";
 import { duration } from "@/lib/format";
 import { useNav } from "@/state/nav";
@@ -54,7 +54,7 @@ export function LikeButton({ track, white = false }: { track: Track; white?: boo
   const t = useT();
   const signedIn = useAuth((s) => s.status?.mode === "session");
   const liked = useLiked(track.id);
-  if (!signedIn) return null;
+  if (!signedIn || isLocalTrack(track.id)) return null;
   return (
     <IconButton
       icon="heart"

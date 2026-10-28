@@ -313,6 +313,14 @@ export interface InvokeMap {
 
   /** Settings → background: pick an image, GIF or video; main copies it into userData. null when cancelled */
   "bg:pick": () => { file: string; type: "image" | "video" } | null;
+  /** music from this computer (main/local-tracks), newest first */
+  "local:list": () => Track[];
+  /** files (or a folder) picked in a dialog; how many were added */
+  "local:add": (folder: boolean) => number;
+  /** files or folders dropped onto the window; how many were added */
+  "local:addPaths": (paths: string[]) => number;
+  "local:remove": (trackId: number) => void;
+  "local:show": (trackId: number) => void;
   /** a Wallpaper Engine wallpaper by its Steam Workshop link, if Steam has it on this computer */
   "bg:steamFind": (link: string) => SteamWallpaper;
   /** the wallpaper's page in Steam (to subscribe, so Steam downloads it) */
@@ -476,6 +484,11 @@ export const INVOKE_CHANNELS = [
   "ws:moderator",
   "ws:setModerator",
   "bg:pick",
+  "local:list",
+  "local:add",
+  "local:addPaths",
+  "local:remove",
+  "local:show",
   "bg:steamFind",
   "bg:steamOpen",
   "bg:keepImport",
@@ -564,4 +577,6 @@ export const _channelsComplete: [MissingInvoke, MissingEvent] extends [never, ne
 export interface SkyBridge {
   invoke<K extends InvokeChannel>(channel: K, ...args: Parameters<InvokeMap[K]>): Promise<Result<ReturnType<InvokeMap[K]>>>;
   on<K extends keyof EventMap>(channel: K, listener: (payload: EventMap[K]) => void): () => void;
+  /** where a file dropped onto the window is on disk (to add music from this computer) */
+  pathOf(file: File): string;
 }

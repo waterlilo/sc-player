@@ -1,10 +1,12 @@
 import { create } from "zustand";
 import type { Friends, Message, MessageState, RoomInvite, SocialStatus, SocialTrack } from "@shared/social";
-import type { Playlist, Track } from "@shared/types";
+import { isLocalTrack, type Playlist, type Track } from "@shared/types";
+import { en as t } from "@/i18n/en";
 import { currentTime } from "@/audio/engine";
 import { call, on } from "@/lib/sky";
 import { useNav } from "./nav";
 import { player, usePlayer } from "./player";
+import { useUi } from "./ui";
 
 /**
  * The messenger as the page sees it: who I am on sc player's server, my friends, unread counts, what friends are
@@ -52,7 +54,8 @@ export const useSocial = create<SocialStore>((set) => ({
   setStatus: (status) => set({ status }),
   setFriends: (friends) => set({ friends }),
   openChat: (open) => set((s) => ({ open, unread: open ? { ...s.unread, [open]: 0 } : s.unread })),
-  openSend: (track) => set({ sending: toSocial(track), sendingPlaylist: null }),
+  // a file from this computer stays here: nobody else has it
+  openSend: (track) => (isLocalTrack(track.id) ? useUi.getState().showToast(t.localNoSend) : set({ sending: toSocial(track), sendingPlaylist: null })),
   openSendPlaylist: (p) => set({ sendingPlaylist: p, sending: null }),
   closeSend: () => set({ sending: null, sendingPlaylist: null }),
 }));

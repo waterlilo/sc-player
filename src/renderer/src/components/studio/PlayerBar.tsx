@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { artwork, type Track } from "@shared/types";
+import { isLocalTrack, artwork, type Track } from "@shared/types";
 import { errorText, useT } from "@/i18n";
 import { duration } from "@/lib/format";
 import { useAuth } from "@/state/auth";
@@ -28,7 +28,7 @@ function Like({ track }: { track: Track }) {
   const t = useT();
   const signedIn = useAuth((s) => s.status?.mode === "session");
   const liked = useLiked(track.id);
-  if (!signedIn) return null;
+  if (!signedIn || isLocalTrack(track.id)) return null;
   return (
     <button type="button" onClick={() => void toggleLike(track)} aria-pressed={liked} aria-label={liked ? t.unlike : t.like} title={liked ? t.unlike : t.like} className={`ml-auto grid h-8 w-8 shrink-0 place-items-center rounded-md ${liked ? "text-[var(--accent)]" : "text-muted hover:text-text"}`}>
       <Icon name="heart" size={15} filled={liked} />
@@ -187,7 +187,7 @@ export default function StudioPlayerBar() {
             {t.retry}
           </button>
         )}
-        {canSend && track && <Btn icon="send" label={t.sendToFriends} onClick={() => openSend(track)} />}
+        {canSend && track && !isLocalTrack(track.id) && <Btn icon="send" label={t.sendToFriends} onClick={() => openSend(track)} />}
         {rooms && <Btn icon="users" label={t.listenTogether} on={inRoom} onClick={() => (inRoom ? !sideQueue && toggleSideQueue() : useRoomSheet.setState({ open: true }))} />}
         <Btn
           icon="lyrics"

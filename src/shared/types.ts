@@ -39,6 +39,13 @@ export interface Track {
 
 export type PlaylistRelation = "own" | "liked";
 
+/**
+ * Music from this computer (main/local-tracks) has ids from here up — far above SoundCloud's, still safe integers —
+ * so lists take it like any track, and whatever goes to SoundCloud, friends or rooms can leave it out.
+ */
+export const LOCAL_TRACK_BASE = 9_000_000_000_000_000;
+export const isLocalTrack = (id: number) => id >= LOCAL_TRACK_BASE;
+
 export interface Playlist {
   /** numeric id as a string, or a system playlist URN ("soundcloud:system-playlists:…") */
   id: string;

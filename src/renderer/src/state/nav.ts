@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { isLocalTrack } from "@shared/types";
 
 export type Route =
   | { name: "home" }
@@ -9,6 +10,7 @@ export type Route =
   | { name: "track"; id: number }
   | { name: "profile"; userId: number }
   | { name: "history" }
+  | { name: "local" }
   | { name: "search" }
   | { name: "albums" }
   | { name: "stations" }
@@ -18,7 +20,7 @@ export type Route =
   | { name: "settings" };
 
 /** A sidebar entry: Home, Likes, Playlists, History, Search, or a saved profile ("profile:<id>"). */
-export type Section = "home" | "likes" | "feed" | "playlists" | "history" | "search" | "albums" | "stations" | "following" | "inbox" | "workshop" | "settings" | `profile:${number}`;
+export type Section = "home" | "likes" | "feed" | "playlists" | "history" | "local" | "search" | "albums" | "stations" | "following" | "inbox" | "workshop" | "settings" | `profile:${number}`;
 
 interface Entry {
   route: Route;
@@ -53,6 +55,8 @@ export const useNav = create<NavStore>((set, get) => ({
   last: {},
   go: (route) => {
     const { route: current, section, stack, last } = get();
+    // a file from this computer has no SoundCloud page, and its artist no profile
+    if ((route.name === "track" && isLocalTrack(route.id)) || (route.name === "profile" && !route.userId)) return;
     if (same(route, current)) return;
     set({ route, stack: [...stack.slice(-30), { route: current, section }], ahead: [], last: { ...last, [section]: route } });
   },

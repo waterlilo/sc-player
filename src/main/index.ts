@@ -9,6 +9,7 @@ import type { MusicProvider, SearchKind } from "@shared/provider";
 import type { RoomOp, SocialTrack } from "@shared/social";
 import type { QueueSource, SyncRequest, Track, LyricsSuggestionState } from "@shared/types";
 import { DemoProvider } from "./demo";
+import { addDroppedFiles, addLocalFiles, flushLocalTracks, isLocalTrack, localLibrary, removeLocalTrack, serveLocalTracks, showLocalTrack, withLocalTracks } from "./local-tracks";
 import { addLocal, createLocal, deleteLocal, exportLocal, importLocal, flushLocalPlaylists, isLocal, localIds, localPlaylist, localPlaylists, localTracks, MAX_TRACKS, renameLocal, setLocalTracks } from "./local-playlists";
 import { communityLyrics, flushLyrics, forgetLyrics, lyricsFor, ownText, pickLyrics, searchLyrics, setCommunityLyrics, setOwnLyrics } from "./lyrics";
 import { deleteModel, downloadModel, flushLyricsSync, onSyncStatus, syncedBefore, syncStatus, syncWords } from "./lyrics-sync";
@@ -60,7 +61,8 @@ const DEMO = !app.isPackaged && process.env.SKY_DEMO === "1";
 if (DEMO) app.setPath("userData", join(app.getPath("appData"), "sc player demo"));
 // SKY_PROFILE=<name> in development: real SoundCloud with a data folder of its own (signed out, fresh settings)
 else if (!app.isPackaged && process.env.SKY_PROFILE) app.setPath("userData", join(app.getPath("appData"), `sc player ${process.env.SKY_PROFILE.replace(/[^\w-]/g, "")}`));
-const data: MusicProvider = DEMO ? new DemoProvider() : provider;
+// music from this computer is answered by local-tracks, everything else by SoundCloud
+const data: MusicProvider = withLocalTracks(DEMO ? new DemoProvider() : provider);
 const signedIn = () => DEMO || !!auth.token();
 /** full tracks for any number of ids, in their order (the provider takes 200 at a time) */
 async function tracksOf(ids: number[]): Promise<Track[]> {
@@ -136,11 +138,14 @@ function roomOp(v: unknown): RoomOp {
       return { op: "ready", trackId: id(o.trackId) };
     case "playList": {
       if (!Array.isArray(o.tracks) || !o.tracks.length || o.tracks.length > 501) return bad("tracks");
-      return { op: "playList", tracks: o.tracks.map(socialTrack), title: typeof o.title === "string" ? o.title.slice(0, 200) : "" };
+      // files from this computer stay out of a shared list (nobody else could play them)
+      const tracks = o.tracks.filter((t: unknown) => !isLocalTrack(Number((t as { id?: unknown })?.id))).map(socialTrack);
+      return tracks.length ? { op: "playList", tracks, title: typeof o.title === "string" ? o.title.slice(0, 200) : "" } : bad("tracks");
     }
     case "listAppend": {
       if (!Array.isArray(o.tracks) || !o.tracks.length || o.tracks.length > 500) return bad("tracks");
-      return { op: "listAppend", tracks: o.tracks.map(socialTrack) };
+      const tracks = o.tracks.filter((t: unknown) => !isLocalTrack(Number((t as { id?: unknown })?.id))).map(socialTrack);
+      return tracks.length ? { op: "listAppend", tracks } : bad("tracks");
     }
     case "listRemove":
       return { op: "listRemove", item: item() };
@@ -156,6 +161,7 @@ const themeId = (v: unknown) => (typeof v === "string" && /^[\w-]{10}$/.test(v) 
 /** a track to send or show to friends: the fields the server keeps */
 function socialTrack(v: unknown): SocialTrack {
   const t = (typeof v === "object" && v !== null ? v : bad("track")) as Record<string, unknown>;
+  if (typeof t.id === "number" && isLocalTrack(t.id)) throw new ScError("unknown", "A track from this computer can't be shared — nobody else has the file");
   return {
     id: id(t.id),
     title: str(t.title, "title"),
@@ -352,7 +358,11 @@ function registerIpc() {
   handle("social:sendPlaylist", async (_e, codes, p) => {
     const to = Array.isArray(codes) ? codes.slice(0, 20).map((c) => str(c, "code").slice(0, 16)) : bad("codes");
     const list = localPlaylist(localId(p));
-    const ids = localIds(list.id).slice(0, MAX_TRACKS);
+    // files from this computer stay home: friends get the SoundCloud tracks of the list
+    const ids = localIds(list.id)
+      .filter((t) => !isLocalTrack(t))
+      .slice(0, MAX_TRACKS);
+    if (!ids.length) throw new ScError("unknown", "This playlist has only files from this computer — there's nothing to send");
     // the first track SoundCloud still has stands in for the playlist in older apps
     const [first] = await data.getTracks(ids.slice(0, 20));
     if (!first) return bad("playlist");
@@ -363,9 +373,15 @@ function registerIpc() {
   handle("social:chat", (_e, code, before) => social.chat(str(code, "code").slice(0, 16), before === undefined ? undefined : id(before)));
   handle("social:seen", (_e, code) => social.seen(str(code, "code").slice(0, 16)));
   handle("social:state", (_e, m, state) => social.setState(id(m), state === "heard" || state === "liked" || state === "queued" || state === "saved" ? state : bad("state")));
-  handle("social:now", (_e, track) => social.now(track === null ? null : socialTrack(track)));
+  // a file from this computer shows to friends as nothing playing
+  handle("social:now", (_e, track) => social.now(track === null || isLocalTrack(Number((track as { id?: unknown })?.id)) ? null : socialTrack(track)));
   handle("social:poll", () => social.poll());
-  handle("social:listened", (_e, t) => social.listened(id(t)));
+  handle("social:listened", (_e, t) => (isLocalTrack(id(t)) ? undefined : social.listened(id(t))));
+  handle("local:list", () => localLibrary());
+  handle("local:add", (_e, folder) => addLocalFiles(main, folder === true));
+  handle("local:addPaths", (_e, paths) => addDroppedFiles(Array.isArray(paths) ? paths.slice(0, 5000).map((p) => str(p, "path")) : bad("paths")));
+  handle("local:remove", (_e, t) => (isLocalTrack(id(t)) ? removeLocalTrack(id(t)) : bad("id")));
+  handle("local:show", (_e, t) => (isLocalTrack(id(t)) ? showLocalTrack(id(t)) : bad("id")));
   handle("social:listening", () => social.listening());
   handle("room:state", () => rooms.roomState());
   handle("room:create", (_e, o) => {
@@ -373,7 +389,7 @@ function registerIpc() {
     return rooms.createRoom({
       startTogether: v.startTogether === true,
       invite: Array.isArray(v.invite) ? v.invite.slice(0, 20).map((c) => str(c, "code").slice(0, 16)) : [],
-      track: v.track ? socialTrack(v.track) : null,
+      track: v.track && !isLocalTrack(Number((v.track as { id?: unknown }).id)) ? socialTrack(v.track) : null,
       position: typeof v.position === "number" && Number.isFinite(v.position) ? Math.max(0, v.position) : 0,
       playing: v.playing !== false,
     });
@@ -574,6 +590,7 @@ app.on("before-quit", () => {
   flushLyrics();
   flushLyricsSync();
   flushLocalPlaylists();
+  flushLocalTracks();
 });
 process.on("uncaughtException", (err) => log("main", `uncaught: ${err.stack ?? err.message}`));
 
@@ -612,6 +629,7 @@ void app.whenReady().then(async () => {
   await applyProxy(prefs().proxy);
   allowAudioCors();
   serveBackgrounds();
+  serveLocalTracks();
   // backgrounds left over from a change while the old one was still playing
   dropBackgrounds(prefs().look.bgFile);
   registerIpc();

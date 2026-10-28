@@ -5,7 +5,7 @@ import { useT } from "@/i18n";
 import { canEdit, removeFromPlaylist } from "@/lib/playlists";
 import { call } from "@/lib/sky";
 import { useNav } from "@/state/nav";
-import type { Playlist, Track } from "@shared/types";
+import { isLocalTrack, type Playlist, type Track } from "@shared/types";
 import { useAuth } from "@/state/auth";
 import { toggleLike, useLikes } from "@/state/likes";
 import { player, substituteFor, useSubs } from "@/state/player";
@@ -95,25 +95,45 @@ export default function TrackMenu() {
             { icon: "queue", label: t.roomAddToQueue, run: () => player.addToQueue(track) },
           ]
         : [{ icon: "users", label: t.roomSuggest, run: () => player.addToQueue(track) }];
-  const items: { icon: IconName; label: string; run: () => void; danger?: boolean }[] = track
-    ? [
+  const fromOwnList: { icon: IconName; label: string; run: () => void }[] =
+    track && ownList
+      ? [
+          {
+            icon: "close",
+            label: t.removeFromPlaylist,
+            run: () =>
+              void removeFromPlaylist(ownList.id, track.id).then(
+                () => toast(t.removedFrom(ownList.title)),
+                () => toast(t.playlistFailed),
+              ),
+          },
+        ]
+      : [];
+  const localItems: { icon: IconName; label: string; run: () => void; danger?: boolean }[] = !track
+    ? []
+    : [
+        // a room can't play it (nobody else has the file)
+        ...(roomHost === null ? queueItems : []),
+        { icon: "plus", label: t.addToPlaylist, run: () => openPicker(track) },
+        ...fromOwnList,
+        { icon: "external", label: t.localShowInFolder, run: () => void call("local:show", track.id) },
+        {
+          icon: "close",
+          label: t.localRemove,
+          danger: true,
+          run: () => void call("local:remove", track.id).then(() => queryClient.invalidateQueries({ queryKey: ["local-tracks"] })),
+        },
+      ];
+  const items: { icon: IconName; label: string; run: () => void; danger?: boolean }[] = !track
+    ? []
+    : isLocalTrack(track.id)
+      ? localItems
+      : [
         ...queueItems,
         ...(signedIn ? [{ icon: "heart" as IconName, label: likes.has(track.id) ? t.unlike : t.like, run: () => void toggleLike(track) }] : []),
         // playlists of your own: on SoundCloud signed in, on this computer otherwise
         { icon: "plus" as IconName, label: t.addToPlaylist, run: () => openPicker(track) },
-        ...(ownList
-          ? [
-              {
-                icon: "close" as IconName,
-                label: t.removeFromPlaylist,
-                run: () =>
-                  void removeFromPlaylist(ownList.id, track.id).then(
-                    () => toast(t.removedFrom(ownList.title)),
-                    () => toast(t.playlistFailed),
-                  ),
-              },
-            ]
-          : []),
+        ...fromOwnList,
         ...(canSend ? [{ icon: "send" as IconName, label: t.sendToFriends, run: () => openSend(track) }] : []),
         { icon: "play", label: t.goToTrack, run: () => go({ name: "track", id: track.id }) },
         { icon: "user", label: t.goToArtist, run: () => go({ name: "profile", userId: track.user.id }) },
@@ -135,8 +155,7 @@ export default function TrackMenu() {
             if (!prefs.blockedArtists.some((a) => a.id === track.user.id)) setPref("blockedArtists", [...prefs.blockedArtists, { id: track.user.id, username: track.user.username }]);
           },
         },
-      ]
-    : [];
+      ];
 
   const onKey = (e: KeyboardEvent) => {
     if (e.key === "Escape") return close();

@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { artwork, type Lyrics, type Track } from "@shared/types";
+import { artwork, isLocalTrack, type Lyrics, type Track } from "@shared/types";
 import { analyser, currentTime } from "@/audio/engine";
 import { useT } from "@/i18n";
 import { usePlayingLoop } from "@/lib/playingLoop";
@@ -202,7 +202,7 @@ function Stage({ track, sound, studio = false }: { track: Track; sound: Track | 
             {track.artist}
           </button>
         </div>
-        {canSend && !studio && <IconButton icon="send" label={t.sendToFriends} onClick={() => openSend(track)} />}
+        {canSend && !studio && !isLocalTrack(track.id) && <IconButton icon="send" label={t.sendToFriends} onClick={() => openSend(track)} />}
         <LikeButton track={track} white={white} />
       </div>
       <div className="mt-3" style={{ width }}>
@@ -476,7 +476,7 @@ function StudioFull() {
               {t.roomListeners(listeners.length)}
             </button>
           )}
-          {canSend && track && (
+          {canSend && track && !isLocalTrack(track.id) && (
             <button type="button" className="s-btn s-glass" onClick={() => openSend(track)}>
               <Icon name="send" size={14} />
               {t.sendToFriends}

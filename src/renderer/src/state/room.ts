@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { correction, roomPosition, SETTLING_FAR } from "@shared/roomSync";
 import type { Room, RoomOp, RoomState, SocialTrack } from "@shared/social";
-import type { QueueSource, Track } from "@shared/types";
+import { isLocalTrack, type QueueSource, type Track } from "@shared/types";
 import { en as t } from "@/i18n/en";
 import { call, on } from "@/lib/sky";
 import { canPlay, roomPlayer, usePlayer, type Remote } from "./player";
@@ -219,8 +219,19 @@ const setPlaying = (playing: boolean) => {
   void act({ op: "playing", playing });
 };
 
+/** a file from this computer can't go to the room: said once, and nothing is sent */
+const localOnly = (tr: Track | undefined) => {
+  if (!tr || !isLocalTrack(tr.id)) return false;
+  toast(t.roomNoLocal);
+  return true;
+};
+
 const remote: Remote = {
-  playFrom: (tracks, index, source, shuffle) => {
+  playFrom: (all, at, source, shuffle) => {
+    if (!shuffle && localOnly(all[at])) return;
+    const tracks = all.filter((x) => !isLocalTrack(x.id));
+    if (!tracks.length) return void toast(t.roomNoLocal);
+    const index = Math.max(0, tracks.indexOf(all[at]!));
     if (isHost()) return void putOn(tracks, index, source, !!shuffle).catch(() => toast(t.roomFailed));
     const tr = shuffle ? shuffled(tracks.filter(canPlay))[0] : tracks[index];
     if (tr) void suggest(tr);
@@ -231,8 +242,8 @@ const remote: Remote = {
   next: () => hostOnly(() => void act({ op: "next" })),
   prev: () => hostOnly(() => void act({ op: "seek", position: 0 })),
   seek: (s) => hostOnly(() => void act({ op: "seek", position: s })),
-  playNext: (tr) => (isHost() ? void act({ op: "queueAdd", track: toSocial(tr), next: true }) : void suggest(tr)),
-  addToQueue: (tr) => void suggest(tr),
+  playNext: (tr) => (localOnly(tr) ? undefined : isHost() ? void act({ op: "queueAdd", track: toSocial(tr), next: true }) : void suggest(tr)),
+  addToQueue: (tr) => (localOnly(tr) ? undefined : void suggest(tr)),
   sleep: () => void leaveRoom(),
 };
 

@@ -101,6 +101,7 @@
   },
   "dependencies": {
     "mediabunny": "^1.62.1",
+    "music-metadata": "12.2.1",
     "onnxruntime-node": "1.30.0"
   }
 }

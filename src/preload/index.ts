@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron";
+import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from "electron";
 import { EVENT_CHANNELS, INVOKE_CHANNELS, type EventMap, type SkyBridge } from "@shared/ipc";
 
 const invokable = new Set<string>(INVOKE_CHANNELS);
@@ -9,6 +9,7 @@ const bridge: SkyBridge = {
     if (!invokable.has(channel)) return Promise.reject(new Error(`blocked channel ${channel}`));
     return ipcRenderer.invoke(channel, ...args);
   },
+  pathOf: (file) => webUtils.getPathForFile(file),
   on(channel, listener) {
     if (!events.has(channel)) throw new Error(`blocked channel ${channel}`);
     const wrapped = (_e: IpcRendererEvent, payload: EventMap[typeof channel]) => listener(payload);

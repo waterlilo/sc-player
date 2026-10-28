@@ -193,6 +193,9 @@ export default function StudioSidebar() {
       <Nav section="history" route={{ name: "history" }} icon="history">
         {t.history}
       </Nav>
+      <Nav section="local" route={{ name: "local" }} icon="device">
+        {t.localMusic}
+      </Nav>
       <div className="s-sect s-lbl">
         {t.pinned}
         <button type="button" onClick={() => open("playlists", { name: "playlists" })} aria-label={t.pinHint} title={t.pinHint}>
