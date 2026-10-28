@@ -190,6 +190,21 @@ export function stopAfterTrack(on: boolean, done?: () => void) {
   onStopAtEnd = on ? (done ?? null) : null;
 }
 
+/**
+ * The own-lyrics editor is open (typing the words, tapping their times): the track doesn't give way to the next one
+ * at its end — no crossfade, no next track; it stops there, so the editor and what's in it stay. Released by the call
+ * this returns.
+ */
+let holds = 0;
+export function holdTrack(): () => void {
+  holds++;
+  let released = false;
+  return () => {
+    if (!released) holds = Math.max(0, holds - 1);
+    released = true;
+  };
+}
+
 /** bumped on every start: a substitute found late for a track that is no longer current is not played */
 let starts = 0;
 
@@ -393,6 +408,10 @@ engine.bindEngine({
     }
     // in a room the next track is the room's (it starts it for everyone when this one's time is up)
     if (remote) return;
+    if (holds) {
+      set({ status: "paused" });
+      return;
+    }
     if (get().repeat === "one") {
       engine.seek(0);
       engine.play();
@@ -402,7 +421,7 @@ engine.bindEngine({
   },
   peekNext: () => {
     const { repeat, index, queue } = get();
-    if (repeat === "one" || stopAtEnd || remote) return null;
+    if (repeat === "one" || stopAtEnd || remote || holds) return null;
     const t = queue[nextIndex(index, repeat === "all")];
     if (!t) return null;
     if (!needsSub(t)) return { track: t, streamId: t.id };

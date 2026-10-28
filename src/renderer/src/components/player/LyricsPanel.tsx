@@ -8,7 +8,7 @@ import { duration } from "@/lib/format";
 import { currentTime } from "@/audio/engine";
 import { syncLyrics, useLyricsSync } from "@/lib/lyricsSync";
 import { call } from "@/lib/sky";
-import { player, useCurrentTrack, usePlayer, usePosition, useStreamTrack } from "@/state/player";
+import { holdTrack, player, useCurrentTrack, usePlayer, usePosition, useStreamTrack } from "@/state/player";
 import { ask } from "@/state/dialog";
 import { useSettings } from "@/state/settings";
 import { useSocial } from "@/state/social";
@@ -185,6 +185,14 @@ const linesOf = (text: string) =>
     .map((l) => l.replace(/\[[^\]]*\]/g, "").trim())
     .filter(Boolean);
 
+/**
+ * What is being typed or tapped for a track, kept while the app runs: switching tracks (or closing the editor by
+ * mistake) and coming back finds it still there. Gone once saved.
+ */
+const drafts = new Map<number, { text?: string; times?: number[] }>();
+const draft = (id: number) => drafts.get(id) ?? {};
+const keepDraft = (id: number, patch: { text?: string; times?: number[] }) => drafts.set(id, { ...draft(id), ...patch });
+
 // a tap comes a little after the voice: the line is put this much earlier
 const TAP_LEAD = 0.15;
 
@@ -192,10 +200,12 @@ const TAP_LEAD = 0.15;
  * Timing one's own words by tapping: the song plays from the start and Space (or the button) marks where each line
  * begins; Backspace takes the last mark back and goes a few seconds back. The result is the words in LRC form.
  */
-function TapSync({ lines, onCancel, onDone }: { lines: string[]; onCancel: () => void; onDone: (lrc: string) => void }) {
+function TapSync({ trackId, lines, onCancel, onDone }: { trackId: number; lines: string[]; onCancel: () => void; onDone: (lrc: string) => void }) {
   const t = useT();
-  const [times, setTimes] = useState<number[]>([]);
-  const [started, setStarted] = useState(false);
+  // marks made before (the editor was left, the track switched) go on from where they were
+  const [times, setTimes] = useState<number[]>(() => draft(trackId).times?.slice(0, lines.length) ?? []);
+  const [started, setStarted] = useState(times.length > 0);
+  useEffect(() => void keepDraft(trackId, { times }), [trackId, times]);
   const box = useRef<HTMLOListElement>(null);
   const done = times.length >= lines.length;
 
@@ -319,18 +329,22 @@ function OwnWords({ track, onDone }: { track: Track; onDone: () => void }) {
   const client = useQueryClient();
   const current = useLyrics(track).data;
   const mine = current?.source === "own";
-  const [open, setOpen] = useState(mine);
-  const [text, setText] = useState(() => (mine && current ? asText(current) : ""));
+  const [open, setOpen] = useState(mine || !!draft(track.id).text);
+  const [text, setText] = useState(() => draft(track.id).text ?? (mine && current ? asText(current) : ""));
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   const [tapping, setTapping] = useState(false);
   const profile = useSocial((s) => s.status?.profile ?? null);
+  // while the words are being written or timed, the track stays (it doesn't move on to the next one at its end)
+  useEffect(() => (open || tapping ? holdTrack() : undefined), [open, tapping]);
+  useEffect(() => void (open && keepDraft(track.id, { text })), [track.id, open, text]);
 
   const save = async (words: string | null) => {
     setBusy(true);
     setFailed(false);
     try {
       const l = await call("lyrics:setOwn", { trackId: track.id, artist: track.artist, title: track.title }, words);
+      drafts.delete(track.id);
       if (l) client.setQueryData(key(track.id), l);
       else await client.invalidateQueries({ queryKey: key(track.id) });
       onDone();
@@ -344,6 +358,7 @@ function OwnWords({ track, onDone }: { track: Track; onDone: () => void }) {
   if (tapping)
     return (
       <TapSync
+        trackId={track.id}
         lines={linesOf(text)}
         onCancel={() => setTapping(false)}
         onDone={(lrc) => {
