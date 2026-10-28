@@ -336,6 +336,8 @@ export const en = {
   linkDidntOpen: "That link didn't open",
   trackPopup: "Track popup",
   trackPopupHint: "A small card with the cover, title and artist in a corner of the screen for a few seconds when the track changes while the window is in the background. It never takes focus or catches clicks.",
+  discordPresence: "Show in Discord",
+  discordPresenceHint: "\"Listening to sc player\" on your Discord profile with the track, cover and time, while something plays. Needs the Discord app on this computer.",
   popupCorner: "Popup corner",
   cornerBottomRight: "bottom right",
   cornerTopRight: "top right",

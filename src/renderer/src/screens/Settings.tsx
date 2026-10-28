@@ -412,6 +412,9 @@ export default function Settings() {
             <Row label={t.trackPopup} hint={t.trackPopupHint}>
               <Toggle on={prefs.trackPopup} onChange={(v) => setPref("trackPopup", v)} label={t.trackPopup} />
             </Row>
+            <Row label={t.discordPresence} hint={t.discordPresenceHint}>
+              <Toggle on={prefs.discordPresence} onChange={(v) => setPref("discordPresence", v)} label={t.discordPresence} />
+            </Row>
             <Row label={t.popupCorner}>
               <div className="flex flex-wrap items-center justify-end gap-2">
                 <Choice

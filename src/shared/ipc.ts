@@ -36,8 +36,11 @@ export type PlayerCommand = "playPause" | "next" | "previous";
 
 /** What main needs to know about playback: tray menu and tooltip, notifications. */
 export interface PlayerInfo {
-  track: { id: number; title: string; artist: string; artworkUrl: string | null } | null;
+  track: { id: number; title: string; artist: string; artworkUrl: string | null; permalinkUrl?: string } | null;
   playing: boolean;
+  /** for Discord's time bar: when the track would have started at the current position (ms since 1970), and its length */
+  startedAt?: number;
+  durationMs?: number;
 }
 
 export type UpdateStatus =
@@ -108,6 +111,8 @@ export interface Prefs {
   notifications: boolean;
   /** a small card with the cover, title and artist in a corner of the screen for a few seconds on a track change */
   trackPopup: boolean;
+  /** "Listening to sc player" with the track on the Discord profile (the Discord app on this computer) */
+  discordPresence: boolean;
   /** the night design's clouds drifting behind the window */
   skyClouds: boolean;
   /** stars twinkle with the top end, the edges flash on the kick (an analyser on the output) */
@@ -160,6 +165,7 @@ export const PREFS_DEFAULTS: Prefs = {
   startMinimized: true,
   notifications: false,
   trackPopup: false,
+  discordPresence: true,
   skyClouds: true,
   reactiveSky: true,
   coverTint: true,

@@ -26,6 +26,7 @@ import { applyHotkeys, initHotkeys, suspendHotkeys } from "./system/hotkeys";
 import { log, logsDir } from "./system/log";
 import { netCheck } from "./system/netcheck";
 import { applyProxy, hasBuiltinProxy, initProxyAuth, initProxyAuto, proxyRoute } from "./system/proxy";
+import { setDiscordEnabled, updateDiscord } from "./system/discord";
 import { notifyTrack } from "./system/notify";
 import { createTray, showWindow, updateTray } from "./system/tray";
 import { updateThumbar } from "./system/thumbar";
@@ -440,6 +441,7 @@ function registerIpc() {
     const inFront = !!main?.isVisible() && !!main?.isFocused();
     updateTray(info);
     updateThumbar(main, info, command);
+    updateDiscord(info);
     void notifyTrack(info, prefs().notifications, inFront);
     trackPopup(info, { enabled: prefs().trackPopup, corner: prefs().popupCorner, windowInFront: inFront, design: prefs().look.design });
   });
@@ -520,6 +522,7 @@ function applySystemPrefs(before: ReturnType<typeof prefs>) {
   if (now.startWithWindows !== before.startWithWindows) applyAutostart(now.startWithWindows);
   if (JSON.stringify(now.hotkeys) !== JSON.stringify(before.hotkeys)) send(main, "hotkeys:failed", applyHotkeys(now.hotkeys));
   if (JSON.stringify(now.proxy) !== JSON.stringify(before.proxy)) void applyProxy(now.proxy);
+  setDiscordEnabled(now.discordPresence);
 }
 
 // ---- network --------------------------------------------------------------------------------------------------------
@@ -596,6 +599,7 @@ app.on("before-quit", () => {
   flushLyricsSync();
   flushLocalPlaylists();
   flushLocalTracks();
+  setDiscordEnabled(false);
 });
 process.on("uncaughtException", (err) => log("main", `uncaught: ${err.stack ?? err.message}`));
 
@@ -662,6 +666,7 @@ void app.whenReady().then(async () => {
   });
   initHotkeys((action) => (action === "showWindow" ? showWindow(main) : send(main, "player:command", action)));
   const failed = applyHotkeys(p.hotkeys);
+  setDiscordEnabled(p.discordPresence);
   main.webContents.once("did-finish-load", () => send(main, "hotkeys:failed", failed));
   applyAutostart(p.startWithWindows);
   updater.initUpdater(() => main, () => prefs().checkUpdates);
