@@ -156,6 +156,11 @@ export interface Prefs {
   autoSyncLyrics: boolean;
   /** Auto-sync with Whisper small instead of base: hears fast and mumbled rap better, about three times slower */
   accurateSync: boolean;
+  /**
+   * The full screen player rests: with nothing to read (the visualizer, a track without lyrics) and no mouse or keys
+   * for a few seconds, its buttons and words fade back so the picture and the sound show
+   */
+  restingPlayer: boolean;
 }
 
 export const EQ_BANDS = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000] as const;
@@ -191,6 +196,7 @@ export const PREFS_DEFAULTS: Prefs = {
   shareListening: true,
   autoSyncLyrics: false,
   accurateSync: false,
+  restingPlayer: false,
 };
 
 /** Fills in anything missing from stored prefs (new options in a newer version). */

@@ -631,6 +631,20 @@ html[data-activity="blurred"] .s-eq i {
 }
 
 /* ── the full screen player ── */
+/* the full screen player resting (Settings → Appearance): its buttons and words step back, the picture and the sound
+   stay; back at once with the mouse */
+.now-playing .np-ui,
+.now-playing .s-ftb,
+.now-playing .s-dock {
+  transition: opacity 0.25s ease;
+}
+.now-playing.resting .np-ui,
+.now-playing.resting .s-ftb,
+.now-playing.resting .s-dock {
+  opacity: 0.3;
+  transition: opacity 1.2s ease;
+}
+
 .s-ftb {
   position: absolute;
   inset: 0 0 auto 0;

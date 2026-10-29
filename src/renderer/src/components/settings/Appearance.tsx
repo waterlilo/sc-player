@@ -84,6 +84,9 @@ export default function Appearance() {
       <Row label={t.panelBlur} hint={look.lite ? t.panelBlurLite : `${look.panelBlur} px`}>
         <Slider value={look.panelBlur} min={0} max={60} step={1} onChange={(v) => set({ panelBlur: v })} label={t.panelBlur} />
       </Row>
+      <Row label={t.restingPlayer} hint={t.restingPlayerHint}>
+        <Toggle on={prefs.restingPlayer} onChange={(v) => setPref("restingPlayer", v)} label={t.restingPlayer} />
+      </Row>
       <Row label={t.liteEffects} hint={t.liteEffectsHint}>
         <Toggle on={look.lite} onChange={(v) => set({ lite: v })} label={t.liteEffects} />
       </Row>

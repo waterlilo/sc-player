@@ -23,6 +23,8 @@ export const en = {
   removeFromHistory: "Remove from history",
   playlists: "Playlists",
   history: "History",
+  restingPlayer: "Let the full screen player rest",
+  restingPlayerHint: "On the visualizer or a track without lyrics, the buttons and words fade back after a few seconds without the mouse or keys — the picture stays. Any move brings them back.",
   localMusic: "On this computer",
   localHint: "Music files from this computer — mp3, m4a, flac, ogg, wav. They play and go into playlists here only: friends, rooms and SoundCloud don't get them.",
   localAddFiles: "Add files…",

@@ -186,7 +186,7 @@ function Stage({ track, sound, studio = false }: { track: Track; sound: Track | 
       <div style={{ margin: `${Math.round(size * 0.24)}px 0` }}>
         <Halo track={track} size={size} />
       </div>
-      <div className="flex items-end gap-3" style={{ width }}>
+      <div className="np-ui flex items-end gap-3" style={{ width }}>
         <div className="min-w-0 flex-1">
           <p className={`np-title truncate font-semibold leading-tight text-text ${studio ? "text-[22px] tracking-[-0.015em]" : "text-[1.45rem]"}`} title={track.title}>
             {track.title}
@@ -205,21 +205,25 @@ function Stage({ track, sound, studio = false }: { track: Track; sound: Track | 
         {canSend && !studio && !isLocalTrack(track.id) && <IconButton icon="send" label={t.sendToFriends} onClick={() => openSend(track)} />}
         <LikeButton track={track} white={white} />
       </div>
-      <div className="mt-3" style={{ width }}>
+      <div className="np-ui mt-3" style={{ width }}>
         {sound ? <Waveform key={sound.id} track={sound} height={34} white={white} /> : <div className="h-[34px]" />}
         <div className="mt-1 flex justify-between">
           <Elapsed />
           <span className="font-type text-xs tabular-nums text-muted">{duration((durationS || 0) * 1000)}</span>
         </div>
       </div>
-      <div className="mt-2 flex items-center justify-between" style={{ width }}>
+      <div className="np-ui mt-2 flex items-center justify-between" style={{ width }}>
         <IconButton icon="shuffle" label={t.shuffle} on={shuffle} aria-pressed={shuffle} onClick={player.toggleShuffle} />
         <IconButton icon="prev" label={t.previous} onClick={player.prev} />
         {studio ? <StudioPlay /> : <PlayButton />}
         <IconButton icon="next" label={t.next} onClick={player.next} />
         <IconButton icon={repeat === "one" ? "repeatOne" : "repeat"} label={repeatLabel} on={repeat !== "off"} onClick={player.cycleRepeat} />
       </div>
-      {studio && <FullVolume width={width} />}
+      {studio && (
+        <div className="np-ui">
+          <FullVolume width={width} />
+        </div>
+      )}
     </div>
   );
 }
@@ -422,6 +426,32 @@ function LyricsSkeleton() {
   );
 }
 
+/**
+ * Resting (Settings → Appearance → Let the player rest): true after a few seconds without the mouse or keys, false at
+ * the first move. Only while `on`.
+ */
+function useResting(on: boolean) {
+  const [resting, setResting] = useState(false);
+  useEffect(() => {
+    if (!on) return;
+    const rest = () => setResting(true);
+    let timer = window.setTimeout(rest, 3000);
+    const wake = () => {
+      setResting(false);
+      window.clearTimeout(timer);
+      timer = window.setTimeout(rest, 3000);
+    };
+    const events = ["pointermove", "pointerdown", "keydown", "wheel"] as const;
+    for (const e of events) window.addEventListener(e, wake, { passive: true });
+    return () => {
+      window.clearTimeout(timer);
+      for (const e of events) window.removeEventListener(e, wake);
+      setResting(false);
+    };
+  }, [on]);
+  return on && resting;
+}
+
 function StudioFull() {
   const t = useT();
   const close = useUi((s) => s.closeFull);
@@ -447,6 +477,9 @@ function StudioFull() {
   const [specOpen, setSpecOpen] = useState(false);
   // in a listening room: who's here (the queue tab shows the room)
   const listeners = useRoom((s) => s.room?.members ?? null);
+  // nothing to read here (the visualizer, a track without words) and nobody touching: the buttons fade back
+  const restingOn = useSettings((s) => s.prefs.restingPlayer);
+  const resting = useResting(restingOn && !!track && !specOpen && (tab === "visualizer" || (tab === "lyrics" && !hasLyrics && !searching)));
 
   return (
     <motion.section
@@ -455,7 +488,7 @@ function StudioFull() {
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.985 }}
       transition={{ duration: 0.24, ease: "easeOut" }}
-      className="now-playing absolute inset-0 z-40 overflow-hidden"
+      className={`now-playing absolute inset-0 z-40 overflow-hidden${resting ? " resting" : ""}`}
     >
       <div className="absolute inset-0 bg-[rgba(4,4,7,0.22)]" />
       <header className="s-ftb">
@@ -508,7 +541,7 @@ function StudioFull() {
         <p className="relative grid h-full place-items-center text-sm text-muted">{t.nothingPlaying}</p>
       )}
       {track && tab === "lyrics" && !words.isPending && (
-        <p className="absolute bottom-5 left-6 flex items-center gap-1.5 text-[11px] text-[var(--s-dim)]">
+        <p className="np-ui absolute bottom-5 left-6 flex items-center gap-1.5 text-[11px] text-[var(--s-dim)]">
           <Icon name="lyrics" size={14} />
           {searching ? (
             <button type="button" className="hover:text-text" onClick={() => setSearchFor(null)}>
