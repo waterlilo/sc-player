@@ -4,7 +4,8 @@ import { app, shell } from "electron";
 import { log } from "../system/log";
 
 /**
- * Sign-in through the user's own browser, for when SoundCloud's bot protection turns the in-app window down.
+ * Sign-in through the user's own browser: the only way in since 2.1.4 (SoundCloud's bot protection kept turning the
+ * window inside the app down; a browser the person uses every day passes it).
  *
  * The browser shows a helper page (written to the temp folder) with a bookmark to drag to the bookmarks bar. After
  * signing in on soundcloud.com as usual, a click on that bookmark reads the site's own `oauth_token` cookie (readable
@@ -120,7 +121,7 @@ function helperPage() {
 </style></head>
 <body><main>
   <h1>Sign in with your browser</h1>
-  <p class="lead">For when the sign-in window inside sc player is blocked. It takes a minute, and next time it's one click.</p>
+  <p class="lead">It takes a minute, and next time it's one click.</p>
   <ol>
     <li><b>Drag this button to your bookmarks bar</b> (don't click it here):<br>
       <a class="bookmark" href="${href}" onclick="alert('Drag it to the bookmarks bar instead of clicking.');return false">sc player sign-in</a><br>

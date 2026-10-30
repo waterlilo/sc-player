@@ -259,7 +259,6 @@ export const RENDERER_DEFAULTS: RendererState = {
 
 export interface InvokeMap {
   "auth:status": () => AuthStatus;
-  "auth:login": () => AuthStatus;
   "auth:logout": () => AuthStatus;
   /** sign in through the user's own browser: opens the helper page and waits for its link (15 min) */
   "auth:browser": () => void;
@@ -520,7 +519,6 @@ export const INVOKE_CHANNELS = [
   "bg:saveVideo",
   "bg:size",
   "auth:status",
-  "auth:login",
   "auth:logout",
   "auth:browser",
   "auth:check",

@@ -703,16 +703,15 @@ export const en = {
   // login / empty
   loginTitle: "sign in",
   loginHint: "Your likes and playlists, without ads.",
-  loginButton: "Sign in to SoundCloud",
   loginWithBrowser: "Sign in with your browser",
   browserWaiting: "Finish in your browser: sign in on soundcloud.com, then click the “sc player sign-in” bookmark. The instructions are open in a browser tab.",
   browserAgain: "Show the instructions again",
   sessionEnded: "SoundCloud ended your session — sign in again (your library, playlists and friends are all still here)",
   browserRefused: "SoundCloud didn't accept that sign-in. Sign in on soundcloud.com again, then click the bookmark.",
   cancel: "Cancel",
-  loginTrouble: "Trouble signing in?",
+  loginTrouble: "How does it work?",
   loginTroubleText:
-    "\"Access temporarily restricted\" or \"Something unexpected happened\" come from SoundCloud's bot protection, which sometimes turns the window inside the app down. Use \"Sign in with your browser\": you sign in in your usual browser, which passes the check, and one click on a bookmark hands the sign-in to sc player.",
+    "You sign in to SoundCloud in your usual browser — it passes SoundCloud's bot protection, which turned the window inside the app down — and one click on a bookmark hands the sign-in to sc player. The bookmark only talks to sc player on this computer.",
   orPaste: "or open a public profile",
   open: "Open",
   logout: "Sign out",

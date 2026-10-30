@@ -8,7 +8,7 @@ import { log } from "../system/log";
 
 /** Everything SoundCloud, wired once. The rest of main only sees `provider` and `auth`. */
 const clientId = new ClientId();
-export const auth = new SessionAuth(clientId);
+export const auth = new SessionAuth();
 const http = new ScHttp(
   clientId,
   () => auth.token(),

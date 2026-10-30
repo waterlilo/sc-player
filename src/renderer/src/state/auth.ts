@@ -6,13 +6,11 @@ import { useUi } from "./ui";
 
 interface AuthStore {
   status: AuthStatus | null;
-  busy: boolean;
   /** the browser sign-in: waiting for its link, or SoundCloud refused what came */
   browser: "idle" | "waiting" | "refused";
   init(): Promise<void>;
   loginWithBrowser(): Promise<void>;
   cancelBrowser(): Promise<void>;
-  login(): Promise<void>;
   logout(): Promise<void>;
 }
 
@@ -24,7 +22,6 @@ const said = (status: AuthStatus) => {
 
 export const useAuth = create<AuthStore>((set) => ({
   status: null,
-  busy: false,
   browser: "idle",
   init: async () => {
     on("auth:changed", (status) => set((s) => ({ status, browser: status.mode === "session" ? "idle" : s.browser })));
@@ -46,14 +43,6 @@ export const useAuth = create<AuthStore>((set) => ({
       set({ status: said(await call("auth:status")) });
     } catch {
       set({ status: { mode: "public", user: null } });
-    }
-  },
-  login: async () => {
-    set({ busy: true });
-    try {
-      set({ status: await call("auth:login") });
-    } finally {
-      set({ busy: false });
     }
   },
   loginWithBrowser: async () => {

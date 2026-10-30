@@ -9,7 +9,7 @@ import { useAuth } from "@/state/auth";
 /** Not signed in: "sign in", and a way to open any public profile without an account. */
 export default function Login() {
   const t = useT();
-  const { login, busy, browser, loginWithBrowser, cancelBrowser } = useAuth();
+  const { browser, loginWithBrowser, cancelBrowser } = useAuth();
   const [link, setLink] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [opening, setOpening] = useState(false);
@@ -33,13 +33,10 @@ export default function Login() {
       <div className="flex w-full max-w-lg flex-col items-center">
         <h1 className="display-heading -rotate-2 text-6xl text-text">{t.loginTitle}</h1>
         <EmptyState caption={t.loginHint}>
-          <MarkerButton onClick={() => void login()} disabled={busy} className="text-lg">
-            {t.loginButton}
-          </MarkerButton>
           {browser === "idle" ? (
-            <PaperButton onClick={() => void loginWithBrowser()} className="mt-3">
+            <MarkerButton onClick={() => void loginWithBrowser()} className="text-lg">
               {t.loginWithBrowser}
-            </PaperButton>
+            </MarkerButton>
           ) : (
             <div role="status" className="mt-4 w-full rounded-md border border-glow/40 p-4 text-center font-type text-sm leading-relaxed text-text">
               <p>{browser === "refused" ? t.browserRefused : t.browserWaiting}</p>

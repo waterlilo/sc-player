@@ -202,13 +202,6 @@ function queueSource(v: unknown): QueueSource {
 
 function registerIpc() {
   handle("auth:status", () => status());
-  handle("auth:login", async () => {
-    if (await auth.login(main)) provider.reset();
-    const status = await authStatus();
-    send(main, "auth:changed", status);
-    main?.focus();
-    return status;
-  });
   handle("auth:browser", () => startBrowserSignIn());
   handle("auth:browserCancel", () => stopBrowserSignIn());
   handle("auth:check", (_e, url) => {
