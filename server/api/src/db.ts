@@ -63,6 +63,15 @@ CREATE TABLE IF NOT EXISTS online (
   total INTEGER NOT NULL DEFAULT 0,     -- the sum of the minute samples (total / samples = the hour's average)
   samples INTEGER NOT NULL DEFAULT 0
 );
+-- an app's copy of what lives only on its computer (likes, own playlists and lyrics, the friend code), sealed with a
+-- key only the user has (the transfer key): the server can't read it. Named by a hash of that key; writing needs
+-- another hash of it.
+CREATE TABLE IF NOT EXISTS backups (
+  id TEXT PRIMARY KEY,                  -- 64 hex
+  write_hash TEXT NOT NULL,             -- sha256 of the write token
+  data BLOB NOT NULL,
+  updated INTEGER NOT NULL
+);
 CREATE TABLE IF NOT EXISTS themes (
   id TEXT PRIMARY KEY,
   author INTEGER NOT NULL REFERENCES devices(id) ON DELETE CASCADE,

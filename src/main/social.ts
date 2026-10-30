@@ -58,7 +58,11 @@ function saveLocal() {
 
 // ---- requests -----------------------------------------------------------------------------------------------------
 
-export async function api<T>(method: string, path: string, opts: { body?: unknown; raw?: Buffer; auth?: boolean; timeout?: number; admin?: string } = {}): Promise<T> {
+export async function api<T>(
+  method: string,
+  path: string,
+  opts: { body?: unknown; raw?: Buffer; auth?: boolean; timeout?: number; admin?: string; headers?: Record<string, string>; binary?: boolean } = {},
+): Promise<T> {
   if (!BASE) throw new ScError("unavailable", "no server in this build");
   // what this app can do: the server sends room invitations only to apps that can join
   const headers: Record<string, string> = { "user-agent": `scplayer/${app.getVersion()}`, "x-sc-features": "rooms" };
@@ -66,6 +70,7 @@ export async function api<T>(method: string, path: string, opts: { body?: unknow
   if (opts.admin) headers.authorization = `Admin ${opts.admin}`;
   else if (opts.auth !== false && secret) headers.authorization = `Bearer ${secret}`;
   if (opts.body !== undefined) headers["content-type"] = "application/json";
+  Object.assign(headers, opts.headers);
   let res: Response;
   try {
     res = await net.fetch(BASE + path, {
@@ -77,6 +82,8 @@ export async function api<T>(method: string, path: string, opts: { body?: unknow
   } catch {
     throw new ScError("offline", "sc player's server didn't answer");
   }
+  // the backup's sealed bytes
+  if (opts.binary && res.ok) return (await res.arrayBuffer()) as T;
   const text = await res.text();
   const data = text && res.headers.get("content-type")?.includes("json") ? (JSON.parse(text) as unknown) : null;
   if (res.ok) return data as T;
@@ -90,6 +97,15 @@ export async function api<T>(method: string, path: string, opts: { body?: unknow
 }
 
 export const joined = () => !!BASE && !!getSecret("socialSecret");
+/** the friend code's secret, for the backup (main/backup) */
+export const friendSecret = () => getSecret("socialSecret");
+/** A friend code from a backup becomes this computer's (the old one, if any, stays among the sealed old secrets). */
+export async function adoptFriendSecret(secret: string) {
+  setSecret("socialSecret", secret);
+  profile = null;
+  friends = null;
+  await status().catch(() => undefined);
+}
 /** the server's address and the device's secret, for a room's event stream (main/rooms.ts) */
 export const serverBase = () => BASE;
 export const myCode = () => profile?.code ?? "";

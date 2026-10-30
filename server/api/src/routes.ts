@@ -399,6 +399,39 @@ async function stillOn(c: Ctx) {
   send(c.res, 204, null);
 }
 
+// ---- backups ------------------------------------------------------------------------------------------------------
+
+const BACKUP_MAX = 4 * 1024 * 1024;
+/** copies nobody updated for half a year go */
+const BACKUP_KEEP = 183 * DAY;
+setInterval(() => run("DELETE FROM backups WHERE updated < ?", Date.now() - BACKUP_KEEP), DAY).unref();
+
+/** A sealed copy, put by the app holding its transfer key; the first put names it, later ones must bring the same write token. */
+async function putBackup(c: Ctx) {
+  const id = c.params[0]!;
+  const token = String(c.req.headers["x-backup-write"] ?? "");
+  if (!/^[0-9a-f]{64}$/.test(token)) fail(401, "write token missing");
+  limit(`backup-put:${c.ip}`, 60, HOUR);
+  const was = one("SELECT write_hash FROM backups WHERE id = ?", id);
+  if (was && was.write_hash !== sha(token)) fail(403, "not your backup");
+  // new copies: a few a day from one address
+  if (!was) limit(`backup-new:${c.ip}`, 10, DAY);
+  const data = await readBody(c.req, BACKUP_MAX);
+  if (data.length < 32 || data.subarray(0, 4).toString() !== "SCB1") fail(400, "not a backup");
+  run("INSERT INTO backups (id, write_hash, data, updated) VALUES (?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET data = excluded.data, updated = excluded.updated", id, sha(token), data, Date.now());
+  send(c.res, 204, null);
+}
+
+/** The sealed copy to whoever names it (the name is a hash of a key nobody else has). */
+function getBackup(c: Ctx) {
+  limit(`backup-get:${c.ip}`, 30, HOUR);
+  const r = one("SELECT data FROM backups WHERE id = ?", c.params[0]!);
+  if (!r) return fail(404, "no backup");
+  const data = Buffer.from(r.data as unknown as Uint8Array);
+  c.res.writeHead(200, { "content-type": "application/octet-stream", "content-length": data.length, "cache-control": "no-store" });
+  c.res.end(data);
+}
+
 let statsCache: { at: number; body: unknown } | null = null;
 
 function stats(c: Ctx) {
@@ -819,6 +852,8 @@ const ROUTES: [string, RegExp, Handler][] = [
   ["POST", /^\/v1\/messages\/(\d{1,15})\/state$/, messageState],
   ["POST", /^\/v1\/ping$/, ping],
   ["POST", /^\/v1\/online$/, stillOn],
+  ["PUT", /^\/v1\/backup\/([0-9a-f]{64})$/, putBackup],
+  ["GET", /^\/v1\/backup\/([0-9a-f]{64})$/, getBackup],
   ["POST", /^\/v1\/listening$/, listened],
   ["GET", /^\/v1\/listening$/, listening],
   ["GET", /^\/v1\/stats$/, stats],

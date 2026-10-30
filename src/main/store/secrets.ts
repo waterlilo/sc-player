@@ -12,11 +12,11 @@ import { log } from "../system/log";
  * the user's account. So every account value replaced or removed is kept sealed under "<key>~old" (the last few), and when
  * the current one can't be opened the newest old one that can is put back.
  */
-type Key = "sessionToken" | "officialClientSecret" | "officialRefreshToken" | "proxyPassword" | "socialSecret" | "moderatorToken";
+type Key = "sessionToken" | "officialClientSecret" | "officialRefreshToken" | "proxyPassword" | "socialSecret" | "moderatorToken" | "backupKey";
 
 const KEEP_OLD = 4;
 /** the ones that are an account: kept when replaced (a removed moderator key or proxy password is simply gone) */
-const GUARDED = new Set<Key>(["sessionToken", "officialRefreshToken", "socialSecret"]);
+const GUARDED = new Set<Key>(["sessionToken", "officialRefreshToken", "socialSecret", "backupKey"]);
 const memory = new Map<Key, string>();
 const path = () => join(app.getPath("userData"), "secrets.bin");
 

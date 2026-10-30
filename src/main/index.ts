@@ -9,6 +9,7 @@ import type { MusicProvider, SearchKind } from "@shared/provider";
 import type { RoomOp, SocialTrack } from "@shared/social";
 import type { QueueSource, SyncRequest, Track, LyricsSuggestionState } from "@shared/types";
 import { DemoProvider } from "./demo";
+import { backupNow, backupStatus, initBackup, restoreBackup } from "./backup";
 import { flushLocalLikes, withLocalLikes } from "./local-likes";
 import { addDroppedFiles, addLocalFiles, flushLocalTracks, isLocalTrack, localLibrary, removeLocalTrack, serveLocalTracks, showLocalTrack, withLocalTracks } from "./local-tracks";
 import { addLocal, createLocal, deleteLocal, exportLocal, importLocal, flushLocalPlaylists, isLocal, localIds, localPlaylist, localPlaylists, localTracks, MAX_TRACKS, renameLocal, setLocalTracks } from "./local-playlists";
@@ -334,6 +335,9 @@ function registerIpc() {
   handle("data:waveform", (_e, url) => data.getWaveform(str(url, "url")));
 
   handle("bg:pick", () => pickBackground(main));
+  handle("backup:status", () => backupStatus());
+  handle("backup:now", () => backupNow(true));
+  handle("backup:restore", (_e, key, replace) => restoreBackup(str(key, "key").slice(0, 80), replace === true));
   handle("bg:steamFind", (_e, link) => {
     const wid = workshopId(str(link, "link"));
     return wid ? findWallpaper(wid) : { found: false as const, id: "", reason: "link" as const };
@@ -674,6 +678,7 @@ void app.whenReady().then(async () => {
   applyAutostart(p.startWithWindows);
   updater.initUpdater(() => main, () => prefs().checkUpdates);
   social.initSocial(() => main);
+  initBackup();
   rooms.initRooms(() => main);
   // back in front: the messenger catches up at once
   main.on("focus", () => void social.poll());

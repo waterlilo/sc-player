@@ -144,6 +144,25 @@ export type SteamWallpaper =
   | { found: true; id: string; title: string; sizeMb: number; /** scbg://import/… for the page to read it */ url: string }
   | { found: false; id: string; reason: "link" | "missing" | "not-video" };
 
+/** The backup of what lives only on this computer (main/backup): its transfer key, when it last went out. */
+export interface BackupStatus {
+  /** this build knows a server */
+  available: boolean;
+  /** made on the first backup; shown in Settings to type in on another computer */
+  key: string | null;
+  /** the last upload this run (null: none yet) */
+  at: number | null;
+  error: string | null;
+}
+
+/** What a restore added. `code`: the friend code — none in the copy, the same as here, taken, or a different one here (asked first). */
+export interface RestoreResult {
+  likes: number;
+  playlists: number;
+  lyrics: number;
+  code: "none" | "same" | "restored" | "differs";
+}
+
 /** What became of my lyrics sent for review ("" — none sent). */
 export type LyricsSuggestionState = "" | "pending" | "approved" | "rejected" | "replaced";
 

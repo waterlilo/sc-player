@@ -95,6 +95,19 @@ assert.ok((await api("GET", "/v1/stats")).body.today >= 1);
 assert.equal((await api("POST", "/v1/online", { body: { install: "abcdef12-3456" } })).status, 204);
 assert.equal((await api("POST", "/v1/online", { body: { install: "no good!" } })).status, 400);
 
+// backups: sealed bytes by a name, written only with the token that made them
+{
+  const id = "a".repeat(64);
+  const put = (token: string, raw: Buffer) => fetch(BASE + "/v1/backup/" + id, { method: "PUT", headers: { "x-backup-write": token }, body: new Uint8Array(raw) });
+  const blob = Buffer.concat([Buffer.from("SCB1"), Buffer.alloc(60, 7)]);
+  assert.equal((await fetch(BASE + "/v1/backup/" + id)).status, 404);
+  assert.equal((await put("b".repeat(64), Buffer.from("not a backup at all, really not one"))).status, 400);
+  assert.equal((await put("b".repeat(64), blob)).status, 204);
+  assert.equal((await put("c".repeat(64), blob)).status, 403);
+  const got = Buffer.from(await (await fetch(BASE + "/v1/backup/" + id)).arrayBuffer());
+  assert.ok(got.equals(blob));
+}
+
 // workshop
 const look = { design: "studio", bg: "file", bgBlur: 10, bgDim: 60, bgReact: 30, panelOpacity: 50, panelBlur: 24, accent: "#aabbcc" };
 assert.equal((await api("POST", "/v1/themes", { secret: a.secret, body: { name: "x", look, css: "body{background:url(https://evil)}" } })).status, 400);

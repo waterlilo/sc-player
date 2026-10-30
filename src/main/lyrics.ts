@@ -302,6 +302,23 @@ function ownLyrics(q: { artist: string; title: string }, text: string): Lyrics {
   return { id: 0, artist: q.artist, title: q.title, synced: timed.length >= 2 ? timed : null, plain: plain || null, instrumental: false, source: "own" };
 }
 
+/** All own words, for the backup (main/backup). */
+export const ownLyricsData = () => ({ ...ownFile().get().byTrack });
+
+/** Own words from a backup, for tracks that have none here; how many were added. */
+export function mergeOwnLyrics(from: Record<string, { text: string; at: number }>): number {
+  const byTrack = { ...ownFile().get().byTrack };
+  let n = 0;
+  for (const [id, v] of Object.entries(from)) {
+    if (byTrack[id] || !/^\d{1,16}$/.test(id) || typeof v?.text !== "string" || !v.text.trim() || v.text.length > 30_000) continue;
+    byTrack[id] = { text: v.text, at: Number(v.at) || Date.now() };
+    found.delete(Number(id));
+    n++;
+  }
+  if (n) ownFile().patch({ byTrack });
+  return n;
+}
+
 /** The user's own words for a track, as typed (sent for review from here). */
 export const ownText = (trackId: number) => ownFile().get().byTrack[String(trackId)]?.text ?? null;
 

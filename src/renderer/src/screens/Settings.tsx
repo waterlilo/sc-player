@@ -5,6 +5,7 @@ import Equalizer from "@/components/settings/Equalizer";
 import HotkeyRecorder from "@/components/settings/HotkeyRecorder";
 import LyricsSync from "@/components/settings/LyricsSync";
 import Messenger from "@/components/settings/Messenger";
+import Backup from "@/components/settings/Backup";
 import { Choice, Row, Section, Slider, Toggle } from "@/components/settings/Controls";
 import { MarkerButton, PaperButton } from "@/components/ui/Buttons";
 import Tabs from "@/components/ui/Tabs";
@@ -508,6 +509,8 @@ export default function Settings() {
               {status?.mode === "session" && <PaperButton onClick={() => void logout()}>{t.logout}</PaperButton>}
             </Row>
           </Section>
+
+          <Backup />
 
           <Section title={t.secAbout}>
             <p className="px-3 text-sm text-muted">{t.unofficial}</p>

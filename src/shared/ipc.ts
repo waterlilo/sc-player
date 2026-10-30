@@ -1,6 +1,6 @@
 import type { SearchKind } from "./provider";
 import type { Friends, Message, Room, RoomOp, RoomState, SocialStatus, SocialTrack, SocialUpdate, WsPage, WsSort, WsThemeFull, SharedPlaylist } from "./social";
-import type { AppErrorInfo, Lyrics, LyricsHit, LyricsSyncStatus, Page, Playlist, QueueSource, Resolved, SavedProfile, StreamInfo, SyncRequest, SyncResult, Track, TrackDetails, User, LyricsForReview, LyricsSuggestionState, SteamWallpaper } from "./types";
+import type { AppErrorInfo, Lyrics, LyricsHit, LyricsSyncStatus, Page, Playlist, QueueSource, Resolved, SavedProfile, StreamInfo, SyncRequest, SyncResult, Track, TrackDetails, User, LyricsForReview, LyricsSuggestionState, SteamWallpaper, BackupStatus, RestoreResult } from "./types";
 
 /**
  * The one contract between main and renderer. main registers a handler for every InvokeMap channel, preload exposes
@@ -330,6 +330,11 @@ export interface InvokeMap {
 
   /** Settings → background: pick an image, GIF or video; main copies it into userData. null when cancelled */
   "bg:pick": () => { file: string; type: "image" | "video" } | null;
+  "backup:status": () => BackupStatus;
+  /** the copy now (even unchanged) */
+  "backup:now": () => BackupStatus;
+  /** another computer's copy by its transfer key, merged in; `replaceCode`: its friend code replaces this one's */
+  "backup:restore": (key: string, replaceCode: boolean) => RestoreResult;
   /** music from this computer (main/local-tracks), newest first */
   "local:list": () => Track[];
   /** files (or a folder) picked in a dialog; how many were added */
@@ -501,6 +506,9 @@ export const INVOKE_CHANNELS = [
   "ws:moderator",
   "ws:setModerator",
   "bg:pick",
+  "backup:status",
+  "backup:now",
+  "backup:restore",
   "local:list",
   "local:add",
   "local:addPaths",
