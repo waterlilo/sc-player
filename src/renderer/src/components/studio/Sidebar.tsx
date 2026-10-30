@@ -5,6 +5,7 @@ import { shortVersion } from "@/lib/format";
 import { unpin, unsaveProfile } from "@/lib/links";
 import { useSystem } from "@/lib/system";
 import { useAuth } from "@/state/auth";
+import { useLikes } from "@/state/likes";
 import { useNav, type Route, type Section } from "@/state/nav";
 import { usePlayer } from "@/state/player";
 import { useSettings } from "@/state/settings";
@@ -148,6 +149,8 @@ export default function StudioSidebar() {
   const t = useT();
   const status = useAuth((s) => s.status);
   const user = status?.mode === "session" ? status.user : null;
+  const localLikes = useSettings((s) => s.prefs.localLikes);
+  const likedCount = useLikes((s) => (s.ready ? s.ids.size : null));
   const social = useSocial((s) => !!s.status?.available);
   const unread = useSocial((s) => unreadTotal(s.unread) + (s.friends?.incoming.length ?? 0));
   const update = useSystem((s) => s.update);
@@ -175,7 +178,7 @@ export default function StudioSidebar() {
         </>
       )}
       <div className="s-sect s-lbl">{t.library}</div>
-      <Nav section="likes" route={{ name: "likes" }} icon="heart" count={user?.likesCount}>
+      <Nav section="likes" route={{ name: "likes" }} icon="heart" count={localLikes ? likedCount : user?.likesCount}>
         {t.likedTracks}
       </Nav>
       <Nav section="playlists" route={{ name: "playlists" }} icon="list" count={user?.playlistCount}>

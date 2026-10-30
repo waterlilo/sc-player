@@ -2,8 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { isLocalTrack, artwork, type Track } from "@shared/types";
 import { errorText, useT } from "@/i18n";
 import { duration } from "@/lib/format";
-import { useAuth } from "@/state/auth";
-import { toggleLike, useLiked } from "@/state/likes";
+import { toggleLike, useLiked, useCanLike } from "@/state/likes";
 import { useNav } from "@/state/nav";
 import { player, useCurrentTrack, usePlayer, usePosition, useStreamTrack } from "@/state/player";
 import { useRoom, useRoomSheet } from "@/state/room";
@@ -26,9 +25,11 @@ function Btn({ icon, label, on = false, onClick, size = 17, disabled = false }: 
 
 function Like({ track }: { track: Track }) {
   const t = useT();
-  const signedIn = useAuth((s) => s.status?.mode === "session");
+  const canLike = useCanLike();
+  // files from this computer: only with likes kept here
+  const local = useSettings((s) => s.prefs.localLikes);
   const liked = useLiked(track.id);
-  if (!signedIn || isLocalTrack(track.id)) return null;
+  if (!canLike || (isLocalTrack(track.id) && !local)) return null;
   return (
     <button type="button" onClick={() => void toggleLike(track)} aria-pressed={liked} aria-label={liked ? t.unlike : t.like} title={liked ? t.unlike : t.like} className={`ml-auto grid h-8 w-8 shrink-0 place-items-center rounded-md ${liked ? "text-[var(--accent)]" : "text-muted hover:text-text"}`}>
       <Icon name="heart" size={15} filled={liked} />

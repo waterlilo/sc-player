@@ -161,6 +161,8 @@ export interface Prefs {
    * for a few seconds, its buttons and words fade back so the picture and the sound show
    */
   restingPlayer: boolean;
+  /** ♥ is kept on this computer (main/local-likes) instead of going to SoundCloud; its SoundCloud likes still show */
+  localLikes: boolean;
 }
 
 export const EQ_BANDS = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000] as const;
@@ -197,6 +199,7 @@ export const PREFS_DEFAULTS: Prefs = {
   autoSyncLyrics: false,
   accurateSync: false,
   restingPlayer: false,
+  localLikes: true,
 };
 
 /** Fills in anything missing from stored prefs (new options in a newer version). */

@@ -39,6 +39,8 @@ export const en = {
   settings: "Settings",
   // settings
   secPlayback: "Playback",
+  localLikes: "Keep likes on this computer",
+  localLikesHint: "♥ is saved here instead of on SoundCloud (no SoundCloud checks, works signed out, files from this computer too). Your SoundCloud likes still show below. The backup carries them to another computer.",
   secSound: "Sound",
   secWindow: "Window & system",
   secAppearance: "Appearance",

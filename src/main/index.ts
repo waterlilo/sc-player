@@ -9,6 +9,7 @@ import type { MusicProvider, SearchKind } from "@shared/provider";
 import type { RoomOp, SocialTrack } from "@shared/social";
 import type { QueueSource, SyncRequest, Track, LyricsSuggestionState } from "@shared/types";
 import { DemoProvider } from "./demo";
+import { flushLocalLikes, withLocalLikes } from "./local-likes";
 import { addDroppedFiles, addLocalFiles, flushLocalTracks, isLocalTrack, localLibrary, removeLocalTrack, serveLocalTracks, showLocalTrack, withLocalTracks } from "./local-tracks";
 import { addLocal, createLocal, deleteLocal, exportLocal, importLocal, flushLocalPlaylists, isLocal, localIds, localPlaylist, localPlaylists, localTracks, MAX_TRACKS, renameLocal, setLocalTracks } from "./local-playlists";
 import { communityLyrics, flushLyrics, forgetLyrics, lyricsFor, ownText, pickLyrics, searchLyrics, setCommunityLyrics, setOwnLyrics } from "./lyrics";
@@ -63,7 +64,8 @@ if (DEMO) app.setPath("userData", join(app.getPath("appData"), "sc player demo")
 // SKY_PROFILE=<name> in development: real SoundCloud with a data folder of its own (signed out, fresh settings)
 else if (!app.isPackaged && process.env.SKY_PROFILE) app.setPath("userData", join(app.getPath("appData"), `sc player ${process.env.SKY_PROFILE.replace(/[^\w-]/g, "")}`));
 // music from this computer is answered by local-tracks, everything else by SoundCloud
-const data: MusicProvider = withLocalTracks(DEMO ? new DemoProvider() : provider);
+// and likes are kept on this computer (Settings → Playback), SoundCloud's shown with them
+const data: MusicProvider = withLocalLikes(withLocalTracks(DEMO ? new DemoProvider() : provider), () => prefs().localLikes);
 const signedIn = () => DEMO || !!auth.token();
 /** full tracks for any number of ids, in their order (the provider takes 200 at a time) */
 async function tracksOf(ids: number[]): Promise<Track[]> {
@@ -599,6 +601,7 @@ app.on("before-quit", () => {
   flushLyricsSync();
   flushLocalPlaylists();
   flushLocalTracks();
+  flushLocalLikes();
   setDiscordEnabled(false);
 });
 process.on("uncaughtException", (err) => log("main", `uncaught: ${err.stack ?? err.message}`));

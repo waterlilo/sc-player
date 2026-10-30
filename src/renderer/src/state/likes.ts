@@ -5,6 +5,7 @@ import { en as t } from "@/i18n/en";
 import { call, errorCode } from "@/lib/sky";
 import { askCheck } from "./check";
 import { useAuth } from "./auth";
+import { useSettings } from "./settings";
 import { useUi } from "./ui";
 
 /** What the signed-in user liked, for the ♥ buttons. Read once after sign-in; a ♥ click changes it right away. */
@@ -20,14 +21,32 @@ function load() {
   return loading;
 }
 
+/** ♥ works: signed in to SoundCloud, or with likes kept on this computer (Settings → Playback, the default) */
+export const canLike = () => useAuth.getState().status?.mode === "session" || useSettings.getState().prefs.localLikes;
+export const useCanLike = () => {
+  const signedIn = useAuth((s) => s.status?.mode === "session");
+  const local = useSettings((s) => s.prefs.localLikes);
+  return signedIn || local;
+};
+
 export function initLikes() {
   let mode = useAuth.getState().status?.mode;
-  if (mode === "session") void load();
+  let local = useSettings.getState().prefs.localLikes;
+  const reload = () => {
+    if (canLike()) void load();
+    else useLikes.setState({ ids: new Set(), ready: false });
+  };
+  reload();
   useAuth.subscribe((s) => {
     if (s.status?.mode === mode) return;
     mode = s.status?.mode;
-    if (mode === "session") void load();
-    else useLikes.setState({ ids: new Set(), ready: false });
+    reload();
+  });
+  useSettings.subscribe((s) => {
+    if (s.prefs.localLikes === local) return;
+    local = s.prefs.localLikes;
+    reload();
+    void queryClient.invalidateQueries({ queryKey: ["likes", "me"] });
   });
 }
 

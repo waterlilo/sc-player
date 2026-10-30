@@ -10,8 +10,7 @@ import { player, useCurrentTrack, usePlayer, usePosition, useStreamTrack } from 
 import { useRoom, useRoomSheet } from "@/state/room";
 import { useSocial } from "@/state/social";
 import { useUi } from "@/state/ui";
-import { useAuth } from "@/state/auth";
-import { toggleLike, useLiked } from "@/state/likes";
+import { toggleLike, useLiked, useCanLike } from "@/state/likes";
 import { IconButton } from "../ui/Buttons";
 import MarkerEdge from "../deco/MarkerEdge";
 import ExpandingTitle from "./ExpandingTitle";
@@ -52,9 +51,11 @@ function SubstituteLine({ sound }: { sound: Track }) {
 /** ♥ for the current track (signed in only); `white`: lit white instead of the accent (the full screen's colour choice) */
 export function LikeButton({ track, white = false }: { track: Track; white?: boolean }) {
   const t = useT();
-  const signedIn = useAuth((s) => s.status?.mode === "session");
+  const canLike = useCanLike();
+  // files from this computer: only with likes kept here
+  const local = useSettings((s) => s.prefs.localLikes);
   const liked = useLiked(track.id);
-  if (!signedIn || isLocalTrack(track.id)) return null;
+  if (!canLike || (isLocalTrack(track.id) && !local)) return null;
   return (
     <IconButton
       icon="heart"

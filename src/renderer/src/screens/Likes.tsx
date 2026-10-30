@@ -7,6 +7,8 @@ import { Screen, ScreenTitle } from "@/components/ui/Screen";
 import { EmptyState, ErrorState, Loading } from "@/components/ui/States";
 import { useT } from "@/i18n";
 import { useAuth } from "@/state/auth";
+import { useLikes as useLikedSet } from "@/state/likes";
+import { useSettings } from "@/state/settings";
 import Login from "./Login";
 
 /** Likes of a user ("me" = the signed-in account), as a track list that pages in while scrolling. */
@@ -37,11 +39,15 @@ export function LikesList({ userId, label }: { userId: number | "me"; label: str
 export default function Likes() {
   const t = useT();
   const status = useAuth((s) => s.status);
+  // likes kept on this computer: the page works signed out too
+  const local = useSettings((s) => s.prefs.localLikes);
+  const count = useLikedSet((s) => (s.ready ? s.ids.size : 0));
   if (!status) return <Loading />;
-  if (status.mode !== "session") return <Login />;
+  if (status.mode !== "session" && !local) return <Login />;
+  const n = local ? count : status.user?.likesCount;
   return (
     <Screen label={t.likes}>
-      <ScreenTitle meta={status.user?.likesCount ? t.tracks(status.user.likesCount) : undefined}>{t.likes.toLowerCase()}</ScreenTitle>
+      <ScreenTitle meta={n ? t.tracks(n) : undefined}>{t.likes.toLowerCase()}</ScreenTitle>
       <LikesList userId="me" label={t.likes} />
     </Screen>
   );

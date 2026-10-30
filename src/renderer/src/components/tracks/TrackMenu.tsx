@@ -54,6 +54,7 @@ export default function TrackMenu() {
 
   const track = menu?.track;
   const signedIn = useAuth((s) => s.status?.mode === "session");
+  const localLikes = useSettings((s) => s.prefs.localLikes);
   // the menu opened on a page of a playlist of your own: it can take the track out
   const route = useNav((s) => s.route);
   const shown = route.name === "playlist" ? queryClient.getQueryData<Playlist>(["playlist", route.id]) : undefined;
@@ -114,6 +115,7 @@ export default function TrackMenu() {
     : [
         // a room can't play it (nobody else has the file)
         ...(roomHost === null ? queueItems : []),
+        ...(localLikes ? [{ icon: "heart" as IconName, label: likes.has(track.id) ? t.unlike : t.like, run: () => void toggleLike(track) }] : []),
         { icon: "plus", label: t.addToPlaylist, run: () => openPicker(track) },
         ...fromOwnList,
         { icon: "external", label: t.localShowInFolder, run: () => void call("local:show", track.id) },
@@ -130,7 +132,7 @@ export default function TrackMenu() {
       ? localItems
       : [
         ...queueItems,
-        ...(signedIn ? [{ icon: "heart" as IconName, label: likes.has(track.id) ? t.unlike : t.like, run: () => void toggleLike(track) }] : []),
+        ...(signedIn || localLikes ? [{ icon: "heart" as IconName, label: likes.has(track.id) ? t.unlike : t.like, run: () => void toggleLike(track) }] : []),
         // playlists of your own: on SoundCloud signed in, on this computer otherwise
         { icon: "plus" as IconName, label: t.addToPlaylist, run: () => openPicker(track) },
         ...fromOwnList,

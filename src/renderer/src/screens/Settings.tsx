@@ -336,6 +336,9 @@ export default function Settings() {
       {tab === "playback" && (
         <>
           <Section title={t.secPlayback}>
+            <Row label={t.localLikes} hint={t.localLikesHint}>
+              <Toggle on={prefs.localLikes} onChange={(v) => setPref("localLikes", v)} label={t.localLikes} />
+            </Row>
             <Row label={t.substitute} hint={t.substituteHint}>
               <Toggle on={prefs.substitute} onChange={(v) => setPref("substitute", v)} label={t.substitute} />
             </Row>
