@@ -452,10 +452,18 @@ export async function setModerator(key: string | null): Promise<boolean> {
 
 // ---- start --------------------------------------------------------------------------------------------------------
 
+/** "Still on", every 5 minutes while the app runs (Count me as a user): how many people use sc player at once. */
+function stillOn() {
+  if (!BASE || !prefs().countMe) return;
+  void api("POST", "/v1/online", { body: { install: loc().install }, auth: false, timeout: 10_000 }).catch(() => undefined);
+}
+
 export function initSocial(getWindow: () => BrowserWindow | null) {
   win = getWindow;
   if (!BASE) return;
   startPolling();
   setTimeout(() => void ping(), 30_000);
   setInterval(() => void ping(), 6 * 60 * 60_000);
+  setTimeout(stillOn, 20_000);
+  setInterval(stillOn, 5 * 60_000);
 }

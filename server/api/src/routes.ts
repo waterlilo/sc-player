@@ -365,6 +365,40 @@ async function ping(c: Ctx) {
   send(c.res, 204, null);
 }
 
+// ---- online now ---------------------------------------------------------------------------------------------------
+
+/** an app counts as running for this long after its last "still on" (it sends one every 5 minutes) */
+const ONLINE_MS = 6 * MIN;
+/** install id → when it last said it's on; in memory only (a restart starts the count over) */
+const lastOn = new Map<string, number>();
+
+export function onlineNow(now = Date.now()) {
+  let n = 0;
+  for (const [install, at] of lastOn) {
+    if (now - at <= ONLINE_MS) n++;
+    else lastOn.delete(install);
+  }
+  return n;
+}
+
+/** Once a minute: how many are on now goes into the hour's peak and average. */
+export function sampleOnline(now = Date.now()) {
+  const n = onlineNow(now);
+  const hour = new Date(now).toISOString().slice(0, 13);
+  run("INSERT INTO online (hour, peak, total, samples) VALUES (?, ?, ?, 1) ON CONFLICT(hour) DO UPDATE SET peak = MAX(peak, excluded.peak), total = total + excluded.total, samples = samples + 1", hour, n, n);
+}
+setInterval(() => sampleOnline(), MIN).unref();
+
+/** An app's "still on" (every 5 minutes while it runs, when the user lets it be counted): the same random install id as the daily ping. */
+async function stillOn(c: Ctx) {
+  limit(`online:${c.ip}`, 60, HOUR);
+  const body = await readJson(c.req, 512);
+  const install = text(body.install, 64, "install");
+  if (!/^[a-zA-Z0-9-]{8,64}$/.test(install)) fail(400, "bad install id");
+  if (lastOn.size < 100_000 || lastOn.has(install)) lastOn.set(install, Date.now());
+  send(c.res, 204, null);
+}
+
 let statsCache: { at: number; body: unknown } | null = null;
 
 function stats(c: Ctx) {
@@ -379,6 +413,8 @@ function stats(c: Ctx) {
         month: count(day(29)),
         versions: all("SELECT version, COUNT(*) n FROM pings WHERE day = ? GROUP BY version ORDER BY n DESC LIMIT 10", day(0)),
         themes: Number(one("SELECT COUNT(*) n FROM themes WHERE published = 1 AND hidden = 0")?.n ?? 0),
+        online: onlineNow(),
+        onlinePeakToday: Number(one("SELECT MAX(peak) n FROM online WHERE hour >= ?", day(0))?.n ?? 0),
       },
     };
   }
@@ -782,6 +818,7 @@ const ROUTES: [string, RegExp, Handler][] = [
   ["POST", new RegExp(`^/v1/chat/${CODE}/seen$`), chatSeen],
   ["POST", /^\/v1\/messages\/(\d{1,15})\/state$/, messageState],
   ["POST", /^\/v1\/ping$/, ping],
+  ["POST", /^\/v1\/online$/, stillOn],
   ["POST", /^\/v1\/listening$/, listened],
   ["GET", /^\/v1\/listening$/, listening],
   ["GET", /^\/v1\/stats$/, stats],

@@ -92,6 +92,8 @@ assert.equal((await api("GET", "/v1/updates", { secret: b.secret })).body.now[a.
 // counter
 assert.equal((await api("POST", "/v1/ping", { body: { install: "abcdef12-3456", version: "2.0.0-beta.7" } })).status, 204);
 assert.ok((await api("GET", "/v1/stats")).body.today >= 1);
+assert.equal((await api("POST", "/v1/online", { body: { install: "abcdef12-3456" } })).status, 204);
+assert.equal((await api("POST", "/v1/online", { body: { install: "no good!" } })).status, 400);
 
 // workshop
 const look = { design: "studio", bg: "file", bgBlur: 10, bgDim: 60, bgReact: 30, panelOpacity: 50, panelBlur: 24, accent: "#aabbcc" };

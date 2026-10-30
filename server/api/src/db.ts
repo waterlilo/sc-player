@@ -55,6 +55,14 @@ CREATE TABLE IF NOT EXISTS pings (
   version TEXT NOT NULL,
   PRIMARY KEY (day, install)
 );
+-- how many apps were running at once, per hour (UTC "YYYY-MM-DDTHH"): sampled each minute from the apps' "still on"
+-- notes (kept in memory only); just the numbers, no install ids
+CREATE TABLE IF NOT EXISTS online (
+  hour TEXT PRIMARY KEY,
+  peak INTEGER NOT NULL DEFAULT 0,
+  total INTEGER NOT NULL DEFAULT 0,     -- the sum of the minute samples (total / samples = the hour's average)
+  samples INTEGER NOT NULL DEFAULT 0
+);
 CREATE TABLE IF NOT EXISTS themes (
   id TEXT PRIMARY KEY,
   author INTEGER NOT NULL REFERENCES devices(id) ON DELETE CASCADE,

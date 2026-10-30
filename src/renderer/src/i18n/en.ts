@@ -545,7 +545,7 @@ export const en = {
   friendsListening: "Friends are listening",
   scListening: "Listening on sc player",
   countMe: "Count me as a user",
-  countMeHint: "Once a day: an anonymous \"one more running app\" (a random id and the version) — nothing about you",
+  countMeHint: "An anonymous \"one more running app\" (a random id and the version) once a day, and \"still on\" every 5 minutes for how many are online — nothing about you",
   // the workshop
   workshop: "Workshop",
   workshopHint: "Looks made by other people. Open one to try it; your settings can be changed back in Appearance.",
