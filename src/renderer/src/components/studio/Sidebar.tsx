@@ -124,7 +124,7 @@ function Me() {
           <div className="s truncate">{code ?? "SoundCloud"}</div>
         </div>
       ) : (
-        <button type="button" onClick={() => open("likes", { name: "likes" })} className="min-w-0 flex-1 text-left">
+        <button type="button" onClick={() => open("signin", { name: "signin" })} className="min-w-0 flex-1 text-left">
           <div className="t">{t.signIn}</div>
           <div className="s">SoundCloud</div>
         </button>

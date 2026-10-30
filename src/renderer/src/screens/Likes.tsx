@@ -3,11 +3,13 @@ import type { QueueSource } from "@shared/types";
 import { useLikes } from "@/api/queries";
 import ListFilter, { useListFilter } from "@/components/tracks/ListFilter";
 import TrackList from "@/components/tracks/TrackList";
+import { PaperButton } from "@/components/ui/Buttons";
 import { Screen, ScreenTitle } from "@/components/ui/Screen";
 import { EmptyState, ErrorState, Loading } from "@/components/ui/States";
 import { useT } from "@/i18n";
 import { useAuth } from "@/state/auth";
 import { useLikes as useLikedSet } from "@/state/likes";
+import { useNav } from "@/state/nav";
 import { useSettings } from "@/state/settings";
 import Login from "./Login";
 
@@ -48,6 +50,13 @@ export default function Likes() {
   return (
     <Screen label={t.likes}>
       <ScreenTitle meta={n ? t.tracks(n) : undefined}>{t.likes.toLowerCase()}</ScreenTitle>
+      {status.mode !== "session" && (
+        // signed out, the page still works (likes on this computer): the way to the account stays in sight
+        <div className="mb-4 flex items-center gap-3 font-type text-sm text-muted">
+          <span>{t.likesSignedOut}</span>
+          <PaperButton onClick={() => useNav.getState().open("signin", { name: "signin" })}>{t.signIn}</PaperButton>
+        </div>
+      )}
       <LikesList userId="me" label={t.likes} />
     </Screen>
   );

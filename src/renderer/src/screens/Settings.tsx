@@ -16,6 +16,7 @@ import { shortVersion } from "@/lib/format";
 import { call } from "@/lib/sky";
 import { useSystem } from "@/lib/system";
 import { useAuth } from "@/state/auth";
+import { useNav } from "@/state/nav";
 import { useSettings } from "@/state/settings";
 import { useUi } from "@/state/ui";
 import { useViewState } from "@/state/viewState";
@@ -506,7 +507,7 @@ export default function Settings() {
         <>
           <Section title={t.secAccount}>
             <Row label={status?.user ? t.signedInAs(status.user.username) : t.notSignedIn}>
-              {status?.mode === "session" && <PaperButton onClick={() => void logout()}>{t.logout}</PaperButton>}
+              {status?.mode === "session" ? <PaperButton onClick={() => void logout()}>{t.logout}</PaperButton> : <PaperButton onClick={() => useNav.getState().open("signin", { name: "signin" })}>{t.signIn}</PaperButton>}
             </Row>
           </Section>
 

@@ -17,10 +17,11 @@ export type Route =
   | { name: "following" }
   | { name: "inbox" }
   | { name: "workshop" }
-  | { name: "settings" };
+  | { name: "settings" }
+  | { name: "signin" };
 
 /** A sidebar entry: Home, Likes, Playlists, History, Search, or a saved profile ("profile:<id>"). */
-export type Section = "home" | "likes" | "feed" | "playlists" | "history" | "local" | "search" | "albums" | "stations" | "following" | "inbox" | "workshop" | "settings" | `profile:${number}`;
+export type Section = "home" | "likes" | "feed" | "playlists" | "history" | "local" | "search" | "albums" | "stations" | "following" | "inbox" | "workshop" | "settings" | "signin" | `profile:${number}`;
 
 interface Entry {
   route: Route;

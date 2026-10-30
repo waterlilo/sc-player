@@ -1,15 +1,21 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { MarkerButton, PaperButton } from "@/components/ui/Buttons";
 import { EmptyState } from "@/components/ui/States";
 import { errorText, useT } from "@/i18n";
 import { openLink } from "@/lib/links";
 import { errorCode } from "@/lib/sky";
 import { useAuth } from "@/state/auth";
+import { useNav } from "@/state/nav";
 
 /** Not signed in: "sign in", and a way to open any public profile without an account. */
 export default function Login() {
   const t = useT();
-  const { browser, loginWithBrowser, cancelBrowser } = useAuth();
+  const { status, browser, loginWithBrowser, cancelBrowser } = useAuth();
+  const onSignIn = useNav((s) => s.route.name === "signin");
+  // the sign-in page of its own (Sidebar, Settings): once signed in, on to the account's likes
+  useEffect(() => {
+    if (onSignIn && status?.mode === "session") useNav.getState().open("likes", { name: "likes" });
+  }, [onSignIn, status?.mode]);
   const [link, setLink] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [opening, setOpening] = useState(false);

@@ -716,6 +716,7 @@ export const en = {
   open: "Open",
   logout: "Sign out",
   emptyLikes: "no likes yet",
+  likesSignedOut: "Not signed in — sign in to see your SoundCloud likes here too.",
   emptyPlaylists: "no playlists yet",
   emptyHistory: "nothing played yet",
   emptySearch: "type to search tracks",

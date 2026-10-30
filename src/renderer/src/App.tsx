@@ -13,6 +13,7 @@ import History from "@/screens/History";
 import Local from "@/screens/Local";
 import Home from "@/screens/Home";
 import Inbox from "@/screens/Inbox";
+import Login from "@/screens/Login";
 import { Albums, Following, Stations } from "@/screens/Library";
 import Workshop from "@/screens/Workshop";
 import SendSheet from "@/components/social/SendSheet";
@@ -68,6 +69,8 @@ function ScreenFor({ route }: { route: Route }) {
       return <Workshop />;
     case "settings":
       return <Settings />;
+    case "signin":
+      return <Login />;
   }
 }
 
