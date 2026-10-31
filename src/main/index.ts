@@ -10,7 +10,7 @@ import type { RoomOp, SocialTrack } from "@shared/social";
 import type { QueueSource, SyncRequest, Track, LyricsSuggestionState } from "@shared/types";
 import { DemoProvider } from "./demo";
 import { backupNow, backupStatus, initBackup, restoreBackup } from "./backup";
-import { flushLocalLikes, withLocalLikes } from "./local-likes";
+import { flushLocalLikes, savedPlaylists, setPlaylistSaved, visiblePlaylists, withLocalLikes } from "./local-likes";
 import { addDroppedFiles, addLocalFiles, flushLocalTracks, isLocalTrack, localLibrary, removeLocalTrack, serveLocalTracks, showLocalTrack, withLocalTracks } from "./local-tracks";
 import { addLocal, createLocal, deleteLocal, exportLocal, importLocal, flushLocalPlaylists, isLocal, localIds, localPlaylist, localPlaylists, localTracks, MAX_TRACKS, renameLocal, setLocalTracks } from "./local-playlists";
 import { communityLyrics, flushLyrics, forgetLyrics, lyricsFor, ownText, pickLyrics, searchLyrics, setCommunityLyrics, setOwnLyrics } from "./lyrics";
@@ -221,9 +221,11 @@ function registerIpc() {
   // playlists: SoundCloud's for the signed in, ones on this computer (local-playlists.ts) for everyone
   handle("data:playlists", async (_e, c) => {
     const from = cursor(c);
-    if (!signedIn()) return { items: from ? [] : localPlaylists(), next: null };
+    // albums and playlists ♥-ed here (local-likes.ts) next, then SoundCloud's
+    if (!signedIn()) return { items: from ? [] : [...localPlaylists(), ...savedPlaylists()], next: null };
     const page = await data.getPlaylists(from);
-    return from ? page : { ...page, items: [...localPlaylists(), ...page.items] };
+    const items = visiblePlaylists(page.items);
+    return from ? { ...page, items } : { ...page, items: [...localPlaylists(), ...savedPlaylists(), ...items] };
   });
   handle("data:playlist", (_e, p) => {
     const pid = str(p, "playlist id");
@@ -281,6 +283,13 @@ function registerIpc() {
   handle("data:feed", (_e, c) => data.getFeed(cursor(c)));
   handle("data:likedIds", (_e, refresh) => data.getLikedIds(refresh === true));
   handle("data:setLiked", (_e, t, on) => (on === true ? data.like(id(t)) : data.unlike(id(t))));
+  handle("data:savedPlaylists", () => savedPlaylists().map((p) => p.id));
+  handle("data:setPlaylistSaved", async (_e, p, on) => {
+    const pid = str(p, "playlist id");
+    if (isLocal(pid)) bad("playlist id");
+    // kept as SoundCloud has it now, not as the page sent it
+    setPlaylistSaved(pid, on === true ? await data.getPlaylist(pid) : null);
+  });
   // own playlists are made and changed on this computer: SoundCloud's bot protection refuses playlist changes from
   // the app (POST and PUT /playlists, tested 2026-10-25); SoundCloud's own playlists are for listening here
   const localId = (p: unknown) => {

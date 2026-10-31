@@ -1,5 +1,6 @@
+import { useQuery } from "@tanstack/react-query";
 import type { Playlist } from "@shared/types";
-import { queryClient } from "@/api/queries";
+import { queryClient, usePlaylists } from "@/api/queries";
 import { useSettings } from "@/state/settings";
 import { call } from "./sky";
 
@@ -21,6 +22,24 @@ function refresh(id?: string) {
     void queryClient.invalidateQueries({ queryKey: ["playlist", id] });
     void queryClient.invalidateQueries({ queryKey: ["playlistTracks", id] });
   }
+}
+
+/**
+ * ♥ on an album or someone's playlist: kept on this computer (main's local-likes.ts), shown in Playlists and Albums.
+ * Liked: ♥-ed here, or liked by the account on SoundCloud (and not un-♥-ed here).
+ */
+export function usePlaylistLike(p: Playlist | undefined): { liked: boolean; toggle: () => Promise<boolean> } {
+  const saved = useQuery({ queryKey: ["savedPlaylists"], queryFn: () => call("data:savedPlaylists") });
+  const mine = usePlaylists("me", !!p && !isLocal(p.id));
+  const liked = !!p && (!!saved.data?.includes(p.id) || !!mine.data?.pages.some((pg) => pg.items.some((x) => x.id === p.id && x.relation === "liked")));
+  const toggle = async () => {
+    if (!p) return liked;
+    await call("data:setPlaylistSaved", p.id, !liked);
+    void queryClient.invalidateQueries({ queryKey: ["savedPlaylists"] });
+    refresh();
+    return !liked;
+  };
+  return { liked, toggle };
 }
 
 /** a pinned playlist's card keeps its title and cover */

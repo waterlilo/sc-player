@@ -19,10 +19,10 @@ import Login from "./Login";
 export function Albums() {
   const t = useT();
   const status = useAuth((s) => s.status);
-  const q = usePlaylists("me", status?.mode === "session");
+  // albums ♥-ed here show signed out too
+  const q = usePlaylists("me");
   const albums = useMemo(() => (q.data?.pages.flatMap((p) => p.items) ?? []).filter((p) => p.isAlbum), [q.data]);
   if (!status) return <Loading />;
-  if (status.mode !== "session") return <Login />;
   return (
     <Screen label={t.albums}>
       <ScreenTitle meta={albums.length ? String(albums.length) : undefined}>{t.albums.toLowerCase()}</ScreenTitle>

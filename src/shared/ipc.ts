@@ -310,6 +310,10 @@ export interface InvokeMap {
   /** `refresh`: read them again from SoundCloud (after liking on the site) */
   "data:likedIds": (refresh?: boolean) => number[];
   "data:setLiked": (trackId: number, liked: boolean) => void;
+  /** albums and playlists ♥-ed in the app (kept on this computer) */
+  "data:savedPlaylists": () => string[];
+  /** ♥ / un-♥ an album or playlist (un-♥ also hides one the account liked on SoundCloud) */
+  "data:setPlaylistSaved": (playlistId: string, saved: boolean) => void;
   "data:myPlaylists": () => Playlist[];
   "data:addToPlaylist": (playlistId: string, trackId: number) => void;
   /** a playlist of your own, kept on this computer (an id starting with "local-") */
@@ -556,6 +560,8 @@ export const INVOKE_CHANNELS = [
   "data:feed",
   "data:likedIds",
   "data:setLiked",
+  "data:savedPlaylists",
+  "data:setPlaylistSaved",
   "data:myPlaylists",
   "data:addToPlaylist",
   "data:createPlaylist",

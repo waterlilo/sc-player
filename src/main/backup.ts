@@ -83,7 +83,7 @@ export async function backupNow(force = false): Promise<BackupStatus> {
   if (!serverBase()) return backupStatus();
   const p = payload();
   // nothing here yet worth keeping: no key, no copy
-  if (!getSecret("backupKey") && !p.likes.liked.length && !JSON.parse(p.playlists).playlists.length && !Object.keys(p.ownLyrics).length && !p.friend) return backupStatus();
+  if (!getSecret("backupKey") && !p.likes.liked.length && !p.likes.playlists?.length && !JSON.parse(p.playlists).playlists.length && !Object.keys(p.ownLyrics).length && !p.friend) return backupStatus();
   let key = getSecret("backupKey");
   if (!key) {
     key = newKey();

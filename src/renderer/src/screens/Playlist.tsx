@@ -13,7 +13,7 @@ import { ask } from "@/state/dialog";
 import { duration } from "@/lib/format";
 import { call } from "@/lib/sky";
 import { togglePin } from "@/lib/links";
-import { canEdit, copyPlaylist, deletePlaylist, isLocal } from "@/lib/playlists";
+import { canEdit, copyPlaylist, deletePlaylist, isLocal, usePlaylistLike } from "@/lib/playlists";
 import { useUi } from "@/state/ui";
 import { useNav } from "@/state/nav";
 import { useSettings } from "@/state/settings";
@@ -38,6 +38,15 @@ export default function Playlist({ id }: { id: string }) {
   const [busy, setBusy] = useState(false);
   const local = isLocal(id);
   const own = canEdit(p);
+  const like = usePlaylistLike(local ? undefined : p);
+  const toggleLike = async () => {
+    try {
+      const now = await like.toggle();
+      toast(now ? (p?.isAlbum ? t.albumLiked : t.playlistLiked) : t.playlistUnliked);
+    } catch {
+      toast(t.playlistFailed);
+    }
+  };
   const joined = useSocial((s) => !!s.status?.profile);
   // in a listening room, not hosting it: the whole list can be suggested to the host
   const member = useRoom((s) => !!s.room && s.room.host !== s.me);
@@ -114,6 +123,11 @@ export default function Playlist({ id }: { id: string }) {
               <PaperButton disabled={!f.tracks.length} onClick={() => player.shuffleFrom(f.tracks, f.source)}>
                 <Icon name="shuffle" size={18} /> {t.shuffleAll}
               </PaperButton>
+              {p && !local && (
+                <PaperButton aria-pressed={like.liked} title={like.liked ? t.unlike : t.like} onClick={() => void toggleLike()}>
+                  <Icon name="heart" size={16} filled={like.liked} /> {like.liked ? t.liked : t.like}
+                </PaperButton>
+              )}
               {p && (
                 <PaperButton aria-pressed={pinned} onClick={() => togglePin(p)}>
                   {pinned ? t.unpin : t.pin}

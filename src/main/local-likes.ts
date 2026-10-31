@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import { app } from "electron";
 import type { MusicProvider } from "@shared/provider";
-import type { Page, QueueSource, Track } from "@shared/types";
+import type { Page, Playlist, QueueSource, Track } from "@shared/types";
 import { JsonFile } from "./store/json-file";
 
 /**
@@ -15,6 +15,10 @@ export interface LikesData {
   liked: { id: number; at: number }[];
   /** SoundCloud likes un-♥-ed in the app */
   hidden: number[];
+  /** albums and playlists ♥-ed here (as they were then, for the lists), newest last */
+  playlists?: { playlist: Playlist; at: number }[];
+  /** albums and playlists the account liked on SoundCloud, un-♥-ed in the app */
+  hiddenPlaylists?: string[];
 }
 
 let file: JsonFile<LikesData> | null = null;
@@ -30,9 +34,35 @@ export function mergeLikes(from: LikesData): number {
   const ids = new Set(have.liked.map((l) => l.id));
   const added = (Array.isArray(from.liked) ? from.liked : []).filter((l) => Number.isSafeInteger(l?.id) && l.id > 0 && !ids.has(l.id)).map((l) => ({ id: l.id, at: Number(l.at) || Date.now() }));
   const hidden = [...new Set([...have.hidden, ...(Array.isArray(from.hidden) ? from.hidden.filter((x) => Number.isSafeInteger(x) && x > 0) : [])])];
-  store().patch({ liked: [...added, ...have.liked].sort((a, b) => a.at - b.at), hidden });
-  if (added.length) changed();
-  return added.length;
+  const lists = new Set((have.playlists ?? []).map((l) => l.playlist.id));
+  const addedLists = (Array.isArray(from.playlists) ? from.playlists : []).filter((l) => typeof l?.playlist?.id === "string" && !lists.has(l.playlist.id)).map((l) => ({ playlist: { ...l.playlist, relation: "liked" as const }, at: Number(l.at) || Date.now() }));
+  const hiddenPlaylists = [...new Set([...(have.hiddenPlaylists ?? []), ...(Array.isArray(from.hiddenPlaylists) ? from.hiddenPlaylists.filter((x) => typeof x === "string") : [])])];
+  store().patch({ liked: [...added, ...have.liked].sort((a, b) => a.at - b.at), hidden, playlists: [...addedLists, ...(have.playlists ?? [])].sort((a, b) => a.at - b.at), hiddenPlaylists });
+  if (added.length || addedLists.length) changed();
+  return added.length + addedLists.length;
+}
+
+// ---- albums and playlists -----------------------------------------------------------------------------------------
+// ♥ on an album or a playlist keeps it here, whatever the setting: SoundCloud's bot protection refuses playlist
+// changes from the app (see own playlists), so nothing is sent there.
+
+/** The ones ♥-ed here, newest first. */
+export const savedPlaylists = (): Playlist[] => [...(store().get().playlists ?? [])].reverse().map((l) => l.playlist);
+
+/** A SoundCloud list of the account's playlists without the ones un-♥-ed here and the ones ♥-ed here too (they come first). */
+export function visiblePlaylists(items: Playlist[]): Playlist[] {
+  const skip = new Set([...(store().get().hiddenPlaylists ?? []), ...savedPlaylists().map((p) => p.id)]);
+  return items.filter((p) => !skip.has(p.id));
+}
+
+/** ♥ (with the playlist as it is now) or un-♥ — which also hides it if the account liked it on SoundCloud. */
+export function setPlaylistSaved(id: string, playlist: Playlist | null) {
+  const s = store().get();
+  const list = (s.playlists ?? []).filter((l) => l.playlist.id !== id);
+  const hidden = (s.hiddenPlaylists ?? []).filter((x) => x !== id);
+  if (playlist) store().patch({ playlists: [...list, { playlist: { ...playlist, relation: "liked" }, at: Date.now() }], hiddenPlaylists: hidden });
+  else store().patch({ playlists: list, hiddenPlaylists: [...hidden, id] });
+  changed();
 }
 
 let onChange: (() => void) | null = null;
