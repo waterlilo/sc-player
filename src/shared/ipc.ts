@@ -1,6 +1,6 @@
 import type { SearchKind } from "./provider";
 import type { Friends, Message, Room, RoomOp, RoomState, SocialStatus, SocialTrack, SocialUpdate, WsPage, WsSort, WsThemeFull, SharedPlaylist } from "./social";
-import type { AppErrorInfo, Lyrics, LyricsHit, LyricsSyncStatus, Page, Playlist, QueueSource, Resolved, SavedProfile, StreamInfo, SyncRequest, SyncResult, Track, TrackDetails, User, LyricsForReview, LyricsSuggestionState, SteamWallpaper, BackupStatus, RestoreResult } from "./types";
+import type { AppErrorInfo, ImportItem, ImportList, ImportMatch, Lyrics, LyricsHit, LyricsSyncStatus, Page, Playlist, QueueSource, Resolved, SavedProfile, StreamInfo, SyncRequest, SyncResult, Track, TrackDetails, User, LyricsForReview, LyricsSuggestionState, SteamWallpaper, BackupStatus, RestoreResult } from "./types";
 
 /**
  * The one contract between main and renderer. main registers a handler for every InvokeMap channel, preload exposes
@@ -326,6 +326,10 @@ export interface InvokeMap {
   "data:exportPlaylists": () => number | null;
   /** own playlists from such a file, added: how many, or null (none picked) */
   "data:importPlaylists": () => number | null;
+  /** what a pasted link (a Yandex Music or Spotify playlist, album, tracks) or lines of "Artist — Title" hold */
+  "import:read": (text: string) => ImportList;
+  /** one of those tracks looked for on SoundCloud (a track link is read first) */
+  "import:match": (item: ImportItem) => ImportMatch;
   "data:search": (query: string, kind: SearchKind, cursor: string | null) => Page<Track> | Page<Playlist> | Page<User>;
   "data:suggest": (query: string) => string[];
   "data:stream": (trackId: number) => StreamInfo;
@@ -570,6 +574,8 @@ export const INVOKE_CHANNELS = [
   "data:deletePlaylist",
   "data:exportPlaylists",
   "data:importPlaylists",
+  "import:read",
+  "import:match",
   "data:search",
   "data:suggest",
   "data:stream",

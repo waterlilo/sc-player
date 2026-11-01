@@ -129,6 +129,17 @@ const VERSION_WORDS = [
   "dub",
   "dubedit",
   "dubmix",
+  // found importing playlists: backing tracks, orchestral covers, reworks, DJ blends
+  "minus",
+  "backing",
+  "orchestra",
+  "rework",
+  "reworked",
+  "blend",
+  "refunk",
+  "soundalike",
+  "reinterpretation",
+  "orig",
   // mashups: "Stressed Out V 2Pac - Pain"
   "vs",
   "v",
@@ -139,7 +150,7 @@ const VERSION_WORDS = [
 const FILLER = ["official", "audio", "video", "music", "lyrics", "lyric", "hq", "hd", "full", "song", "by", "with", "and", "the", "original", "mp3", "m4a", "wav", "x", "feat", "ft", "prod", "new", "single", "album", "track", "high", "quality", "explicit", "clean", "unreleased", "kbps", "128k", "320k"];
 
 /** Bump when the rules change: answers remembered under older rules are not reused. */
-export const MATCH_VERSION = 8;
+export const MATCH_VERSION = 9;
 
 // ---- text ---------------------------------------------------------------------------------------------------------
 
@@ -257,6 +268,17 @@ function artistPresence(original: MatchInput, c: Candidate): { inTitle: boolean;
   return { inTitle, byArtist };
 }
 
+/** The upload is by the artist: the uploader's name holds the (main) credited artist. */
+export function byArtist(original: MatchInput, c: Candidate): boolean {
+  return artistPresence(original, c).byArtist;
+}
+
+/** Words of the candidate's title found neither in the original's title, nor in the credits, nor among the fillers. */
+export function extraWords(original: MatchInput, c: Candidate): string[] {
+  const known = new Set([...words(original.title), ...words(original.artist), ...words(original.uploader), ...words(c.uploader), ...FILLER]);
+  return [...words(c.title)].filter((w) => !known.has(w));
+}
+
 /** No words that mark another version, unless the original has them too. */
 function sameVersion(original: MatchInput, c: Candidate): boolean {
   const before = versionMarks(`${original.title} ${original.artist}`);
@@ -298,9 +320,7 @@ export function strictTextScore(original: MatchInput, c: Candidate, toleranceSec
   if (!byArtist && uploader.length >= 3 && prodTail.includes(uploader)) return 0;
 
   // many words neither in the original's title nor in the credits: another song mixed in, or someone else's track
-  const known = new Set([...words(original.title), ...words(original.artist), ...words(original.uploader), ...words(c.uploader), ...FILLER]);
-  const extra = [...words(c.title)].filter((w) => !known.has(w));
-  if (extra.length > 3) return 0;
+  if (extraWords(original, c).length > 3) return 0;
 
   const lengthFit = 1 - Math.abs(original.durationMs - c.durationMs) / (toleranceSec * 1000 + 1);
   return Math.min(1, 0.45 * titleFit + 0.2 * lengthFit + (byArtist ? 0.25 : inTitle ? 0.15 : 0) + Math.min(0.1, Math.log10(c.plays + 1) / 60));

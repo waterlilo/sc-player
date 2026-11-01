@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { usePlaylists } from "@/api/queries";
 import NewPlaylist from "@/components/playlists/NewPlaylist";
 import PlaylistGrid from "@/components/playlists/PlaylistGrid";
@@ -10,6 +11,7 @@ import { EmptyState, ErrorState, Loading } from "@/components/ui/States";
 import { useT } from "@/i18n";
 import { useAuth } from "@/state/auth";
 import { exportPlaylists, importPlaylists } from "@/lib/playlists";
+import { useImport } from "@/state/import";
 import { useNav } from "@/state/nav";
 import { useUi } from "@/state/ui";
 import { useViewState } from "@/state/viewState";
@@ -51,6 +53,8 @@ export default function Playlists() {
   const go = useNav((s) => s.go);
   const status = useAuth((s) => s.status);
   const [making, setMaking] = useState(false);
+  // a search going on in the background shows on its button
+  const importing = useImport(useShallow((s) => (s.phase === "searching" ? { done: s.rows.filter((r) => r.state !== "waiting").length, all: s.rows.length } : null)));
   const toast = useUi((s) => s.showToast);
   const backup = async () => {
     try {
@@ -79,6 +83,9 @@ export default function Playlists() {
           </PaperButton>
           <PaperButton title={t.importPlaylistsHint} onClick={() => void restore()}>
             {t.importPlaylists}
+          </PaperButton>
+          <PaperButton title={t.importOpenHint} onClick={() => go({ name: "import" })}>
+            {importing ? t.importSearching(importing.done, importing.all) : t.importOpen}
           </PaperButton>
           <PaperButton aria-expanded={making} onClick={() => setMaking((v) => !v)}>
             <Icon name="plus" size={16} /> {t.newPlaylist}

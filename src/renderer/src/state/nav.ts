@@ -18,7 +18,8 @@ export type Route =
   | { name: "inbox" }
   | { name: "workshop" }
   | { name: "settings" }
-  | { name: "signin" };
+  | { name: "signin" }
+  | { name: "import" };
 
 /** A sidebar entry: Home, Likes, Playlists, History, Search, or a saved profile ("profile:<id>"). */
 export type Section = "home" | "likes" | "feed" | "playlists" | "history" | "local" | "search" | "albums" | "stations" | "following" | "inbox" | "workshop" | "settings" | "signin" | `profile:${number}`;

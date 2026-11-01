@@ -7,7 +7,7 @@ import { app, BrowserWindow, clipboard, dialog, ipcMain, session, shell, type Ip
 import { RENDERER_DEFAULTS, type AuthStatus, type InvokeChannel, type InvokeMap, type PlayerCommand, type PlayerInfo, type RendererState, type Result } from "@shared/ipc";
 import type { MusicProvider, SearchKind } from "@shared/provider";
 import type { RoomOp, SocialTrack } from "@shared/social";
-import type { QueueSource, SyncRequest, Track, LyricsSuggestionState } from "@shared/types";
+import type { ImportItem, QueueSource, SyncRequest, Track, LyricsSuggestionState } from "@shared/types";
 import { DemoProvider } from "./demo";
 import { backupNow, backupStatus, initBackup, restoreBackup } from "./backup";
 import { flushLocalLikes, savedPlaylists, setPlaylistSaved, visiblePlaylists, withLocalLikes } from "./local-likes";
@@ -17,6 +17,7 @@ import { communityLyrics, flushLyrics, forgetLyrics, lyricsFor, ownText, pickLyr
 import { deleteModel, downloadModel, flushLyricsSync, onSyncStatus, syncedBefore, syncStatus, syncWords } from "./lyrics-sync";
 import { auth, authStatus, chromeUserAgent, provider, ScError, scSession, finishBrowserSignIn, friendFromArgs, registerLinks, startBrowserSignIn, stopBrowserSignIn, toErrorInfo, tokenFromArgs, waitingForBrowser } from "./soundcloud";
 import { flushAlternatives } from "./soundcloud/alternatives";
+import { readImport, resolveItem } from "./import/sources";
 import * as rooms from "./rooms";
 import * as social from "./social";
 import { patchRenderer, prefs, store } from "./store";
@@ -107,6 +108,12 @@ const str = (v: unknown, what: string) => (typeof v === "string" && v.length < 4
 const cursor = (v: unknown) => (v === null || v === undefined ? null : str(v, "cursor"));
 const id = (v: unknown) => (typeof v === "number" && Number.isSafeInteger(v) && v > 0 ? v : bad("id"));
 const kinds: SearchKind[] = ["tracks", "playlists", "users"];
+function importItem(v: unknown): ImportItem {
+  const i = (typeof v === "object" && v !== null ? v : bad("item")) as Record<string, unknown>;
+  const durationMs = i.durationMs === null ? null : typeof i.durationMs === "number" && Number.isFinite(i.durationMs) && i.durationMs >= 0 ? i.durationMs : bad("durationMs");
+  const ref = i.ref === undefined ? undefined : str(i.ref, "ref").slice(0, 64);
+  return { title: str(i.title, "title").slice(0, 300), artist: str(i.artist, "artist").slice(0, 300), durationMs, ...(ref ? { ref } : {}) };
+}
 function syncRequest(v: unknown): SyncRequest {
   const q = (typeof v === "object" && v !== null ? v : bad("request")) as Record<string, unknown>;
   const source = q.source === "lrclib" || q.source === "betterlyrics" || q.source === "unison" || q.source === "own" ? q.source : bad("source");
@@ -329,6 +336,18 @@ function registerIpc() {
     const text = await readFile(path, "utf8");
     if (text.length > 20 * 1024 * 1024) return bad("file");
     return importLocal(text);
+  });
+  handle("import:read", (_e, text) => readImport(typeof text === "string" && text.length < 500_000 ? text : bad("text")));
+  handle("import:match", async (_e, raw) => {
+    const item = await resolveItem(importItem(raw));
+    const find = (title: string, artist: string) => provider.findImported({ title, artist, uploader: artist, durationMs: item.durationMs ?? 0 }, item.durationMs !== null);
+    const r = await find(item.title, item.artist);
+    // a line of text may have the title first: "Dreams — Fleetwood Mac"
+    if (!r.found && item.durationMs === null && item.artist && !item.ref) {
+      const swapped = await find(item.artist, item.title);
+      if (swapped.found) return { item: { ...item, title: item.artist, artist: item.title }, ...swapped };
+    }
+    return { item, ...r };
   });
   handle("data:resolve", (_e, url) => data.resolve(str(url, "url")));
   handle("data:search", (_e, q, kind, c) => data.search(str(q, "query"), kinds.includes(kind) ? kind : bad("kind"), cursor(c)));

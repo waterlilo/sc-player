@@ -239,3 +239,34 @@ export interface LyricsHit {
   durationMs: number;
   synced: boolean;
 }
+
+/** A track from another service's playlist, or a line of text, to look for on SoundCloud. */
+export interface ImportItem {
+  title: string;
+  /** all credited artists, "A, B" */
+  artist: string;
+  /** null when not known (a line of text) */
+  durationMs: number | null;
+  /** a track link still to be read ("spotify:<id>", "yandex:<id>"): title and artist are empty until then */
+  ref?: string;
+}
+
+export type ImportService = "yandex" | "spotify" | "text";
+
+/** What was read from a pasted link (or links, or lines of text). */
+export interface ImportList {
+  service: ImportService;
+  /** the playlist's or album's name; null for loose tracks */
+  title: string | null;
+  items: ImportItem[];
+  /** only the first part could be read (Spotify shows a playlist's first 100 tracks to anyone without an account) */
+  partial: boolean;
+}
+
+/** One track looked for on SoundCloud. `options`: other uploads to choose from (when nothing was found: the ones that might be it). */
+export interface ImportMatch {
+  /** the track as read (a link's title and artist filled in) */
+  item: ImportItem;
+  found: Track | null;
+  options: Track[];
+}

@@ -7,13 +7,17 @@ import { scSession } from "./session";
 import { prefs } from "../store";
 import { pickTranscoding } from "./stream";
 import { cachedAlternatives, rememberAlternatives } from "./alternatives";
-import { consensusMatches, rankBySound, rankCandidates, searchQueries, shortlist, waveSimilarity, type Candidate, type Heard, type MatchInput } from "./match";
+import { byArtist, consensusMatches, extraWords, rankBySound, rankCandidates, searchQueries, shortlist, waveSimilarity, type Candidate, type Heard, type MatchInput } from "./match";
 
 const PAGE = 50;
 const TRACK_META_LIMIT = 4000;
 const LIST_TTL = 60_000;
 const ITEM_TTL = 5 * 60_000;
 const KNOWN_LIMIT = 20_000;
+/** importing: another service's length differs from SoundCloud's by up to this many seconds (another master, silence) */
+const IMPORT_TOLERANCE = 4;
+/** …and an upload this far off may still be the song, to choose by hand */
+const IMPORT_LOOSE = 20;
 
 const hostOf = (url: string) => {
   try {
@@ -202,6 +206,53 @@ export class WebSessionProvider implements MusicProvider {
     const ids = ranked.slice(0, deep ? 10 : 5).map((c) => c.id);
     rememberAlternatives(trackId, tolerance, ids);
     return this.tracksById(ids);
+  }
+
+  /**
+   * A track from another service's playlist (or a line of text) on SoundCloud. There is no waveform to compare with,
+   * so the strict words-only rules decide what is found — the length within a few seconds when it is known; uploads
+   * that only might be it (another length, a looser title) are offered to choose from. Up to three searches.
+   */
+  async findImported(original: MatchInput, knownLength: boolean): Promise<{ found: Track | null; options: Track[] }> {
+    // no length to go by: any length passes, the words decide
+    const strict = knownLength ? IMPORT_TOLERANCE : 24 * 3600;
+    const loose = knownLength ? IMPORT_LOOSE : strict;
+    const seen = new Map<number, Candidate>();
+    const byId = new Map<number, Track>();
+    let ranked: Candidate[] = [];
+    for (const q of searchQueries(original).slice(0, 3)) {
+      const res = await this.http.json<RawCollection<RawTrack>>("/search/tracks", { q, limit: 50 }, { ttl: LIST_TTL });
+      for (const r of collection(res, "import")) {
+        const t = this.track(r);
+        if (!t || seen.has(t.id)) continue;
+        const credited = r.publisher_metadata?.artist?.trim() ?? "";
+        // labels upload under their own name: the credited artist counts as the uploader too
+        seen.set(t.id, { id: t.id, title: t.title, artist: credited, uploader: credited ? `${t.user.username} ${credited}` : t.user.username, durationMs: t.durationMs, plays: r.playback_count ?? 0 });
+        byId.set(t.id, t);
+      }
+      ranked = rankCandidates(original, [...seen.values()], strict).filter((c) => this.ownOrExact(original, c, byId.get(c.id)!));
+      if (ranked.length) break;
+    }
+    // uploads that play in full first (a protected one still plays through another upload, when there is one)
+    const playable = (c: Candidate) => (byId.get(c.id)!.playability === "ok" ? 1 : 0);
+    const tracks = (cs: Candidate[]) => cs.map((c) => byId.get(c.id)!);
+    if (ranked.length) {
+      const [best, ...rest] = [...ranked].sort((a, b) => playable(b) - playable(a));
+      return { found: byId.get(best!.id)!, options: tracks(rest.slice(0, 3)) };
+    }
+    return { found: null, options: tracks(shortlist(original, [...seen.values()], loose, 6).sort((a, b) => playable(b) - playable(a)).slice(0, 3)) };
+  }
+
+  /**
+   * Without the sound to tell: the artist's own upload, or someone else's whose title has no word beyond the song's
+   * name and its credits — "(Deepend Rework)", "for Orchestra", "x Surf Mesa", the uploader's own name are other
+   * versions. Remixers credit the original artist, so here only the real uploader's name counts as "by the artist".
+   * Track numbers ("02 Hotel California") don't count.
+   */
+  private ownOrExact(original: MatchInput, c: Candidate, t: Track): boolean {
+    const real = { ...c, uploader: t.user.username };
+    if (byArtist(original, real)) return true;
+    return extraWords(original, { ...c, uploader: c.artist }).filter((w) => !/^\d{1,2}$/.test(w)).length === 0;
   }
 
   async getRelated(trackId: number): Promise<Track[]> {
