@@ -178,7 +178,7 @@ export const en = {
   exportPlaylists: "Export",
   exportPlaylistsHint: "Save your playlists to a file: a backup, or to take them to another computer",
   exportedPlaylists: (n: number) => (n === 1 ? "1 playlist saved to the file" : `${n} playlists saved to the file`),
-  importPlaylists: "Import",
+  importPlaylists: "Restore from file",
   importPlaylistsHint: "Add playlists from a file saved with Export",
   importedPlaylists: (n: number) => (n === 0 ? "Nothing new in that file" : n === 1 ? "1 playlist added" : `${n} playlists added`),
   saveQueue: "Save",
