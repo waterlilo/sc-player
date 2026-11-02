@@ -2,6 +2,7 @@ import { app, type BrowserWindow } from "electron";
 import electronUpdater from "electron-updater";
 import type { UpdateStatus } from "@shared/ipc";
 import { log } from "./log";
+import { isPortableRelease } from "./updater-check";
 
 const { autoUpdater } = electronUpdater;
 const EVERY = 6 * 3600 * 1000;
@@ -13,7 +14,7 @@ const EVERY = 6 * 3600 * 1000;
  */
 let status: UpdateStatus = { state: "idle" };
 let send: (s: UpdateStatus) => void = () => {};
-const portable = () => !!process.env.PORTABLE_EXECUTABLE_DIR;
+const portable = () => isPortableRelease();
 
 function setStatus(next: UpdateStatus) {
   status = next;
