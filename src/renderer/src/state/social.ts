@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import type { Friends, Message, MessageState, RoomInvite, SocialStatus, SocialTrack } from "@shared/social";
 import { isLocalTrack, type Playlist, type Track } from "@shared/types";
-import { en as t } from "@/i18n/en";
+import { tr as t } from "@/i18n";
 import { currentTime } from "@/audio/engine";
 import { call, on } from "@/lib/sky";
 import { useNav } from "./nav";

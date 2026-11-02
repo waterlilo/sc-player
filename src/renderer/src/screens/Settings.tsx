@@ -393,6 +393,21 @@ export default function Settings() {
       )}
       {tab === "app" && (
         <>
+          <Section title={t.language}>
+            <Row label={t.language} hint={t.languageHint}>
+              <Choice
+                label={t.language}
+                value={prefs.language}
+                options={[
+                  ["auto", t.languageAuto],
+                  // each language by its own name, so it can be found whatever is shown now
+                  ["en", "English"],
+                  ["ru", "Русский"],
+                ]}
+                onChange={(v) => setPref("language", v)}
+              />
+            </Row>
+          </Section>
           <Section title={t.secWindow}>
             <Row label={t.closeButton} hint={t.closeHint}>
               <Choice

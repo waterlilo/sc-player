@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { AppErrorInfo, ImportItem, ImportService, Playlist, Track } from "@shared/types";
-import { en as t } from "@/i18n/en";
+import { tr as t } from "@/i18n";
 import { createPlaylist } from "@/lib/playlists";
 import { call, errorCode, SkyError } from "@/lib/sky";
 import { askCheck } from "./check";

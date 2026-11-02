@@ -17,6 +17,7 @@ import { communityLyrics, flushLyrics, forgetLyrics, lyricsFor, ownText, pickLyr
 import { deleteModel, downloadModel, flushLyricsSync, onSyncStatus, syncedBefore, syncStatus, syncWords } from "./lyrics-sync";
 import { auth, authStatus, chromeUserAgent, provider, ScError, scSession, finishBrowserSignIn, friendFromArgs, registerLinks, startBrowserSignIn, stopBrowserSignIn, toErrorInfo, tokenFromArgs, waitingForBrowser } from "./soundcloud";
 import { flushAlternatives } from "./soundcloud/alternatives";
+import { m } from "./i18n";
 import { readImport, resolveItem } from "./import/sources";
 import * as rooms from "./rooms";
 import * as social from "./social";
@@ -322,7 +323,7 @@ function registerIpc() {
     const date = new Date().toISOString().slice(0, 10);
     const r = await dialog.showSaveDialog(...((main ? [main] : []) as [BrowserWindow]), {
       defaultPath: join(app.getPath("documents"), `sc player playlists ${date}.json`),
-      filters: [{ name: "sc player playlists", extensions: ["json"] }],
+      filters: [{ name: m().playlistsFile, extensions: ["json"] }],
     });
     if (r.canceled || !r.filePath) return null;
     await writeFile(r.filePath, text, "utf8");
@@ -330,7 +331,7 @@ function registerIpc() {
   });
   /** playlists from such a file, added next to these: how many, or null when none was picked */
   handle("data:importPlaylists", async () => {
-    const r = await dialog.showOpenDialog(...((main ? [main] : []) as [BrowserWindow]), { properties: ["openFile"], filters: [{ name: "sc player playlists", extensions: ["json"] }] });
+    const r = await dialog.showOpenDialog(...((main ? [main] : []) as [BrowserWindow]), { properties: ["openFile"], filters: [{ name: m().playlistsFile, extensions: ["json"] }] });
     const path = r.filePaths[0];
     if (r.canceled || !path) return null;
     const text = await readFile(path, "utf8");
@@ -461,6 +462,11 @@ function registerIpc() {
     const before = prefs();
     patchRenderer(Object.fromEntries(Object.entries(patch).filter(([k]) => known.includes(k))) as Partial<RendererState>);
     if ("prefs" in patch) applySystemPrefs(before);
+    // the tray menu and the taskbar buttons speak the new language at once
+    if (prefs().language !== before.language) {
+      updateTray(playerInfo);
+      updateThumbar(main, playerInfo, command, true);
+    }
   });
 
   handle("player:state", (_e, info) => {
@@ -507,7 +513,7 @@ function registerIpc() {
     const date = new Date().toISOString().slice(0, 10);
     const r = await dialog.showSaveDialog(...((main ? [main] : []) as [BrowserWindow]), {
       defaultPath: join(app.getPath("documents"), `sc player report ${date}.txt`),
-      filters: [{ name: "Text", extensions: ["txt"] }],
+      filters: [{ name: m().textFile, extensions: ["txt"] }],
     });
     if (r.canceled || !r.filePath) return false;
     await writeFile(r.filePath, text, "utf8");
@@ -578,11 +584,11 @@ async function signInFromBrowser(argv: string[]) {
   if (!waitingForBrowser()) {
     const ask: Electron.MessageBoxOptions = {
       type: "question",
-      buttons: ["Sign in", "Cancel"],
+      buttons: [m().signIn, m().cancel],
       defaultId: 0,
       cancelId: 1,
-      message: "Sign in with the SoundCloud account from your browser?",
-      detail: "A sign-in link came from your browser. Go on only if you just clicked the “sc player sign-in” bookmark.",
+      message: m().signInAsk,
+      detail: m().signInAskDetail,
     };
     const { response } = await (main ? dialog.showMessageBox(main, ask) : dialog.showMessageBox(ask));
     if (response !== 0) {

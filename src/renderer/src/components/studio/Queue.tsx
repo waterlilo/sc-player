@@ -2,7 +2,7 @@ import { Fragment, useState, type KeyboardEvent } from "react";
 import type { Playlist, QueueSource, Track } from "@shared/types";
 import { artwork } from "@shared/types";
 import { queryClient } from "@/api/queries";
-import { useT } from "@/i18n";
+import { useT, dateLocale } from "@/i18n";
 import { duration } from "@/lib/format";
 import { player, usePlayer } from "@/state/player";
 import { useRoom } from "@/state/room";
@@ -198,7 +198,7 @@ export default function StudioQueue() {
   // what plays now and what comes after it, as a playlist of your own
   const saveQueue = async () => {
     const { queue, index } = usePlayer.getState();
-    const date = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+    const date = new Date().toLocaleDateString(dateLocale(), { day: "numeric", month: "short" });
     try {
       const p = await createPlaylist(t.queuePlaylistTitle(date), queue.slice(index).map((x) => x.id).slice(0, 500));
       toast(t.savedQueue(p.title));

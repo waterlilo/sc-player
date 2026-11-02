@@ -1,3 +1,5 @@
+import { numberLocale } from "@/i18n";
+
 /** 3:07, 1:02:45 */
 export function duration(ms: number) {
   const total = Math.max(0, Math.round(ms / 1000));
@@ -15,5 +17,5 @@ export function shortVersion(semver: string) {
 
 export function compactNumber(n: number | null) {
   if (n === null) return "";
-  return new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(n);
+  return new Intl.NumberFormat(numberLocale(), { notation: "compact", maximumFractionDigits: 1 }).format(n);
 }

@@ -1,4 +1,4 @@
-import { en as t } from "@/i18n/en";
+import { tr as t } from "@/i18n";
 import { useNav } from "@/state/nav";
 import { player, usePlayer } from "@/state/player";
 import { useUi } from "@/state/ui";

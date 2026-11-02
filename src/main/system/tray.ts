@@ -1,6 +1,7 @@
 import { Menu, nativeImage, Tray, type BrowserWindow } from "electron";
 import type { PlayerCommand, PlayerInfo } from "@shared/ipc";
 import iconPath from "../../../resources/icon.png?asset";
+import { m } from "../i18n";
 import { log } from "./log";
 
 /**
@@ -29,14 +30,14 @@ function rebuild() {
   tray.setToolTip(cut(title, 120));
   tray.setContextMenu(
     Menu.buildFromTemplate([
-      { label: t ? cut(title, 60) : "Nothing playing", enabled: false },
+      { label: t ? cut(title, 60) : m().nothingPlaying, enabled: false },
       { type: "separator" },
-      { label: info.playing ? "Pause" : "Play", enabled: !!t, click: () => deps?.command("playPause") },
-      { label: "Next", enabled: !!t, click: () => deps?.command("next") },
-      { label: "Previous", enabled: !!t, click: () => deps?.command("previous") },
+      { label: info.playing ? m().pause : m().play, enabled: !!t, click: () => deps?.command("playPause") },
+      { label: m().next, enabled: !!t, click: () => deps?.command("next") },
+      { label: m().previous, enabled: !!t, click: () => deps?.command("previous") },
       { type: "separator" },
-      { label: "Show sc player", click: () => showWindow(deps?.window() ?? null) },
-      { label: "Quit", click: () => deps?.quit() },
+      { label: m().show, click: () => showWindow(deps?.window() ?? null) },
+      { label: m().quit, click: () => deps?.quit() },
     ]),
   );
 }

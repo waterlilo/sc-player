@@ -1,4 +1,5 @@
 import { artwork } from "@shared/types";
+import { dateLocale } from "@/i18n";
 
 /** A friend's round initial, its colour from the code (stable, quiet). */
 export function Avatar({ name, code, size = 32, live = false }: { name: string; code: string; size?: number; live?: boolean }) {
@@ -30,9 +31,9 @@ export function when(ms: number) {
   const ago = Date.now() - ms;
   if (ago < 60_000) return "now";
   if (ago < 3_600_000) return `${Math.floor(ago / 60_000)}m`;
-  if (new Date().toDateString() === d.toDateString()) return d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
-  if (ago < 6 * 86_400_000) return d.toLocaleDateString("en-GB", { weekday: "short" });
-  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  if (new Date().toDateString() === d.toDateString()) return d.toLocaleTimeString(dateLocale(), { hour: "2-digit", minute: "2-digit" });
+  if (ago < 6 * 86_400_000) return d.toLocaleDateString(dateLocale(), { weekday: "short" });
+  return d.toLocaleDateString(dateLocale(), { day: "numeric", month: "short" });
 }
 
 /** three little bars moving: a friend is listening right now */

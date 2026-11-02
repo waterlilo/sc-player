@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { correction, roomPosition, SETTLING_FAR } from "@shared/roomSync";
 import type { Room, RoomOp, RoomState, SocialTrack } from "@shared/social";
 import { isLocalTrack, type QueueSource, type Track } from "@shared/types";
-import { en as t } from "@/i18n/en";
+import { tr as t } from "@/i18n";
 import { call, on } from "@/lib/sky";
 import { canPlay, roomPlayer, usePlayer, type Remote } from "./player";
 import { useSettings } from "./settings";

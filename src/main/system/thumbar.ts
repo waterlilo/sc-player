@@ -1,6 +1,7 @@
 import { nativeImage, type BrowserWindow, type NativeImage } from "electron";
 import { readFileSync } from "node:fs";
 import type { PlayerCommand, PlayerInfo } from "@shared/ipc";
+import { lang, m } from "../i18n";
 import play1 from "../../../resources/thumb-play.png?asset";
 import play2 from "../../../resources/thumb-play@2x.png?asset";
 import pause1 from "../../../resources/thumb-pause.png?asset";
@@ -24,14 +25,14 @@ let last = "";
 
 export function updateThumbar(win: BrowserWindow | null, info: PlayerInfo, command: (c: PlayerCommand) => void, force = false) {
   if (!win || win.isDestroyed() || process.platform !== "win32") return;
-  const key = `${!!info.track}|${info.playing}`;
+  const key = `${!!info.track}|${info.playing}|${lang()}`;
   if (key === last && !force) return;
   last = key;
   icons ??= { play: image(play1, play2), pause: image(pause1, pause2), next: image(next1, next2), previous: image(prev1, prev2) };
   const off = info.track ? [] : (["disabled"] as const);
   win.setThumbarButtons([
-    { tooltip: "Previous", icon: icons.previous, flags: [...off], click: () => command("previous") },
-    { tooltip: info.playing ? "Pause" : "Play", icon: info.playing ? icons.pause : icons.play, flags: [...off], click: () => command("playPause") },
-    { tooltip: "Next", icon: icons.next, flags: [...off], click: () => command("next") },
+    { tooltip: m().previous, icon: icons.previous, flags: [...off], click: () => command("previous") },
+    { tooltip: info.playing ? m().pause : m().play, icon: info.playing ? icons.pause : icons.play, flags: [...off], click: () => command("playPause") },
+    { tooltip: m().next, icon: icons.next, flags: [...off], click: () => command("next") },
   ]);
 }

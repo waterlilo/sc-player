@@ -1,6 +1,7 @@
 import { net } from "electron";
 import type { ImportItem, ImportList, ImportService } from "@shared/types";
 import { chromeUserAgent, ScError } from "../soundcloud";
+import { m } from "../i18n";
 import { log } from "../system/log";
 import { parseInput, spotifyTitle, withVersion, type Source } from "./parse";
 
@@ -39,7 +40,6 @@ interface YAlbum {
   volumes?: YTrack[][];
 }
 
-const NOT_OPEN_YANDEX = "This Yandex Music playlist doesn't open. If it's private, copy its link with Share in Yandex Music, or make it public.";
 
 async function yandex<T>(path: string, body?: URLSearchParams): Promise<T> {
   let res: Response;
@@ -52,13 +52,13 @@ async function yandex<T>(path: string, body?: URLSearchParams): Promise<T> {
     });
   } catch (err) {
     log("main", `import: yandex ${path}: ${String(err)}`);
-    throw new ScError("offline", "Couldn't reach Yandex Music. Check the connection and try again.");
+    throw new ScError("offline", m().yandexOffline);
   }
   const data = (await res.json().catch(() => null)) as { result?: T; error?: { name?: string } } | null;
-  if (res.status === 404 || res.status === 403 || /not-found|no-rights/.test(data?.error?.name ?? "")) throw new ScError("not_found", NOT_OPEN_YANDEX);
+  if (res.status === 404 || res.status === 403 || /not-found|no-rights/.test(data?.error?.name ?? "")) throw new ScError("not_found", m().yandexClosed);
   if (!res.ok || !data?.result) {
     log("main", `import: yandex ${path}: ${res.status} ${data?.error?.name ?? ""}`);
-    throw new ScError("unavailable", `Yandex Music didn't answer (${res.status}). Try again in a minute.`);
+    throw new ScError("unavailable", m().yandexBusy(res.status));
   }
   return data.result;
 }
@@ -91,7 +91,7 @@ async function yandexAlbum(id: string): Promise<{ title: string | null; items: I
 async function yandexTrack(id: string): Promise<ImportItem> {
   const [t] = await yandex<YTrack[]>(`/tracks/${id}`);
   const item = t && fromYandex(t);
-  if (!item) throw new ScError("not_found", "This Yandex Music track doesn't open.");
+  if (!item) throw new ScError("not_found", m().yandexTrack);
   return item;
 }
 
@@ -106,7 +106,6 @@ interface SEntity {
   trackList?: { title?: string; subtitle?: string; duration?: number; entityType?: string }[];
 }
 
-const NOT_OPEN_SPOTIFY = "This Spotify link doesn't open. The playlist may be private or deleted: in Spotify, make it public, or copy its tracks (see below).";
 
 /** What Spotify's embedded player knows about a playlist, album or track (its page's data). */
 async function spotifyEmbed(type: "playlist" | "album" | "track", id: string): Promise<SEntity> {
@@ -115,10 +114,10 @@ async function spotifyEmbed(type: "playlist" | "album" | "track", id: string): P
     res = await net.fetch(`https://open.spotify.com/embed/${type}/${id}`, { headers: { "User-Agent": chromeUserAgent(), "Accept-Language": "en" }, signal: AbortSignal.timeout(TIMEOUT) });
   } catch (err) {
     log("main", `import: spotify ${type}: ${String(err)}`);
-    throw new ScError("offline", "Couldn't reach Spotify. Check the connection and try again.");
+    throw new ScError("offline", m().spotifyOffline);
   }
-  if (res.status === 404 || res.status === 400) throw new ScError("not_found", NOT_OPEN_SPOTIFY);
-  if (!res.ok) throw new ScError("unavailable", `Spotify didn't answer (${res.status}). Try again in a minute.`);
+  if (res.status === 404 || res.status === 400) throw new ScError("not_found", m().spotifyClosed);
+  if (!res.ok) throw new ScError("unavailable", m().spotifyBusy(res.status));
   const html = await res.text();
   const json = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/)?.[1];
   let entity: SEntity | undefined;
@@ -129,7 +128,7 @@ async function spotifyEmbed(type: "playlist" | "album" | "track", id: string): P
   }
   if (!entity) {
     log("main", `import: spotify ${type}: no data in the page`);
-    throw new ScError("not_found", NOT_OPEN_SPOTIFY);
+    throw new ScError("not_found", m().spotifyClosed);
   }
   return entity;
 }
@@ -146,7 +145,7 @@ async function spotifyList(type: "playlist" | "album", id: string): Promise<{ ti
 async function spotifyTrack(id: string): Promise<ImportItem> {
   const e = await spotifyEmbed("track", id);
   const title = e.name ?? e.title;
-  if (!title) throw new ScError("not_found", "This Spotify track doesn't open.");
+  if (!title) throw new ScError("not_found", m().spotifyTrack);
   return { title: spotifyTitle(title), artist: (e.artists ?? []).map((a) => a.name).filter(Boolean).join(", "), durationMs: e.duration || null };
 }
 
@@ -185,7 +184,7 @@ export async function readImport(text: string): Promise<ImportList> {
     }
     sources = out;
   }
-  if (!sources.length) throw new ScError("not_found", "Nothing to import here. Paste a link to a playlist or album, track links, or lines like “Artist — Title”.");
+  if (!sources.length) throw new ScError("not_found", m().importNothing);
 
   const list = sources.find(isList);
   if (list) {
@@ -197,7 +196,7 @@ export async function readImport(text: string): Promise<ImportList> {
           : list.kind === "yandexAlbum"
             ? { ...(await yandexAlbum(list.id)), service: "yandex" as const, partial: false }
             : { ...(await spotifyList(list.kind === "spotifyPlaylist" ? "playlist" : "album", list.id)), service: "spotify" as const };
-    if (!read.items.length) throw new ScError("not_found", "There are no tracks in this playlist.");
+    if (!read.items.length) throw new ScError("not_found", m().importEmpty);
     log("main", `import: read a ${read.service} ${list.kind}: ${read.items.length} tracks${read.partial ? " (the first part)" : ""}`);
     return { service: read.service, title: read.title, items: read.items.slice(0, MAX_ITEMS), partial: read.partial };
   }

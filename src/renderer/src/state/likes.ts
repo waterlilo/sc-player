@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import type { Track } from "@shared/types";
 import { queryClient } from "@/api/queries";
-import { en as t } from "@/i18n/en";
+import { tr as t } from "@/i18n";
 import { call, errorCode } from "@/lib/sky";
 import { askCheck } from "./check";
 import { useAuth } from "./auth";

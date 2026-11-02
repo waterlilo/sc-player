@@ -5,7 +5,7 @@ import PlaylistGrid from "@/components/playlists/PlaylistGrid";
 import Icon from "@/components/ui/Icon";
 import { Screen, ScreenTitle } from "@/components/ui/Screen";
 import { EmptyState, ErrorState, Loading } from "@/components/ui/States";
-import { useT } from "@/i18n";
+import { useT, numberLocale } from "@/i18n";
 import { useVisibleTracks } from "@/lib/hidden";
 import { call } from "@/lib/sky";
 import { useAuth } from "@/state/auth";
@@ -118,7 +118,7 @@ export function Following() {
                   {u.avatarUrl ? <img src={artwork(u.avatarUrl, "t300x300") ?? undefined} alt="" loading="lazy" className="h-full w-full object-cover" draggable={false} /> : <span className="stipple-night block h-full w-full" />}
                 </span>
                 <span className="mt-2 block truncate text-sm font-semibold text-text">{u.username}</span>
-                {u.followers !== null && <span className="block truncate text-xs text-muted">{t.followers(u.followers.toLocaleString("en-US"))}</span>}
+                {u.followers !== null && <span className="block truncate text-xs text-muted">{t.followers(u.followers.toLocaleString(numberLocale()))}</span>}
               </button>
             ))}
           </div>

@@ -1,4 +1,4 @@
-/** Every UI string, in one place. The app is English only. */
+/** Every UI string, in English. ru.ts has the same keys in Russian; i18n/index.ts picks one. */
 export const en = {
   appName: "sc player",
   // navigation
@@ -769,6 +769,11 @@ export const en = {
   importCopy: "Copy the rest",
   importCopyHint: "Copy the tracks without an upload as lines of “Artist — Title”",
   importCopied: "Copied",
+
+  // language
+  language: "Language",
+  languageHint: "“Same as the system” follows Windows.",
+  languageAuto: "Same as the system",
 };
 
 export type Dict = typeof en;

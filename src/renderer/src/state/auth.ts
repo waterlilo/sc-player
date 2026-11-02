@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { AuthStatus } from "@shared/ipc";
-import { en as t } from "@/i18n/en";
+import { tr as t } from "@/i18n";
 import { call, on } from "@/lib/sky";
 import { useUi } from "./ui";
 

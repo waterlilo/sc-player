@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { artwork } from "@shared/types";
-import { useT } from "@/i18n";
+import { useT, numberLocale } from "@/i18n";
 import { shortVersion } from "@/lib/format";
 import { unpin, unsaveProfile } from "@/lib/links";
 import { useSystem } from "@/lib/system";
@@ -21,7 +21,7 @@ function Nav({ section, route, icon, children, count, badge }: { section: Sectio
     <button type="button" onClick={() => open(section, route)} aria-current={on ? "page" : undefined} className={`s-nav ${on ? "on" : ""}`}>
       <Icon name={icon} size={17} />
       <span className="truncate">{children}</span>
-      {badge ? <span className="u">{badge > 99 ? "99+" : badge}</span> : count ? <span className="n">{count.toLocaleString("en-US")}</span> : null}
+      {badge ? <span className="u">{badge > 99 ? "99+" : badge}</span> : count ? <span className="n">{count.toLocaleString(numberLocale())}</span> : null}
     </button>
   );
 }
@@ -138,7 +138,7 @@ function Me() {
         aria-expanded={appearance === "side"}
         data-appearance-toggle
       >
-        <Icon name="settings" size={17} />
+        <Icon name="image" size={17} />
       </button>
     </div>
   );
@@ -211,7 +211,15 @@ export default function StudioSidebar() {
           {t.updateBanner(shortVersion(update.version))}
         </button>
       )}
-      <Me />
+      {/* Settings stands on its own line right above who you are, at the bottom */}
+      <div className="mt-auto pt-2">
+        <div className="mb-2">
+          <Nav section="settings" route={{ name: "settings" }} icon="settings">
+            {t.settings}
+          </Nav>
+        </div>
+        <Me />
+      </div>
     </nav>
   );
 }

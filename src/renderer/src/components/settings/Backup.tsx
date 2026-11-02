@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 import type { RestoreResult } from "@shared/types";
-import { useT } from "@/i18n";
+import { useT, dateLocale } from "@/i18n";
 import { call } from "@/lib/sky";
 import { ask } from "@/state/dialog";
 import { refreshSocial } from "@/state/social";
@@ -60,7 +60,7 @@ export default function Backup() {
   return (
     <Section title={t.backup}>
       <p className="px-3 pb-1 text-sm text-muted">{t.backupHint}</p>
-      <Row label={t.backupKey} hint={s.key ? (s.at ? t.backupAt(new Date(s.at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })) : t.backupKeyHint) : t.backupNone}>
+      <Row label={t.backupKey} hint={s.key ? (s.at ? t.backupAt(new Date(s.at).toLocaleTimeString(dateLocale(), { hour: "2-digit", minute: "2-digit" })) : t.backupKeyHint) : t.backupNone}>
         {s.key && (
           <>
             <span className="select-all font-type text-sm tracking-wider text-text">{shown ? s.key : "••••-••••-••••-••••"}</span>
