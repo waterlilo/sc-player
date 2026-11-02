@@ -79,26 +79,44 @@ The goal of this project is to port `sc-player` to macOS, providing a first-clas
 - On Windows:
   - Retain current layout and `WindowButtons`.
 
-### 4.3 macOS Lifecycle & Dock Integration (`src/main/index.ts`)
-- Add standard Electron `app.on("activate")`:
-  ```ts
-  app.on("activate", () => {
-    if (mainWindow) {
-      if (mainWindow.isMinimized()) mainWindow.restore();
-      mainWindow.show();
-      mainWindow.focus();
-    }
-  });
-  ```
-- Set up minimal native application menu on macOS so standard keyboard shortcuts (Cmd+C, Cmd+V, Cmd+A, Cmd+Q, Cmd+M) work out of the box in inputs and devtools.
+### 4.3 macOS Lifecycle, Dock & Window Close Integration (`src/main/index.ts`, `src/main/windows/main-window.ts`)
+- **macOS Window Close & Audio Playback (Builder Call):**
+  - Following macOS Human Interface Guidelines and music app conventions (Spotify, Apple Music): closing the window (via Cmd+W or the red traffic light) on macOS always hides the window (`win.hide()`) rather than destroying it, ensuring audio playback in the renderer continues uninterrupted.
+  - In `src/main/index.ts`, adapt `window-all-closed`:
+    ```ts
+    app.on("window-all-closed", () => {
+      if (process.platform !== "darwin") app.quit();
+    });
+    ```
+  - Handle `app.on("activate")`:
+    ```ts
+    app.on("activate", () => {
+      if (mainWindow) {
+        if (mainWindow.isMinimized()) mainWindow.restore();
+        mainWindow.show();
+        mainWindow.focus();
+      }
+    });
+    ```
+  - The app only terminates on macOS when explicitly quitting (Cmd+Q, tray menu "Quit", or Dock "Quit").
 
-### 4.4 Steam Wallpaper Integration (`src/main/system/steam-wallpaper.ts`)
+### 4.4 Updater Strategy for Unsigned macOS (Builder Call) (`src/main/system/updater.ts`)
+- On macOS, `electron-updater` relies on `Squirrel.Mac`, which strictly enforces valid code signatures and fails on unsigned or ad-hoc signed `.app` packages.
+- For macOS, adopt the existing portable Windows approach:
+  - Check GitHub releases via API / feed for new versions.
+  - Do not trigger silent background Squirrel downloads. Instead, present an update notification with a link directing the user to the GitHub release page to download the latest DMG.
+  - Avoid Squirrel signature validation errors.
+
+### 4.5 Steam Wallpaper Integration (`src/main/system/steam-wallpaper.ts`)
 - On macOS, Steam stores library files in `~/Library/Application Support/Steam`.
 - Check if `process.platform === 'darwin'`:
   - Main Steam folder: `join(app.getPath("home"), "Library/Application Support/Steam")`.
   - Parse `libraryfolders.vdf` from that path if present.
 
-### 4.5 Packaging & Build System (`package.json`, `scripts/dist.mjs`)
+### 4.6 Packaging & Build System (`package.json`, `scripts/dist.mjs`)
+- **Architecture Strategy (Builder Call):**
+  - Local builds (`scripts/dist.mjs`) target the host architecture (`process.arch` -> `arm64` on Apple Silicon, `x64` on Intel) by default. This avoids failures where `npm install` on an Apple Silicon Mac only pulls `darwin-arm64` binaries for `onnxruntime-node`.
+  - Add support for an explicit `--arch` argument (e.g. `node scripts/dist.mjs --arch=universal` or `x64`) for CI environments.
 - **`package.json`:**
   - In `files`: allow darwin binaries for onnxruntime-node:
     ```json
@@ -111,8 +129,8 @@ The goal of this project is to port `sc-player` to macOS, providing a first-clas
     "mac": {
       "icon": "build/icon.png",
       "target": [
-        { "target": "dmg", "arch": ["arm64", "x64"] },
-        { "target": "zip", "arch": ["arm64", "x64"] }
+        { "target": "dmg" },
+        { "target": "zip" }
       ],
       "category": "public.app-category.music",
       "hardenedRuntime": false,
@@ -128,9 +146,9 @@ The goal of this project is to port `sc-player` to macOS, providing a first-clas
     ```
 - **`scripts/dist.mjs`:**
   - Check `process.platform`:
-    - If `darwin`: invoke `electron-builder` with `--mac dmg zip`.
+    - If `darwin`: invoke `electron-builder` with `--mac dmg zip` for the current host architecture (`--${process.arch}`).
     - If `win32`: invoke `electron-builder` with `--win nsis portable`.
-    - Allow CLI flags (e.g., `--all`, `--mac`, `--win`) to override.
+    - Allow CLI flags to override.
 
 ---
 
