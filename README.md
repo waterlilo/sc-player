@@ -4,7 +4,7 @@
 
 # sc player
 
-**A SoundCloud player for Windows — no ads, lyrics word by word, and friends to listen with.**
+**A SoundCloud player for Windows & macOS — no ads, lyrics word by word, and friends to listen with.**
 
 [Download](../../releases/latest) •
 [Features](#features) •
@@ -14,6 +14,7 @@
 [![Latest release](https://img.shields.io/github/v/release/waterlilo/sc-player?style=flat-square&label=release&labelColor=111114&color=3a3a41)](../../releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/waterlilo/sc-player/total?style=flat-square&labelColor=111114&color=3a3a41)](../../releases)
 ![Windows](https://img.shields.io/badge/Windows-10%20%2F%2011-3a3a41?style=flat-square&labelColor=111114)
+![macOS](https://img.shields.io/badge/macOS-Apple%20Silicon%20%2F%20Intel-3a3a41?style=flat-square&labelColor=111114)
 
 <br/>
 
@@ -89,21 +90,32 @@
   another upload of the same recording, checked by its sound (marked `ALT`).
 - Seek on the waveform, a queue you can drag, crossfade, a 10-band equalizer, output device, sleep timer.
 
-**Windows**
-- Media keys, the system media overlay, ⏮ ⏯ ⏭ under the taskbar preview, tray, global hotkeys, notifications.
-- Updates itself. Nothing moves while the window is hidden — only the sound keeps going.
+**System & Desktop**
+- Media keys, system media overlay, tray / menu bar icon, global hotkeys, notifications.
+- **Windows:** Window Controls Overlay, ⏮ ⏯ ⏭ under the taskbar preview.
+- **macOS:** Native traffic light window controls, hide-on-close (audio continues in background, restore via Dock icon).
+- Updates itself (on Windows) or notifies with a release download link (macOS / portable). Nothing moves while the window is hidden — only the sound keeps going.
 
 ---
 
 ## Install
 
-1. Download one file from the [latest release](../../releases/latest):
-   - `sc-player-setup-v….exe` — the installer (shortcuts on the desktop and in the Start menu);
-   - `sc-player-portable-v….exe` — runs without installing.
+### Windows
+1. Download `sc-player-setup-v….exe` (installer) or `sc-player-portable-v….exe` from the [latest release](../../releases/latest).
 2. The app isn't code-signed, so Windows may say "Windows protected your PC": click **More info → Run anyway**.
-3. Click **Sign in to SoundCloud** to see your likes and playlists. If the sign-in window says "access temporarily
-   restricted" or "something unexpected happened", use **Sign in with your browser** instead. Without signing in you can
-   still search, listen, make playlists and open any public profile.
+
+### macOS
+1. Download `sc-player-v…-arm64.dmg` (Apple Silicon) or `sc-player-v…-x64.dmg` (Intel) from the [latest release](../../releases/latest).
+2. Open the `.dmg` and drag **sc player** into your **Applications** folder.
+3. The app is self-built without a paid Apple Developer certificate. If macOS blocks launching ("app is damaged or can't be opened"):
+   - Right-click `sc player.app` in Finder and click **Open**, or
+   - In Terminal, run:
+     ```bash
+     xattr -cr "/Applications/sc player.app"
+     ```
+
+### Sign In
+Click **Sign in to SoundCloud** to see your likes and playlists. If the sign-in window says "access temporarily restricted" or "something unexpected happened", use **Sign in with your browser** instead. Without signing in you can still search, listen, make playlists and open any public profile.
 
 New versions install over the old one; your sign-in, settings and playlists stay.
 
