@@ -617,10 +617,25 @@ function friendLink(argv: string[]) {
   if (code) send(main, "social:friendLink", code);
 }
 
+let pendingUrls: string[] = [];
+
+function handleIncomingUrls(urls: string[]) {
+  if (main && !main.webContents.isLoading()) {
+    showWindow(main);
+    void signInFromBrowser(urls);
+    friendLink(urls);
+  } else {
+    pendingUrls.push(...urls);
+  }
+}
+
 app.on("second-instance", (_e, argv) => {
-  showWindow(main);
-  void signInFromBrowser(argv);
-  friendLink(argv);
+  handleIncomingUrls(argv);
+});
+
+app.on("open-url", (event, url) => {
+  event.preventDefault();
+  handleIncomingUrls([url]);
 });
 
 app.on("window-all-closed", () => {
@@ -728,8 +743,10 @@ void app.whenReady().then(async () => {
   main.on("closed", () => (main = null));
   // started by the browser sign-in's link (the app wasn't running)
   main.webContents.once("did-finish-load", () => {
-    void signInFromBrowser(process.argv);
-    friendLink(process.argv);
+    const startupArgs = [...process.argv, ...pendingUrls];
+    pendingUrls = [];
+    void signInFromBrowser(startupArgs);
+    friendLink(startupArgs);
   });
   // links open the installed app (in development they would point at this checkout)
   if (app.isPackaged) registerLinks();

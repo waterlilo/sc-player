@@ -57,6 +57,14 @@
     "appId": "com.skythemontage.scplayer",
     "productName": "sc player",
     "copyright": "sky (@skythemontage)",
+    "protocols": [
+      {
+        "name": "sc-player",
+        "schemes": [
+          "scplayer"
+        ]
+      }
+    ],
     "directories": {
       "output": "dist",
       "buildResources": "build"

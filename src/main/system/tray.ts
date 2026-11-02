@@ -1,4 +1,4 @@
-import { Menu, nativeImage, Tray, type BrowserWindow } from "electron";
+import { app, Menu, nativeImage, Tray, type BrowserWindow } from "electron";
 import type { PlayerCommand, PlayerInfo } from "@shared/ipc";
 import iconPath from "../../../resources/icon.png?asset";
 import { m } from "../i18n";
@@ -19,6 +19,7 @@ export function showWindow(win: BrowserWindow | null) {
   if (win.isMinimized()) win.restore();
   win.show();
   win.focus();
+  if (process.platform === "darwin") app.focus({ steal: true });
 }
 
 const cut = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
