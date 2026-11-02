@@ -60,12 +60,18 @@ const command = (c: PlayerCommand) => send(main, "player:command", c);
   }
 }
 
+function devProfile(): string | undefined {
+  return process.env.SKY_PROFILE || process.argv.find((a) => a.startsWith("--sky-profile="))?.slice("--sky-profile=".length) || undefined;
+}
+
 /** SKY_DEMO=1 in development: made-up data instead of SoundCloud (src/main/demo.ts). */
 const DEMO = !app.isPackaged && process.env.SKY_DEMO === "1";
 // the demo keeps its own settings, history and sign-in, apart from the real ones
 if (DEMO) app.setPath("userData", join(app.getPath("appData"), "sc player demo"));
-// SKY_PROFILE=<name> in development: real SoundCloud with a data folder of its own (signed out, fresh settings)
-else if (!app.isPackaged && process.env.SKY_PROFILE) app.setPath("userData", join(app.getPath("appData"), `sc player ${process.env.SKY_PROFILE.replace(/[^\w-]/g, "")}`));
+// SKY_PROFILE=<name> in development: real SoundCloud with a data folder of its own (signed out, fresh settings); a
+// scplayer:// link started by Windows carries it as --sky-profile=<name> (no environment then), so it reaches this
+// instance and not the main profile
+else if (!app.isPackaged && devProfile()) app.setPath("userData", join(app.getPath("appData"), `sc player ${devProfile()!.replace(/[^\w-]/g, "")}`));
 // music from this computer is answered by local-tracks, everything else by SoundCloud
 // and likes are kept on this computer (Settings → Playback), SoundCloud's shown with them
 const data: MusicProvider = withLocalLikes(withLocalTracks(DEMO ? new DemoProvider() : provider), () => prefs().localLikes);

@@ -21,9 +21,12 @@ const WAIT_MS = 15 * 60_000;
 let waitingUntil = 0;
 
 const handlerArgs = (): [string, string[]] =>
-  // in development the app runs as "electron <project folder>"; a portable build is the outer .exe, not the
-  // unpacked copy in the temp folder that is gone after it quits
-  process.defaultApp ? [process.execPath, [app.getAppPath()]] : [process.env.PORTABLE_EXECUTABLE_FILE ?? process.execPath, []];
+  // in development the app runs as "electron <project folder>" (a test profile goes along: Windows starts the link
+  // without SKY_PROFILE); a portable build is the outer .exe, not the unpacked copy in the temp folder that is gone
+  // after it quits
+  process.defaultApp
+    ? [process.execPath, [app.getAppPath(), ...(process.env.SKY_PROFILE ? [`--sky-profile=${process.env.SKY_PROFILE.replace(/[^\w-]/g, "")}`] : [])]]
+    : [process.env.PORTABLE_EXECUTABLE_FILE ?? process.execPath, []];
 
 export function waitingForBrowser() {
   return Date.now() < waitingUntil;
