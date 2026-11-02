@@ -47,7 +47,11 @@ export function createTray(d: NonNullable<typeof deps>) {
   const icon = appIcon();
   // the picture ships in app.asar/resources (package.json build.files); an empty one means it was left out
   if (icon.isEmpty()) log("main", `tray: icon missing at ${iconPath}`);
-  tray = new Tray(icon.resize({ width: 16, height: 16 }));
+  const trayImage = icon.resize({ width: 16, height: 16 });
+  if (process.platform === "darwin") {
+    trayImage.setTemplateImage(true);
+  }
+  tray = new Tray(trayImage);
   tray.on("click", () => {
     const win = d.window();
     if (!win) return;
