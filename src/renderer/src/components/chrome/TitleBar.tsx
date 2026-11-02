@@ -12,11 +12,12 @@ import Icon, { type IconName } from "../ui/Icon";
  * the overlay the drawings are the buttons themselves.
  */
 export function WindowButtons() {
-  if (isMac()) return null;
   const t = useT();
   const [maximized, setMaximized] = useState(false);
   const overlay = !!(navigator as Navigator & { windowControlsOverlay?: { visible: boolean } }).windowControlsOverlay?.visible;
   useEffect(() => on("win:maximized", setMaximized), []);
+
+  if (isMac()) return null;
 
   const buttons: { icon: IconName; label: string; action: () => void; danger?: boolean }[] = [
     { icon: "minimize", label: t.minimize, action: () => void call("win:minimize") },
