@@ -245,13 +245,15 @@ export interface ImportItem {
   title: string;
   /** all credited artists, "A, B" */
   artist: string;
+  /** the artists as another language names them ("Coolio" for "Кулио"), looked for when `artist` finds nothing */
+  artistAlt?: string;
   /** null when not known (a line of text) */
   durationMs: number | null;
-  /** a track link still to be read ("spotify:<id>", "yandex:<id>"): title and artist are empty until then */
+  /** a track link still to be read ("spotify:<id>", "yandex:<id>", "youtube:<id>"): title and artist are empty until then */
   ref?: string;
 }
 
-export type ImportService = "yandex" | "spotify" | "text";
+export type ImportService = "yandex" | "spotify" | "youtube" | "text";
 
 /** What was read from a pasted link (or links, or lines of text). */
 export interface ImportList {

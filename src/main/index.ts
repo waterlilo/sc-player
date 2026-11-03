@@ -123,7 +123,8 @@ function importItem(v: unknown): ImportItem {
   const i = (typeof v === "object" && v !== null ? v : bad("item")) as Record<string, unknown>;
   const durationMs = i.durationMs === null ? null : typeof i.durationMs === "number" && Number.isFinite(i.durationMs) && i.durationMs >= 0 ? i.durationMs : bad("durationMs");
   const ref = i.ref === undefined ? undefined : str(i.ref, "ref").slice(0, 64);
-  return { title: str(i.title, "title").slice(0, 300), artist: str(i.artist, "artist").slice(0, 300), durationMs, ...(ref ? { ref } : {}) };
+  const artistAlt = i.artistAlt === undefined ? undefined : str(i.artistAlt, "artist").slice(0, 300);
+  return { title: str(i.title, "title").slice(0, 300), artist: str(i.artist, "artist").slice(0, 300), durationMs, ...(ref ? { ref } : {}), ...(artistAlt ? { artistAlt } : {}) };
 }
 function syncRequest(v: unknown): SyncRequest {
   const q = (typeof v === "object" && v !== null ? v : bad("request")) as Record<string, unknown>;
@@ -379,6 +380,11 @@ function registerIpc() {
     const item = await resolveItem(importItem(raw));
     const find = (title: string, artist: string) => provider.findImported({ title, artist, uploader: artist, durationMs: item.durationMs ?? 0 }, item.durationMs !== null);
     const r = await find(item.title, item.artist);
+    // the artist as another language names them ("Кулио" found nothing: "Coolio")
+    if (!r.found && item.artistAlt) {
+      const other = await find(item.title, item.artistAlt);
+      if (other.found) return { item: { ...item, artist: item.artistAlt }, ...other };
+    }
     // a line of text may have the title first: "Dreams — Fleetwood Mac"
     if (!r.found && item.durationMs === null && item.artist && !item.ref) {
       const swapped = await find(item.artist, item.title);

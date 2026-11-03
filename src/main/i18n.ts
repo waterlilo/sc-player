@@ -36,6 +36,11 @@ const en = {
   spotifyClosed: "This Spotify link doesn't open. The playlist may be private or deleted: in Spotify, make it public, or copy its tracks (see below).",
   spotifyBusy: (status: number) => `Spotify didn't answer (${status}). Try again in a minute.`,
   spotifyTrack: "This Spotify track doesn't open.",
+  youtubeOffline: "Couldn't reach YouTube Music. Check the connection and try again.",
+  youtubeClosed: "This YouTube playlist doesn't open. It may be private or deleted: in YouTube Music, set it to Public or Unlisted and copy its link again.",
+  youtubeLikes: "“Liked music” opens only to you, signed in to YouTube. Add its songs to a playlist of your own (Public or Unlisted) and paste that playlist's link.",
+  youtubeBusy: (status: number) => `YouTube Music didn't answer (${status}). Try again in a minute.`,
+  youtubeTrack: "This YouTube video doesn't open.",
   importNothing: "Nothing to import here. Paste a link to a playlist or album, track links, or lines like “Artist — Title”.",
   importEmpty: "There are no tracks in this playlist.",
 };
@@ -62,6 +67,11 @@ const ru: typeof en = {
   spotifyClosed: "Эта ссылка Spotify не открывается. Возможно, плейлист закрытый или удалён: сделайте его открытым в Spotify или скопируйте его треки (см. ниже).",
   spotifyBusy: (status: number) => `Spotify не ответил (${status}). Попробуйте через минуту.`,
   spotifyTrack: "Этот трек Spotify не открывается.",
+  youtubeOffline: "Не удалось связаться с YouTube Music. Проверьте подключение и попробуйте ещё раз.",
+  youtubeClosed: "Этот плейлист YouTube не открывается. Возможно, он закрытый или удалён: в YouTube Music сделайте его открытым или доступным по ссылке и скопируйте ссылку ещё раз.",
+  youtubeLikes: "«Понравившиеся» видны только вам — со входом в YouTube. Добавьте эти треки в свой плейлист (открытый или доступный по ссылке) и вставьте ссылку на него.",
+  youtubeBusy: (status: number) => `YouTube Music не ответил (${status}). Попробуйте через минуту.`,
+  youtubeTrack: "Это видео YouTube не открывается.",
   importNothing: "Здесь нечего импортировать. Вставьте ссылку на плейлист или альбом, ссылки на треки или строки вида «Исполнитель — Название».",
   importEmpty: "В этом плейлисте нет треков.",
 };

@@ -152,7 +152,7 @@ export async function saveImport(name: string): Promise<Playlist> {
 /** A track link not read yet, as the link it came from. */
 export function refLink(ref: string | undefined): string {
   const [service, id] = (ref ?? "").split(":");
-  return service === "spotify" ? `https://open.spotify.com/track/${id}` : service === "yandex" ? `https://music.yandex.ru/track/${id}` : "";
+  return service === "spotify" ? `https://open.spotify.com/track/${id}` : service === "yandex" ? `https://music.yandex.ru/track/${id}` : service === "youtube" ? `https://music.youtube.com/watch?v=${id}` : "";
 }
 
 /** The tracks left without an upload, as lines of "Artist — Title" (to look for elsewhere). */
