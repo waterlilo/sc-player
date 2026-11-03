@@ -323,6 +323,11 @@ export interface InvokeMap {
   "data:addToPlaylist": (playlistId: string, trackId: number) => void;
   /** a playlist of your own, kept on this computer (an id starting with "local-") */
   "data:createPlaylist": (title: string, trackIds: number[]) => Playlist;
+  /**
+   * a SoundCloud playlist copied to this computer (parts of 500 when longer); copied before: those copies again,
+   * with existed true
+   */
+  "data:copyPlaylist": (playlistId: string) => { made: Playlist[]; existed: boolean };
   /** an own playlist's whole track list in this order (reordered, or with tracks taken out) */
   "data:setPlaylistTracks": (playlistId: string, trackIds: number[]) => void;
   "data:renamePlaylist": (playlistId: string, title: string) => void;
@@ -574,6 +579,7 @@ export const INVOKE_CHANNELS = [
   "data:myPlaylists",
   "data:addToPlaylist",
   "data:createPlaylist",
+  "data:copyPlaylist",
   "data:setPlaylistTracks",
   "data:renamePlaylist",
   "data:deletePlaylist",

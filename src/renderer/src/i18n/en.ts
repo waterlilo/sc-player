@@ -175,6 +175,13 @@ export const en = {
   newPlaylist: "New playlist",
   copyToMine: "Copy to my playlists",
   copiedPlaylist: (title: string) => `“${title}” is in your playlists now — change it as you like`,
+  copiedParts: (parts: number) => `Longer than 500 tracks: copied as ${parts} playlists, in order`,
+  copiedBefore: "You copied it before — here is your copy",
+  moveFromSoundCloud: "Copy from SoundCloud",
+  moveFromSoundCloudHint: "Your SoundCloud playlists and albums as playlists on this computer, to change here from now on (the ones copied before are kept as they are)",
+  movingPlaylists: (done: number, all: number) => (all ? `Copying ${done} of ${all}…` : "Looking at your playlists…"),
+  movedPlaylists: (copied: number, before: number, failed: number) =>
+    [copied === 0 ? "Nothing new to copy" : copied === 1 ? "1 playlist copied" : `${copied} playlists copied`, before ? `${before} copied before` : "", failed ? `${failed} failed — try again` : ""].filter(Boolean).join(", "),
   exportPlaylists: "Export",
   exportPlaylistsHint: "Save your playlists to a file: a backup, or to take them to another computer",
   exportedPlaylists: (n: number) => (n === 1 ? "1 playlist saved to the file" : `${n} playlists saved to the file`),

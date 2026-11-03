@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import type { Playlist } from "@shared/types";
+import type { Page, Playlist } from "@shared/types";
 import { queryClient, usePlaylists } from "@/api/queries";
 import { useSettings } from "@/state/settings";
 import { call } from "./sky";
@@ -80,10 +80,41 @@ export async function renamePlaylist(id: string, title: string) {
   refresh(id);
 }
 
-/** Someone else's playlist (or SoundCloud's own) as one of yours, to change: its tracks, up to 500. */
-export async function copyPlaylist(p: Playlist): Promise<Playlist> {
-  const ids = await call("data:sourceIds", { kind: "playlist", playlistId: p.id, cursor: null });
-  return createPlaylist(p.title, ids.slice(0, 500));
+/**
+ * A SoundCloud playlist (yours, someone else's or SoundCloud's own) as one of yours on this computer, to change: in
+ * parts of 500 when longer. Copied before: the copy made then, with existed true.
+ */
+export async function copyPlaylist(p: Playlist): Promise<{ made: Playlist[]; existed: boolean }> {
+  const res = await call("data:copyPlaylist", p.id);
+  if (!res.existed) refresh();
+  return res;
+}
+
+/**
+ * All of your SoundCloud playlists and albums copied to this computer, one after another (the ones copied before are
+ * left as they are). `progress` gets how many are done of how many.
+ */
+export async function copyMine(progress: (done: number, all: number) => void): Promise<{ copied: number; existed: number; failed: number }> {
+  const mine: Playlist[] = [];
+  let cursor: string | null = null;
+  do {
+    const page: Page<Playlist> = await call("data:playlists", cursor);
+    mine.push(...page.items.filter((p) => p.relation === "own" && !isLocal(p.id)));
+    cursor = page.next;
+  } while (cursor);
+  const out = { copied: 0, existed: 0, failed: 0 };
+  progress(0, mine.length);
+  for (const [i, p] of mine.entries()) {
+    try {
+      const res = await call("data:copyPlaylist", p.id);
+      out[res.existed ? "existed" : "copied"]++;
+    } catch {
+      out.failed++;
+    }
+    progress(i + 1, mine.length);
+  }
+  refresh();
+  return out;
 }
 
 export async function exportPlaylists() {

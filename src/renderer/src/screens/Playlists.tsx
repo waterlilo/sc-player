@@ -10,7 +10,7 @@ import { Screen, ScreenTitle } from "@/components/ui/Screen";
 import { EmptyState, ErrorState, Loading } from "@/components/ui/States";
 import { useT } from "@/i18n";
 import { useAuth } from "@/state/auth";
-import { exportPlaylists, importPlaylists } from "@/lib/playlists";
+import { copyMine, exportPlaylists, importPlaylists } from "@/lib/playlists";
 import { useImport } from "@/state/import";
 import { useNav } from "@/state/nav";
 import { useUi } from "@/state/ui";
@@ -64,6 +64,19 @@ export default function Playlists() {
       toast(t.playlistFailed);
     }
   };
+  // signed in: SoundCloud's own playlists copied here in one go, to keep changing on this computer
+  const [moving, setMoving] = useState<{ done: number; all: number } | null>(null);
+  const moveMine = async () => {
+    setMoving({ done: 0, all: 0 });
+    try {
+      const r = await copyMine((done, all) => setMoving({ done, all }));
+      toast(t.movedPlaylists(r.copied, r.existed, r.failed));
+    } catch {
+      toast(t.playlistFailed);
+    } finally {
+      setMoving(null);
+    }
+  };
   const restore = async () => {
     try {
       const n = await importPlaylists();
@@ -78,6 +91,11 @@ export default function Playlists() {
       <div className="mb-2 flex flex-wrap items-center gap-3">
         <ScreenTitle>{t.playlists.toLowerCase()}</ScreenTitle>
         <div className="ml-auto flex items-center gap-2">
+          {status.mode === "session" && status.user && (
+            <PaperButton title={t.moveFromSoundCloudHint} disabled={!!moving} onClick={() => void moveMine()}>
+              {moving ? t.movingPlaylists(moving.done, moving.all) : t.moveFromSoundCloud}
+            </PaperButton>
+          )}
           <PaperButton title={t.exportPlaylistsHint} onClick={() => void backup()}>
             {t.exportPlaylists}
           </PaperButton>

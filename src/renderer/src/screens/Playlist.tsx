@@ -56,9 +56,11 @@ export default function Playlist({ id }: { id: string }) {
     if (!p) return;
     setBusy(true);
     try {
-      const made = await copyPlaylist(p);
-      toast(t.copiedPlaylist(made.title));
-      go({ name: "playlist", id: made.id });
+      const { made, existed } = await copyPlaylist(p);
+      const first = made[0];
+      if (!first) throw new Error("nothing copied");
+      toast(existed ? t.copiedBefore : made.length > 1 ? t.copiedParts(made.length) : t.copiedPlaylist(first.title));
+      go({ name: "playlist", id: first.id });
     } catch {
       toast(t.playlistFailed);
     } finally {

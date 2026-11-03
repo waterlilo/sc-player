@@ -191,6 +191,19 @@ export const ru: Dict = {
   newPlaylist: "Новый плейлист",
   copyToMine: "Скопировать к себе",
   copiedPlaylist: (title: string) => `«${title}» теперь в ваших плейлистах — меняйте как хотите`,
+  copiedParts: (parts: number) => `Больше 500 треков: скопирован как ${n(parts, "плейлист", "плейлиста", "плейлистов")} по порядку`,
+  copiedBefore: "Вы уже копировали его — вот ваша копия",
+  moveFromSoundCloud: "Перенести из SoundCloud",
+  moveFromSoundCloudHint: "Ваши плейлисты и альбомы из SoundCloud станут плейлистами на этом компьютере, их можно менять здесь (перенесённые раньше останутся как есть)",
+  movingPlaylists: (done: number, all: number) => (all ? `Переношу ${done} из ${all}…` : "Смотрю ваши плейлисты…"),
+  movedPlaylists: (copied: number, before: number, failed: number) =>
+    [
+      copied === 0 ? "Нового для переноса нет" : `${plural(copied, "Перенесён", "Перенесено", "Перенесено")} ${n(copied, "плейлист", "плейлиста", "плейлистов")}`,
+      before ? `${before} уже ${plural(before, "был перенесён", "были перенесены", "были перенесены")} раньше` : "",
+      failed ? `${failed} не ${plural(failed, "получился", "получилось", "получилось")} — попробуйте ещё раз` : "",
+    ]
+      .filter(Boolean)
+      .join(", "),
   exportPlaylists: "Экспорт",
   exportPlaylistsHint: "Сохранить плейлисты в файл: резервная копия или перенос на другой компьютер",
   exportedPlaylists: (k: number) => `В файл ${plural(k, "сохранён", "сохранено", "сохранено")} ${n(k, "плейлист", "плейлиста", "плейлистов")}`,

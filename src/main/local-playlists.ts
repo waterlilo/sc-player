@@ -21,6 +21,8 @@ interface LocalList {
   title: string;
   items: Item[];
   created: number;
+  /** the SoundCloud playlist it was copied from, so a second copy opens this one instead */
+  from?: string;
 }
 
 export const LOCAL_PREFIX = "local-";
@@ -78,6 +80,33 @@ export function createLocal(title: string, tracks: Track[]): Playlist {
   return toPlaylist(l);
 }
 
+/** The copies of a SoundCloud playlist made here (several parts when it was longer than a playlist holds). */
+export const copiesOf = (from: string): Playlist[] =>
+  lists()
+    .filter((l) => l.from === from)
+    .sort((a, b) => b.created - a.created)
+    .map(toPlaylist);
+
+/**
+ * A SoundCloud playlist (yours or anyone's) as playlists of your own on this computer, to change from now on. Longer
+ * than a playlist holds: parts "Title (1/2)", "Title (2/2)" in order.
+ */
+export function copyLocal(from: string, title: string, tracks: Track[]): Playlist[] {
+  const all = dedupe(tracks).map(item);
+  const parts = Math.max(1, Math.ceil(all.length / MAX_TRACKS));
+  const now = Date.now();
+  const made: LocalList[] = Array.from({ length: parts }, (_, i) => ({
+    id: LOCAL_PREFIX + randomBytes(8).toString("hex"),
+    title: parts > 1 ? `${title.slice(0, 92)} (${i + 1}/${parts})` : title,
+    items: all.slice(i * MAX_TRACKS, (i + 1) * MAX_TRACKS),
+    // the first part the newest: lists show the newest first, so the parts read in order
+    created: now + parts - i,
+    from,
+  }));
+  save([...lists(), ...made]);
+  return made.map(toPlaylist);
+}
+
 /** The list in a new order, or with tracks taken out: `ids` are the ones left, in order (others are ignored). */
 export function setLocalTracks(id: string, ids: number[]) {
   const l = find(id);
@@ -107,7 +136,7 @@ export const flushLocalPlaylists = () => file?.flush();
 
 /** All playlists on this computer as a file's text (a backup, or to take to another PC). */
 export function exportLocal(): { text: string; count: number } {
-  const all = lists().map(({ title, items, created }) => ({ title, created, items }));
+  const all = lists().map(({ title, items, created, from }) => ({ title, created, from, items }));
   return { text: JSON.stringify({ app: "sc player", kind: "playlists", version: 1, playlists: all }, null, 1), count: all.length };
 }
 
@@ -134,7 +163,8 @@ export function importLocal(text: string): number {
       .map((i) => ({ id: i.id, durationMs: Number.isFinite(i.durationMs) ? Math.max(0, i.durationMs) : 0, artworkUrl: typeof i.artworkUrl === "string" && /^https:\/\/[\w.-]+\.sndcdn\.com\//.test(i.artworkUrl) ? i.artworkUrl : null }));
     if (!title || have.has(key(title, items))) continue;
     have.add(key(title, items));
-    added.push({ id: LOCAL_PREFIX + randomBytes(8).toString("hex"), title, items, created: typeof raw.created === "number" ? raw.created : Date.now() });
+    const from = typeof raw.from === "string" && /^[\w:-]{1,80}$/.test(raw.from) ? raw.from : undefined;
+    added.push({ id: LOCAL_PREFIX + randomBytes(8).toString("hex"), title, items, created: typeof raw.created === "number" ? raw.created : Date.now(), from });
   }
   if (added.length) save([...lists(), ...added]);
   return added.length;

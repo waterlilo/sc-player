@@ -12,7 +12,7 @@ import { DemoProvider } from "./demo";
 import { backupNow, backupStatus, initBackup, restoreBackup } from "./backup";
 import { flushLocalLikes, savedPlaylists, setPlaylistSaved, visiblePlaylists, withLocalLikes } from "./local-likes";
 import { addDroppedFiles, addLocalFiles, flushLocalTracks, isLocalTrack, localLibrary, removeLocalTrack, serveLocalTracks, showLocalTrack, withLocalTracks } from "./local-tracks";
-import { addLocal, createLocal, deleteLocal, exportLocal, importLocal, flushLocalPlaylists, isLocal, localIds, localPlaylist, localPlaylists, localTracks, MAX_TRACKS, renameLocal, setLocalTracks } from "./local-playlists";
+import { addLocal, copiesOf, copyLocal, createLocal, deleteLocal, exportLocal, importLocal, flushLocalPlaylists, isLocal, localIds, localPlaylist, localPlaylists, localTracks, MAX_TRACKS, renameLocal, setLocalTracks } from "./local-playlists";
 import { communityLyrics, flushLyrics, forgetLyrics, lyricsFor, ownText, pickLyrics, searchLyrics, setCommunityLyrics, setOwnLyrics } from "./lyrics";
 import { deleteModel, downloadModel, flushLyricsSync, onSyncStatus, syncedBefore, syncStatus, syncWords } from "./lyrics-sync";
 import { auth, authStatus, chromeUserAgent, provider, ScError, scSession, finishBrowserSignIn, friendFromArgs, registerLinks, startBrowserSignIn, stopBrowserSignIn, toErrorInfo, tokenFromArgs, waitingForBrowser } from "./soundcloud";
@@ -319,6 +319,15 @@ function registerIpc() {
   handle("data:createPlaylist", async (_e, title, ids) => {
     const list = Array.isArray(ids) ? ids.slice(0, MAX_TRACKS).map(id) : bad("ids");
     return createLocal(str(title, "title").slice(0, 100), await tracksOf(list));
+  });
+  handle("data:copyPlaylist", async (_e, p) => {
+    const pid = str(p, "playlist id");
+    if (isLocal(pid)) bad("playlist id");
+    const before = copiesOf(pid);
+    if (before.length) return { made: before, existed: true };
+    const [list, ids] = await Promise.all([data.getPlaylist(pid), data.getSourceIds({ kind: "playlist", playlistId: pid, cursor: null })]);
+    // up to 10 parts; tracks that are gone from SoundCloud drop out on the way
+    return { made: copyLocal(pid, list.title.slice(0, 100), await tracksOf(ids.slice(0, MAX_TRACKS * 10))), existed: false };
   });
   handle("data:setPlaylistTracks", (_e, p, ids) => setLocalTracks(localId(p), Array.isArray(ids) ? ids.slice(0, MAX_TRACKS).map(id) : bad("ids")));
   handle("data:renamePlaylist", (_e, p, title) => renameLocal(localId(p), str(title, "title").slice(0, 100)));
