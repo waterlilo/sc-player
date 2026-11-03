@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { app } from "electron";
 import type { Page, Playlist, Track } from "@shared/types";
 import { ScError } from "./soundcloud";
+import { playlistParts } from "./playlist-parts";
 import { JsonFile } from "./store/json-file";
 
 /**
@@ -92,15 +93,13 @@ export const copiesOf = (from: string): Playlist[] =>
  * than a playlist holds: parts "Title (1/2)", "Title (2/2)" in order.
  */
 export function copyLocal(from: string, title: string, tracks: Track[]): Playlist[] {
-  const all = dedupe(tracks).map(item);
-  const parts = Math.max(1, Math.ceil(all.length / MAX_TRACKS));
+  const parts = playlistParts(title, tracks.map(item), MAX_TRACKS);
   const now = Date.now();
-  const made: LocalList[] = Array.from({ length: parts }, (_, i) => ({
+  const made: LocalList[] = parts.map((part, i) => ({
     id: LOCAL_PREFIX + randomBytes(8).toString("hex"),
-    title: parts > 1 ? `${title.slice(0, 92)} (${i + 1}/${parts})` : title,
-    items: all.slice(i * MAX_TRACKS, (i + 1) * MAX_TRACKS),
+    ...part,
     // the first part the newest: lists show the newest first, so the parts read in order
-    created: now + parts - i,
+    created: now + parts.length - i,
     from,
   }));
   save([...lists(), ...made]);

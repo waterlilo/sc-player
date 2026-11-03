@@ -207,7 +207,7 @@ export const en = {
   deletePlaylistConfirm: (title: string) => `Delete “${title}”? This can't be undone.`,
   playlistDeleted: "Playlist deleted",
   onThisComputer: "On this computer",
-  localPlaylistsHint: "Playlists you make here are kept on this computer. SoundCloud's own playlists play here but are changed on soundcloud.com.",
+  localPlaylistsHint: "Playlists you make here are kept on this computer. A SoundCloud playlist plays as it is there; to change it here, copy it to your playlists.",
   feed: "Feed",
   feedHint: "New tracks and reposts from the people you follow.",
   emptyFeed: "Nothing here yet. Follow some artists on SoundCloud and their new tracks show up here.",
