@@ -408,7 +408,7 @@ export const en = {
   copyReport: "Copy report",
   reportCopied: "Report copied",
   reportProblem: "Report a problem",
-  reportProblemHint: "Saves a short report (version, Windows, the end of the log — nothing private) to attach, and opens the page to write on",
+  reportProblemHint: "Saves a short report (version, Windows, processor and graphics card, the app's load over the last 10 minutes, the end of the log — nothing private) to attach, and opens the page to write on",
   reportSaved: "Report saved — attach the file to your message",
   reportFailed: "Couldn't save the report",
   openLogs: "Open logs folder",

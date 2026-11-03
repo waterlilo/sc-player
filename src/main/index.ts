@@ -28,6 +28,7 @@ import { backgroundSize, dropBackgrounds, keepImport, pickBackground, registerBa
 import { findWallpaper, workshopId } from "./system/steam-wallpaper";
 import { applyHotkeys, initHotkeys, suspendHotkeys } from "./system/hotkeys";
 import { log, logsDir } from "./system/log";
+import { loadReport, watchLoad } from "./system/diagnostics";
 import { netCheck } from "./system/netcheck";
 import { applyProxy, hasBuiltinProxy, initProxyAuth, initProxyAuto, proxyRoute } from "./system/proxy";
 import { setDiscordEnabled, updateDiscord } from "./system/discord";
@@ -540,9 +541,10 @@ function registerIpc() {
   });
   handle("diag:netcheck", () => netCheck());
   /**
-   * "Report a problem": what the app knows that helps (version, Windows, a few settings, the end of the log) in a file
-   * the person saves and attaches; then the page to write on opens. Nothing secret: no tokens, codes or names — only
-   * whether one is signed in — and anything token-like in the log is blanked.
+   * "Report a problem": what the app knows that helps (version, Windows, a few settings, the computer and the app's
+   * load over the last minutes, the end of the log) in a file the person saves and attaches; then the page to write on
+   * opens. Nothing secret: no tokens, codes or names — only whether one is signed in — and anything token-like in the
+   * log is blanked.
    */
   handle("diag:report", async () => {
     const p = prefs();
@@ -554,6 +556,7 @@ function registerIpc() {
       `Windows ${release()}`,
       `signed in to SoundCloud: ${signedIn() ? "yes" : "no"}; messenger: ${social.myCode() ? "yes" : "no"}`,
       `proxy: ${p.proxy.mode}${proxyRoute() ? ` (${proxyRoute()})` : ""}; stream quality: ${p.streamQuality}; lyrics auto-sync: ${p.autoSyncLyrics ? "on" : "off"}`,
+      ...(await loadReport(p.look, memorySaver)),
       "",
       "--- the end of the log ---",
       ...lines.map((l) => l.replace(/[A-Za-z0-9_-]{24,}/g, "…")),
@@ -729,6 +732,8 @@ void app.whenReady().then(async () => {
   main = createMainWindow({ startHidden: startedHidden() && p.startMinimized, closeToTray: () => prefs().closeToTray, quitting: () => quitting });
   onSyncStatus((s) => send(main, "lyricsSync:status", s));
   main.on("closed", () => (main = null));
+  // the app's own load, for "Report a problem"
+  watchLoad(() => ({ playing: playerInfo.playing, window: !main ? "closed" : !main.isVisible() ? "in the tray" : main.isMinimized() ? "minimized" : main.isFocused() ? "in front" : "shown" }));
   // started by the browser sign-in's link (the app wasn't running)
   main.webContents.once("did-finish-load", () => {
     void signInFromBrowser(process.argv);

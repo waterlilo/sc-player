@@ -399,7 +399,7 @@ export interface InvokeMap {
   "log:write": (message: string) => void;
   "diag:openLogs": () => void;
   "diag:netcheck": () => NetCheck[];
-  /** a report file the person saves (version, Windows, a few settings, the end of the log), then the page to write on; false when cancelled */
+  /** a report file the person saves (version, Windows, a few settings, the computer and the app's load, the end of the log), then the page to write on; false when cancelled */
   "diag:report": () => boolean;
   "diag:clearCache": () => void;
   /** the proxy password, kept encrypted; "" removes it. Returns whether one is set. */
