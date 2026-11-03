@@ -790,6 +790,16 @@ export const en = {
   language: "Language",
   languageHint: "“Same as the system” follows Windows.",
   languageAuto: "Same as the system",
+
+  // memory
+  secMemory: "Memory",
+  memorySaver: "Memory saver",
+  memorySaverHint: "About 100 MB less: no graphics card, lighter effects, the cover instead of the liquid background.",
+  memorySaverRestart: "Takes effect after a restart.",
+  restartNow: "Restart",
+  bgLiquidSaver: "Memory saver is on: the cover shows instead.",
+  bgVideoSaver: "Video — only its first frame shows while Memory saver is on.",
+  liteEffectsSaver: "Always on with Memory saver (Settings → App).",
 };
 
 export type Dict = typeof en;

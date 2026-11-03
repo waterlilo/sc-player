@@ -1,5 +1,5 @@
 import { artwork, type Track } from "@shared/types";
-import type { Look } from "@shared/ipc";
+import type { Look, Prefs } from "@shared/ipc";
 import { usePlayer } from "@/state/player";
 import { useSettings } from "@/state/settings";
 
@@ -210,11 +210,26 @@ function applySurface(hex: string) {
   root.setProperty("--bg", `rgb(${base.join(" ")})`);
 }
 
+const saverLooks = new WeakMap<Look, Look>();
+
+/**
+ * The look as shown: Memory saver (Settings → App) draws on the processor, so it keeps the effects light and shows the
+ * cover where the liquid background (a canvas redrawn all the time) would be. The same object for the same settings,
+ * so it can be selected from the store.
+ */
+export function shownLook(prefs: Prefs): Look {
+  const look = prefs.look;
+  if (!prefs.memorySaver || (look.lite && look.bg !== "liquid")) return look;
+  let shown = saverLooks.get(look);
+  if (!shown) saverLooks.set(look, (shown = { ...look, lite: true, bg: look.bg === "liquid" ? "cover" : look.bg }));
+  return shown;
+}
+
 export function initLook() {
-  applyKnobs(useSettings.getState().prefs.look);
+  applyKnobs(shownLook(useSettings.getState().prefs));
   useSettings.subscribe((s, prev) => {
-    if (s.prefs.look === prev.prefs.look) return;
-    applyKnobs(s.prefs.look);
+    if (s.prefs.look === prev.prefs.look && s.prefs.memorySaver === prev.prefs.memorySaver) return;
+    applyKnobs(shownLook(s.prefs));
     void update();
   });
   usePlayer.subscribe((s, prev) => s.queue[s.index] !== prev.queue[prev.index] && void update());

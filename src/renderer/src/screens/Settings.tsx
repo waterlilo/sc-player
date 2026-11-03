@@ -408,6 +408,12 @@ export default function Settings() {
               />
             </Row>
           </Section>
+          <Section title={t.secMemory}>
+            <Row label={t.memorySaver} hint={info && info.memorySaver !== prefs.memorySaver ? t.memorySaverRestart : t.memorySaverHint}>
+              {info && info.memorySaver !== prefs.memorySaver && <PaperButton onClick={() => void call("app:relaunch")}>{t.restartNow}</PaperButton>}
+              <Toggle on={prefs.memorySaver} onChange={(v) => setPref("memorySaver", v)} label={t.memorySaver} />
+            </Row>
+          </Section>
           <Section title={t.secWindow}>
             <Row label={t.closeButton} hint={t.closeHint}>
               <Choice

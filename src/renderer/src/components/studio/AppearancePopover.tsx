@@ -48,6 +48,7 @@ export default function AppearancePopover() {
   const where = useUi((s) => s.appearance);
   const close = useUi((s) => s.setAppearance);
   const look = useSettings((s) => s.prefs.look);
+  const saver = useSettings((s) => s.prefs.memorySaver);
   const setPref = useSettings((s) => s.setPref);
   const open = useNav((s) => s.open);
   const toast = useUi((s) => s.showToast);
@@ -123,13 +124,13 @@ export default function AppearancePopover() {
           <div className="s-lbl mx-2 mb-0.5 mt-3">{t.panels}</div>
           <Knob label={t.panelOpacity} value={look.panelOpacity} min={10} max={100} unit="%" onChange={(v) => set({ panelOpacity: v })} />
           <Knob label={t.blurBehind} value={look.panelBlur} min={0} max={60} unit="px" onChange={(v) => set({ panelBlur: v })} />
-          <button type="button" role="switch" aria-checked={look.lite} onClick={() => set({ lite: !look.lite })} className="s-row mt-2.5 w-full !border-t-[var(--s-line)] !px-2 text-left">
+          <button type="button" role="switch" aria-checked={look.lite || saver} disabled={saver} onClick={() => set({ lite: !look.lite })} className="s-row mt-2.5 w-full !border-t-[var(--s-line)] !px-2 text-left">
             <Icon name="sparkle" size={17} className="text-muted" />
             <span>
               <span className="t block">{t.lighterEffects}</span>
-              <span className="s block">{t.liteEffectsHint}</span>
+              <span className="s block">{saver ? t.liteEffectsSaver : t.liteEffectsHint}</span>
             </span>
-            <span className={`s-sw ${look.lite ? "on" : ""}`} />
+            <span className={`s-sw ${look.lite || saver ? "on" : ""}`} />
           </button>
           <div className="flex items-center justify-between px-2 pb-0.5 pt-2 text-[11px] text-[var(--s-dim)]">
             <button type="button" className="hover:text-text" onClick={() => set({ ...PREFS_DEFAULTS.look, bgFile: look.bgFile, bgFileType: look.bgFileType, lite: look.lite })}>

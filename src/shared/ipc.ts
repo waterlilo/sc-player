@@ -68,6 +68,8 @@ export interface AppInfo {
   builtinProxy: boolean;
   /** in the "auto" proxy mode: SoundCloud goes over the user's own connection or through sc player's proxy */
   proxyRoute: "own" | "ours" | null;
+  /** this run started without the graphics card (Memory saver as it was at start) */
+  memorySaver: boolean;
 }
 export type StreamQuality = "high" | "low";
 /** studio — the 2.0 look (dark glass over a living background); og — the hand-drawn night sky of 1.x */
@@ -165,6 +167,11 @@ export interface Prefs {
   localLikes: boolean;
   /** the interface's language; "auto" follows Windows (Russian for a Russian system, English otherwise) */
   language: Language;
+  /**
+   * Memory saver: no graphics card (Chromium draws on the processor), lighter effects and the cover instead of the
+   * liquid background — about 100 MB less. The graphics card is chosen at start, so it takes a restart.
+   */
+  memorySaver: boolean;
 }
 
 export type Language = "auto" | "en" | "ru";
@@ -205,6 +212,7 @@ export const PREFS_DEFAULTS: Prefs = {
   restingPlayer: false,
   localLikes: true,
   language: "auto",
+  memorySaver: false,
 };
 
 /** Fills in anything missing from stored prefs (new options in a newer version). */
@@ -386,6 +394,8 @@ export interface InvokeMap {
   "player:state": (info: PlayerInfo) => void;
   "hotkeys:suspend": (suspended: boolean) => void;
   "app:info": () => AppInfo;
+  /** quit and start again (a setting that only takes effect at start) */
+  "app:relaunch": () => void;
   "log:write": (message: string) => void;
   "diag:openLogs": () => void;
   "diag:netcheck": () => NetCheck[];
@@ -611,6 +621,7 @@ export const INVOKE_CHANNELS = [
   "player:state",
   "hotkeys:suspend",
   "app:info",
+  "app:relaunch",
   "log:write",
   "diag:openLogs",
   "diag:report",
