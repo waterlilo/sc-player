@@ -41,7 +41,7 @@ export default function Appearance() {
     <Section title={t.secAppearance}>
       <Row
         label={t.background}
-        hint={look.bg === "file" ? (look.bgFile ? `${look.bgFileType === "video" ? t.bgVideo : t.bgImage}` : t.bgFileNone) : prefs.memorySaver && look.bg === "liquid" ? t.bgLiquidSaver : t.backgroundHint}
+        hint={look.bg === "file" ? (look.bgFile ? `${look.bgFileType === "video" ? (prefs.memorySaver ? t.bgVideoSaver : t.bgVideo) : t.bgImage}` : t.bgFileNone) : prefs.memorySaver && look.bg === "liquid" ? t.bgLiquidSaver : t.backgroundHint}
       >
         <Choice<BackgroundKind>
           value={look.bg}

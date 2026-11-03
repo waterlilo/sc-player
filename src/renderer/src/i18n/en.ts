@@ -782,6 +782,7 @@ export const en = {
   memorySaverRestart: "Takes effect after a restart.",
   restartNow: "Restart",
   bgLiquidSaver: "Memory saver is on: the cover shows instead.",
+  bgVideoSaver: "Video — only its first frame shows while Memory saver is on.",
   liteEffectsSaver: "Always on with Memory saver (Settings → App).",
 };
 

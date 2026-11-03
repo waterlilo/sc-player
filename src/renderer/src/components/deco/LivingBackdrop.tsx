@@ -27,6 +27,7 @@ const FADE_MS = 1200;
  */
 export default function LivingBackdrop() {
   const look = useSettings((s) => shownLook(s.prefs));
+  const saver = useSettings((s) => s.prefs.memorySaver);
   const track = useCurrentTrack();
   const cover = track?.artworkUrl ? artwork(track.artworkUrl, "t500x500") : null;
   const want: Want =
@@ -61,7 +62,7 @@ export default function LivingBackdrop() {
           onTransitionEnd={(e) => e.target === e.currentTarget && l.shown && settled(l.id)}
         >
           {l.kind === "liquid" && <LiquidField react={look.bgReact} onReady={() => ready(l.id)} />}
-          {(l.kind === "image" || l.kind === "video") && <Media kind={l.kind} src={l.src} react={look.bgReact} onReady={() => ready(l.id)} />}
+          {(l.kind === "image" || l.kind === "video") && <Media kind={l.kind} src={l.src} react={look.bgReact} still={saver} onReady={() => ready(l.id)} />}
           {l.kind === "none" && <Ready onReady={() => ready(l.id)} />}
         </div>
       ))}
@@ -76,14 +77,67 @@ function Ready({ onReady }: { onReady: () => void }) {
   return <div className="absolute inset-0 bg-[var(--bg)]" />;
 }
 
-/** a picture or a video, blurred by the knob, breathing a little with the bass */
-function Media({ kind, src, react, onReady }: { kind: "image" | "video"; src: string; react: number; onReady: () => void }) {
+/**
+ * A video's first frame as a picture (a blob: URL), "" if it can't be read; null while loading or when not asked.
+ * Memory saver draws on the processor, where a video, even a paused one, costs a third of a core: it is converted
+ * again for every frame drawn. A picture costs nothing once drawn.
+ */
+function useFirstFrame(src: string | null): string | null {
+  const [frame, setFrame] = useState<string | null>(null);
+  useEffect(() => {
+    if (!src) return;
+    let gone = false;
+    let url = "";
+    const v = document.createElement("video");
+    const drop = () => {
+      v.removeAttribute("src");
+      v.load();
+    };
+    v.crossOrigin = "anonymous";
+    v.muted = true;
+    v.preload = "auto";
+    v.onloadeddata = () => {
+      const c = document.createElement("canvas");
+      c.width = v.videoWidth;
+      c.height = v.videoHeight;
+      try {
+        c.getContext("2d")?.drawImage(v, 0, 0);
+        c.toBlob((b) => {
+          drop();
+          if (gone) return;
+          url = b ? URL.createObjectURL(b) : "";
+          setFrame(url);
+        }, "image/jpeg", 0.92);
+      } catch {
+        drop();
+        if (!gone) setFrame("");
+      }
+    };
+    v.onerror = () => !gone && setFrame("");
+    v.src = src;
+    return () => {
+      gone = true;
+      drop();
+      if (url) URL.revokeObjectURL(url);
+      setFrame(null);
+    };
+  }, [src]);
+  return src ? frame : null;
+}
+
+/**
+ * a picture or a video, blurred by the knob, breathing a little with the bass; with Memory saver (no graphics card)
+ * a video shows its first frame instead
+ */
+function Media({ kind, src, react, still, onReady }: { kind: "image" | "video"; src: string; react: number; still: boolean; onReady: () => void }) {
   const box = useRef<HTMLDivElement>(null);
   const video = useRef<HTMLVideoElement>(null);
+  const playing = kind === "video" && !still;
+  const frame = useFirstFrame(kind === "video" && still ? src : null);
   useEffect(() => listen(box.current), []);
   // a video only runs while someone looks at the window
   useEffect(() => {
-    if (kind !== "video") return;
+    if (!playing) return;
     const sync = () => {
       const v = video.current;
       if (!v) return;
@@ -95,14 +149,19 @@ function Media({ kind, src, react, onReady }: { kind: "image" | "video"; src: st
     return () => {
       off();
     };
-  }, [kind, src]);
+  }, [playing, src]);
+  // a frame that can't be read still fades in (to nothing), like a broken file
+  useEffect(() => {
+    if (frame === "") onReady();
+  }, [frame, onReady]);
+  const picture = kind === "image" ? src : frame;
   // a broken file still fades in (to nothing) rather than holding the old picture forever
   return (
     <div ref={box} className="studio-media" style={{ ["--react-k" as string]: String(react / 40) }}>
-      {kind === "video" ? (
+      {playing ? (
         <video ref={video} src={src} autoPlay loop muted playsInline onLoadedData={onReady} onError={onReady} />
       ) : (
-        <img src={src} alt="" draggable={false} crossOrigin="anonymous" onLoad={onReady} onError={onReady} />
+        picture && <img src={picture} alt="" draggable={false} crossOrigin="anonymous" onLoad={onReady} onError={onReady} />
       )}
     </div>
   );
