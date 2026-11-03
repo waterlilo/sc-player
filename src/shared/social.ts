@@ -198,6 +198,15 @@ export interface WsTheme {
   hidden?: boolean;
 }
 
+/** A theme in the moderator's list: reported, or hidden (by three reports or by the moderator). */
+export interface WsReported extends WsTheme {
+  reports: number;
+  /** the reports' reasons, " | " between them */
+  reasons: string;
+  /** the author's friend code */
+  authorCode: string;
+}
+
 export interface WsThemeFull extends WsTheme {
   look: ThemeLook;
   css: string;

@@ -3,7 +3,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { join as joinPath } from "node:path";
 import { app, nativeImage, net, Notification, type BrowserWindow } from "electron";
 import type { Look } from "@shared/ipc";
-import type { Friends, Message, RoomInvite, SocialProfile, SocialStatus, SocialTrack, SocialUpdate, ThemeLook, WsPage, WsSort, WsThemeFull, SharedPlaylist } from "@shared/social";
+import type { Friends, Message, RoomInvite, SocialProfile, SocialStatus, SocialTrack, SocialUpdate, ThemeLook, WsPage, WsReported, WsSort, WsThemeFull, SharedPlaylist } from "@shared/social";
 import { ScError } from "./soundcloud";
 import { prefs } from "./store";
 import { getSecret, setSecret } from "./store/secrets";
@@ -451,6 +451,31 @@ export async function decideLyrics(id: number, approve: boolean) {
 }
 
 // ---- moderation ---------------------------------------------------------------------------------------------------
+
+/**
+ * Reported and hidden themes for the moderator, the most reported first. A hidden theme's preview is served to the
+ * moderator only, so it comes along as a data: picture (the page's <img> can't send the key).
+ */
+export async function wsReports(): Promise<WsReported[]> {
+  const key = moderatorKey();
+  const { themes } = await api<{ themes: Omit<WsReported, "previewUrl">[] }>("GET", "/v1/admin/themes", { admin: key });
+  return Promise.all(
+    themes.map(async (t) => {
+      if (!t.hidden) return withPreview(t);
+      try {
+        const bytes = await api<ArrayBuffer>("GET", `/v1/themes/${t.id}/preview`, { admin: key, binary: true });
+        return { ...t, previewUrl: `data:image/jpeg;base64,${Buffer.from(bytes).toString("base64")}` };
+      } catch {
+        return { ...t, previewUrl: "" };
+      }
+    }),
+  );
+}
+
+/** Hides a reported theme, or keeps it: shown again with its reports cleared. */
+export async function wsModerate(id: string, hide: boolean) {
+  await api("POST", `/v1/admin/themes/${encodeURIComponent(id)}/${hide ? "hide" : "keep"}`, { admin: moderatorKey() });
+}
 
 /** whether this computer holds the workshop moderator's key */
 export const isModerator = () => !!getSecret("moderatorToken");

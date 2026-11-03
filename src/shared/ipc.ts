@@ -1,5 +1,5 @@
 import type { SearchKind } from "./provider";
-import type { Friends, Message, Room, RoomOp, RoomState, SocialStatus, SocialTrack, SocialUpdate, WsPage, WsSort, WsThemeFull, SharedPlaylist } from "./social";
+import type { Friends, Message, Room, RoomOp, RoomState, SocialStatus, SocialTrack, SocialUpdate, WsPage, WsReported, WsSort, WsThemeFull, SharedPlaylist } from "./social";
 import type { AppErrorInfo, ImportItem, ImportList, ImportMatch, Lyrics, LyricsHit, LyricsSyncStatus, Page, Playlist, QueueSource, Resolved, SavedProfile, StreamInfo, SyncRequest, SyncResult, Track, TrackDetails, User, LyricsForReview, LyricsSuggestionState, SteamWallpaper, BackupStatus, RestoreResult } from "./types";
 
 /**
@@ -460,6 +460,10 @@ export interface InvokeMap {
   "ws:moderator": () => boolean;
   /** checks the key with the server and keeps it (null forgets it) */
   "ws:setModerator": (key: string | null) => boolean;
+  /** the moderator's list: reported and hidden themes, the most reported first (with the moderator's key) */
+  "ws:reports": () => WsReported[];
+  /** a reported theme hidden from the workshop, or kept (shown again, its reports cleared) */
+  "ws:moderate": (id: string, hide: boolean) => void;
 }
 
 export interface EventMap {
@@ -524,6 +528,8 @@ export const INVOKE_CHANNELS = [
   "ws:delete",
   "ws:moderator",
   "ws:setModerator",
+  "ws:reports",
+  "ws:moderate",
   "bg:pick",
   "backup:status",
   "backup:now",

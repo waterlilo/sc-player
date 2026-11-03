@@ -1,21 +1,21 @@
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
-import type { WsSort, WsTheme } from "@shared/social";
+import type { WsReported, WsSort, WsTheme } from "@shared/social";
 import Tabs from "@/components/ui/Tabs";
 import Icon from "@/components/ui/Icon";
 import { Screen } from "@/components/ui/Screen";
 import { EmptyState, ErrorState, Loading } from "@/components/ui/States";
 import { useT } from "@/i18n";
 import { ask, askText } from "@/state/dialog";
-import { call } from "@/lib/sky";
+import { call, errorCode } from "@/lib/sky";
 import { fitTo } from "@/lib/videoFit";
 import { useNav } from "@/state/nav";
 import { useSettings } from "@/state/settings";
 import { useSocial } from "@/state/social";
 import { useUi } from "@/state/ui";
 
-type Tab = WsSort | "mine";
+type Tab = WsSort | "mine" | "reports";
 
 function Modal({ label, onClose, children, width = "w-[44rem]" }: { label: string; onClose: () => void; children: ReactNode; width?: string }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -267,7 +267,7 @@ function PublishDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
-function Grid({ tab, q, onOpen }: { tab: Tab; q: string; onOpen: (id: string) => void }) {
+function Grid({ tab, q, onOpen }: { tab: WsSort | "mine"; q: string; onOpen: (id: string) => void }) {
   const t = useT();
   const query = useInfiniteQuery({
     queryKey: ["ws", tab, q],
@@ -298,6 +298,101 @@ function Grid({ tab, q, onOpen }: { tab: Tab; q: string; onOpen: (id: string) =>
   );
 }
 
+/** The moderator's tab: reported and hidden themes, the most reported first, with their reasons and what to do. */
+function Reports() {
+  const t = useT();
+  const client = useQueryClient();
+  const toast = useUi((s) => s.showToast);
+  const q = useQuery({ queryKey: ["ws-reports"], queryFn: () => call("ws:reports"), staleTime: 30_000 });
+  const [busy, setBusy] = useState("");
+  const settle = () => {
+    void client.invalidateQueries({ queryKey: ["ws-reports"] });
+    void client.invalidateQueries({ queryKey: ["ws"] });
+  };
+  const moderate = async (th: WsReported, hide: boolean) => {
+    setBusy(th.id);
+    try {
+      await call("ws:moderate", th.id, hide);
+      toast(hide ? t.themeHidden : t.themeKept);
+      settle();
+    } catch {
+      toast(t.serverOffline);
+    } finally {
+      setBusy("");
+    }
+  };
+  const remove = async (th: WsReported) => {
+    if (!(await ask(t.deleteOthersThemeConfirm(th.author || t.someone), t.delete, true))) return;
+    setBusy(th.id);
+    try {
+      await call("ws:delete", th.id, true);
+      settle();
+    } catch {
+      toast(t.serverOffline);
+    } finally {
+      setBusy("");
+    }
+  };
+
+  if (q.isPending) return <Loading />;
+  // a key the server no longer takes is "not found" there (and none here, "unauthorized"): not SoundCloud's session
+  if (q.isError) return ["unauthorized", "not_found"].includes(errorCode(q.error)) ? <EmptyState caption={t.moderatorWrong} /> : <ErrorState error={q.error} onRetry={() => void q.refetch()} />;
+  if (!q.data.length) return <EmptyState caption={t.noReports} />;
+  return (
+    <div>
+      <p className="mb-5 max-w-2xl text-sm leading-relaxed text-muted">{t.reportsHint}</p>
+      <ul className="flex flex-col gap-4">
+        {q.data.map((th) => {
+          const reasons = th.reasons
+            .split(" | ")
+            .map((r) => r.trim())
+            .filter(Boolean);
+          return (
+            <li key={th.id} className={`flex gap-4 rounded-md bg-white/[0.035] p-3 ${busy === th.id ? "opacity-60" : ""}`}>
+              <span className="relative block aspect-[16/10] w-56 shrink-0 overflow-hidden rounded-md bg-white/[0.04]">
+                {th.previewUrl && <img src={th.previewUrl} alt="" loading="lazy" decoding="async" draggable={false} className="h-full w-full object-cover" />}
+                {th.background.startsWith("video/") && <span className="absolute left-2 top-2 rounded-[4px] bg-black/60 px-1.5 py-0.5 font-type text-[0.6rem] uppercase tracking-wider text-white/90">{t.video}</span>}
+                {th.hidden && <span className="absolute right-2 top-2 rounded-[4px] bg-blood/80 px-1.5 py-0.5 font-type text-[0.6rem] uppercase tracking-wider text-white">{t.hidden}</span>}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-baseline gap-2">
+                  <span className="min-w-0 truncate text-sm font-semibold text-text">{th.name}</span>
+                  {th.reports > 0 && <span className="shrink-0 font-type text-xs text-blood">{t.reportCount(th.reports)}</span>}
+                </div>
+                <p className="mt-0.5 truncate text-xs text-muted">
+                  {t.byAuthor(th.author || t.someone)} · {th.authorCode} · {t.installs(th.installs)}
+                </p>
+                {th.description && <p className="mt-1.5 line-clamp-2 text-xs text-text/75">{th.description}</p>}
+                <ul className="mt-2 flex flex-col gap-0.5 text-xs text-text/90">
+                  {(reasons.length ? reasons : th.reports ? [t.noReason] : []).map((r, i) => (
+                    <li key={i} className="flex gap-1.5">
+                      <span className="text-blood">•</span>
+                      <span className="min-w-0 break-words">{r}</span>
+                    </li>
+                  ))}
+                </ul>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button type="button" disabled={!!busy} onClick={() => void moderate(th, false)} className="sketch sketch-thin rounded-md px-3 py-1 text-xs text-text disabled:opacity-50">
+                    {t.keepTheme}
+                  </button>
+                  {!th.hidden && (
+                    <button type="button" disabled={!!busy} onClick={() => void moderate(th, true)} className="sketch sketch-thin rounded-md px-3 py-1 text-xs text-text disabled:opacity-50">
+                      {t.hideTheme}
+                    </button>
+                  )}
+                  <button type="button" disabled={!!busy} onClick={() => void remove(th)} className="rounded-md px-3 py-1 text-xs text-muted hover:text-blood disabled:opacity-50">
+                    {t.delete}
+                  </button>
+                </div>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 /** Themes people made and shared, like wallpapers: open one, apply it; publish your own look. */
 export default function Workshop() {
   const t = useT();
@@ -308,6 +403,8 @@ export default function Workshop() {
   const [q, setQ] = useState("");
   const [opened, setOpened] = useState<string | null>(null);
   const [publishing, setPublishing] = useState(false);
+  const moderator = useQuery({ queryKey: ["ws-moderator"], queryFn: () => call("ws:moderator"), staleTime: Infinity }).data === true;
+  const reports = useQuery({ queryKey: ["ws-reports"], queryFn: () => call("ws:reports"), enabled: moderator, staleTime: 30_000 }).data;
 
   useEffect(() => {
     const id = setTimeout(() => setQ(text.trim()), 300);
@@ -321,6 +418,8 @@ export default function Workshop() {
     ["top", t.wsTop],
     ["new", t.wsNew],
     ...(joined ? ([["mine", t.wsMine]] as [Tab, string][]) : []),
+    // only with the moderator's key on this computer (Settings → Friends)
+    ...(moderator ? ([["reports", t.wsReports(reports?.filter((r) => r.reports > 0).length ?? 0)]] as [Tab, string][]) : []),
   ];
 
   return (
@@ -342,12 +441,14 @@ export default function Workshop() {
       </header>
       <div className="mb-5 flex flex-wrap items-center gap-2">
         <Tabs options={tabs} value={tab} onChange={setTab} />
-        <label className="field sketch sketch-thin paper-fill ml-auto flex w-60 items-center rounded-md" data-keys-own>
-          <Icon name="search" size={15} className="ml-2.5 text-muted" />
-          <input value={text} onChange={(e) => setText(e.target.value)} placeholder={t.searchThemes} aria-label={t.searchThemes} className="min-w-0 flex-1 bg-transparent px-2 py-1.5 text-sm text-text placeholder:text-muted/70" />
-        </label>
+        {tab !== "reports" && (
+          <label className="field sketch sketch-thin paper-fill ml-auto flex w-60 items-center rounded-md" data-keys-own>
+            <Icon name="search" size={15} className="ml-2.5 text-muted" />
+            <input value={text} onChange={(e) => setText(e.target.value)} placeholder={t.searchThemes} aria-label={t.searchThemes} className="min-w-0 flex-1 bg-transparent px-2 py-1.5 text-sm text-text placeholder:text-muted/70" />
+          </label>
+        )}
       </div>
-      <Grid tab={tab} q={tab === "mine" ? "" : q} onOpen={setOpened} />
+      {tab === "reports" && moderator ? <Reports /> : <Grid tab={tab === "reports" ? "top" : tab} q={tab === "mine" ? "" : q} onOpen={setOpened} />}
       <AnimatePresence>
         {opened && <ThemeDialog key={opened} id={opened} onClose={() => setOpened(null)} />}
         {publishing && <PublishDialog key="publish" onClose={() => setPublishing(false)} />}
