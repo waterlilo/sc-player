@@ -22,6 +22,8 @@ export const STUDIO_ICONS: Record<string, { fill?: string; stroke?: string }> = 
   heart: { stroke: HEART },
   plus: { stroke: "M12 5v14M5 12h14" },
   playNext: { stroke: "M4 6.5h12M4 12h8M4 17.5h8M18 13v7M14.5 16.5h7" },
+  // a list with a plus: "Add to playlist" by the player's ♥
+  playlistAdd: { stroke: "M4 6.5h13M4 12h13M4 17.5h7M17.5 14v7M14 17.5h7" },
   close: { stroke: "M6 6l12 12M18 6 6 18" },
   minimize: { stroke: "M5 12h14" },
   maximize: { stroke: rect(5, 5, 14, 14, 1.5) },

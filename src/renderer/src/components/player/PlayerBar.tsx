@@ -69,6 +69,13 @@ export function LikeButton({ track, white = false }: { track: Track; white?: boo
   );
 }
 
+/** "Add to playlist" for what plays, next to the ♥ */
+export function AddToPlaylistButton({ track }: { track: Track }) {
+  const t = useT();
+  const openPicker = useUi((s) => s.openPicker);
+  return <IconButton icon="playlistAdd" label={t.addToPlaylist} onClick={() => openPicker(track)} />;
+}
+
 export function PlayButton() {
   const t = useT();
   const status = usePlayer((s) => s.status);

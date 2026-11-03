@@ -31,8 +31,19 @@ function Like({ track }: { track: Track }) {
   const liked = useLiked(track.id);
   if (!canLike || (isLocalTrack(track.id) && !local)) return null;
   return (
-    <button type="button" onClick={() => void toggleLike(track)} aria-pressed={liked} aria-label={liked ? t.unlike : t.like} title={liked ? t.unlike : t.like} className={`ml-auto grid h-8 w-8 shrink-0 place-items-center rounded-md ${liked ? "text-[var(--accent)]" : "text-muted hover:text-text"}`}>
+    <button type="button" onClick={() => void toggleLike(track)} aria-pressed={liked} aria-label={liked ? t.unlike : t.like} title={liked ? t.unlike : t.like} className={`grid h-8 w-8 shrink-0 place-items-center rounded-md ${liked ? "text-[var(--accent)]" : "text-muted hover:text-text"}`}>
       <Icon name="heart" size={15} filled={liked} />
+    </button>
+  );
+}
+
+/** "Add to playlist" for what plays, next to the ♥ (before only in the track's ⋯ menu) */
+function AddTo({ track }: { track: Track }) {
+  const t = useT();
+  const openPicker = useUi((s) => s.openPicker);
+  return (
+    <button type="button" onClick={() => openPicker(track)} aria-label={t.addToPlaylist} title={t.addToPlaylist} className="grid h-8 w-8 shrink-0 place-items-center rounded-md text-muted hover:text-text">
+      <Icon name="playlistAdd" size={16} />
     </button>
   );
 }
@@ -161,7 +172,12 @@ export default function StudioPlayerBar() {
             <span className="text-[12px] text-[var(--s-dim)]">{t.nothingPlaying}</span>
           )}
         </div>
-        {track && <Like track={track} />}
+        {track && (
+          <div className="ml-auto flex shrink-0 items-center">
+            <Like track={track} />
+            <AddTo track={track} />
+          </div>
+        )}
       </div>
 
       <div className="flex min-w-0 flex-col items-center gap-1">

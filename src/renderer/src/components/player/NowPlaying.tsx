@@ -21,7 +21,7 @@ import { QueueList, useSourceLabel } from "../studio/Queue";
 import { outlinePoint, spectrum } from "./CoverRing";
 import { LyricsSource, ManualSearch, useShownLyrics } from "./LyricsPanel";
 import { BottomSpectrum, SpectrumPopover } from "./Spectrum";
-import { LikeButton, PlayButton } from "./PlayerBar";
+import { AddToPlaylistButton, LikeButton, PlayButton } from "./PlayerBar";
 import Waveform from "./Waveform";
 
 const BANDS = 48;
@@ -204,6 +204,7 @@ function Stage({ track, sound, studio = false }: { track: Track; sound: Track | 
         </div>
         {canSend && !studio && !isLocalTrack(track.id) && <IconButton icon="send" label={t.sendToFriends} onClick={() => openSend(track)} />}
         <LikeButton track={track} white={white} />
+        <AddToPlaylistButton track={track} />
       </div>
       <div className="np-ui mt-3" style={{ width }}>
         {sound ? <Waveform key={sound.id} track={sound} height={34} white={white} /> : <div className="h-[34px]" />}
