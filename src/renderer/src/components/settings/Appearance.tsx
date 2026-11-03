@@ -39,7 +39,10 @@ export default function Appearance() {
 
   return (
     <Section title={t.secAppearance}>
-      <Row label={t.background} hint={look.bg === "file" ? (look.bgFile ? `${look.bgFileType === "video" ? t.bgVideo : t.bgImage}` : t.bgFileNone) : t.backgroundHint}>
+      <Row
+        label={t.background}
+        hint={look.bg === "file" ? (look.bgFile ? `${look.bgFileType === "video" ? t.bgVideo : t.bgImage}` : t.bgFileNone) : prefs.memorySaver && look.bg === "liquid" ? t.bgLiquidSaver : t.backgroundHint}
+      >
         <Choice<BackgroundKind>
           value={look.bg}
           onChange={(v) => (v === "file" && !look.bgFile ? void pick() : set({ bg: v }))}
@@ -87,8 +90,8 @@ export default function Appearance() {
       <Row label={t.restingPlayer} hint={t.restingPlayerHint}>
         <Toggle on={prefs.restingPlayer} onChange={(v) => setPref("restingPlayer", v)} label={t.restingPlayer} />
       </Row>
-      <Row label={t.liteEffects} hint={t.liteEffectsHint}>
-        <Toggle on={look.lite} onChange={(v) => set({ lite: v })} label={t.liteEffects} />
+      <Row label={t.liteEffects} hint={prefs.memorySaver ? t.liteEffectsSaver : t.liteEffectsHint}>
+        <Toggle on={look.lite || prefs.memorySaver} disabled={prefs.memorySaver} onChange={(v) => set({ lite: v })} label={t.liteEffects} />
       </Row>
       <Row label={t.lookReset} hint={t.lookResetHint}>
         <PaperButton onClick={() => set({ ...PREFS_DEFAULTS.look, design: "studio", bg: look.bg, bgFile: look.bgFile, bgFileType: look.bgFileType })}>{t.reset}</PaperButton>

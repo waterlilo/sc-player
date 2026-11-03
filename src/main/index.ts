@@ -83,6 +83,10 @@ async function tracksOf(ids: number[]): Promise<Track[]> {
   return out;
 }
 const status = async (): Promise<AuthStatus> => (DEMO ? { mode: "session", user: await data.getMe() } : authStatus());
+// Memory saver (Settings → App): Chromium draws on the processor and the graphics card's process, ~100 MB of the
+// app's ~300, isn't started. The choice only counts before the app is ready, so changing it takes a restart.
+const memorySaver = prefs().memorySaver;
+if (memorySaver) app.disableHardwareAcceleration();
 
 if (!app.requestSingleInstanceLock()) app.quit();
 setCommunityLyrics((t) => social.approvedLyrics(t));
@@ -491,7 +495,11 @@ function registerIpc() {
   handle("hotkeys:suspend", (_e, on) => {
     send(main, "hotkeys:failed", suspendHotkeys(on === true));
   });
-  handle("app:info", () => ({ version: app.getVersion(), portable: !!process.env.PORTABLE_EXECUTABLE_DIR, packaged: app.isPackaged, logsDir: logsDir(), builtinProxy: hasBuiltinProxy(), proxyRoute: proxyRoute() }));
+  handle("app:info", () => ({ version: app.getVersion(), portable: !!process.env.PORTABLE_EXECUTABLE_DIR, packaged: app.isPackaged, logsDir: logsDir(), builtinProxy: hasBuiltinProxy(), proxyRoute: proxyRoute(), memorySaver }));
+  handle("app:relaunch", () => {
+    app.relaunch({ args: process.argv.slice(1).filter((a) => a !== "--updated") });
+    app.quit();
+  });
   handle("log:write", (_e, message) => log("page", str(message, "message")));
   handle("diag:openLogs", async () => {
     await shell.openPath(logsDir());

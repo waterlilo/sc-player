@@ -792,4 +792,13 @@ export const ru: Dict = {
   language: "Язык",
   languageHint: "«Как в системе» берёт язык Windows.",
   languageAuto: "Как в системе",
+
+  // memory
+  secMemory: "Память",
+  memorySaver: "Экономия памяти",
+  memorySaverHint: "Примерно на 100 МБ меньше: без видеокарты, лёгкие эффекты, обложка вместо жидкого фона.",
+  memorySaverRestart: "Заработает после перезапуска.",
+  restartNow: "Перезапустить",
+  bgLiquidSaver: "Включена экономия памяти: вместо него — обложка.",
+  liteEffectsSaver: "Всегда включены при экономии памяти (Настройки → Приложение).",
 };

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { artwork } from "@shared/types";
 import { getActivity, subscribeActivity } from "@/lib/activity";
-import { bgUrl, onPalette, palette, type RGB } from "@/lib/look";
+import { bgUrl, onPalette, palette, shownLook, type RGB } from "@/lib/look";
 import { listen, onLevels, type Levels } from "@/lib/reactive";
 import { usePlayer, useCurrentTrack } from "@/state/player";
 import { useSettings } from "@/state/settings";
@@ -26,7 +26,7 @@ const FADE_MS = 1200;
  * underneath goes away: nothing ever snaps.
  */
 export default function LivingBackdrop() {
-  const look = useSettings((s) => s.prefs.look);
+  const look = useSettings((s) => shownLook(s.prefs));
   const track = useCurrentTrack();
   const cover = track?.artworkUrl ? artwork(track.artworkUrl, "t500x500") : null;
   const want: Want =
