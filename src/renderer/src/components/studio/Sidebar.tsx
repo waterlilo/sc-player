@@ -11,6 +11,7 @@ import { usePlayer } from "@/state/player";
 import { useSettings } from "@/state/settings";
 import { unreadTotal, useSocial } from "@/state/social";
 import { useUi } from "@/state/ui";
+import PlaylistCover from "../playlists/PlaylistCover";
 import Icon, { type IconName } from "../ui/Icon";
 
 function Nav({ section, route, icon, children, count, badge }: { section: Section; route: Route; icon: IconName; children: ReactNode; count?: number | null; badge?: number }) {
@@ -57,7 +58,9 @@ function Pinned() {
         return (
           <div key={p.id} className="group relative">
             <button type="button" onClick={() => go({ name: "playlist", id: p.id })} className={`s-pin ${on ? "on" : ""}`}>
-              <span className="cv">{p.artworkUrl && <img src={artwork(p.artworkUrl, "large") ?? undefined} alt="" className="h-full w-full object-cover" draggable={false} />}</span>
+              <span className="cv">
+                <PlaylistCover playlist={p} size="large" />
+              </span>
               <span className="min-w-0 flex-1">
                 <span className="t block">{p.title}</span>
                 <span className="s block">{t.playlistCount(p.trackCount)}</span>

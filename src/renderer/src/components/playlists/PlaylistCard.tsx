@@ -1,7 +1,8 @@
 import { memo, useState } from "react";
-import { artwork, type Playlist } from "@shared/types";
+import type { Playlist } from "@shared/types";
 import { useT } from "@/i18n";
 import { useNav } from "@/state/nav";
+import PlaylistCover from "./PlaylistCover";
 
 const TILTS = [-1.6, 1.2, -0.8, 1.8, -1.2, 0.6];
 
@@ -14,7 +15,6 @@ function PlaylistCard({ playlist, index }: { playlist: Playlist; index: number }
   const go = useNav((s) => s.go);
   const [glitch, setGlitch] = useState(0);
   const tape = index % 3 === 0 ? "tape" : index % 5 === 2 ? "tape tape-right" : "";
-  const cover = artwork(playlist.artworkUrl, "t300x300");
 
   return (
     <button
@@ -26,11 +26,7 @@ function PlaylistCard({ playlist, index }: { playlist: Playlist; index: number }
     >
       <div key={glitch} className={`card-frame ${glitch ? "rgb-glitch" : ""}`} aria-hidden="true" />
       <div className="aspect-square w-full overflow-hidden rounded-sm bg-[var(--sky)]">
-        {cover ? (
-          <img src={cover} alt="" loading="lazy" decoding="async" draggable={false} className="h-full w-full object-cover" />
-        ) : (
-          <div className="stipple-night h-full w-full" />
-        )}
+        <PlaylistCover playlist={playlist} size="t300x300" />
       </div>
       <div className="min-w-0 px-0.5">
         <div className="line-clamp-2 text-[0.95rem] font-medium leading-snug text-text">{playlist.title}</div>

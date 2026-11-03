@@ -149,7 +149,8 @@ export function mapPlaylist(raw: RawPlaylist | undefined, relation: PlaylistRela
     id: system ? (raw.urn ?? String(raw.id)) : String(raw.id),
     title: raw.title ?? "",
     user: raw.user ? mapUserRef(raw.user) : { id: 0, username: "SoundCloud", permalinkUrl: "https://soundcloud.com" },
-    artworkUrl: raw.artwork_url ?? raw.calculated_artwork_url ?? raw.tracks?.find((t) => t.artwork_url)?.artwork_url ?? null,
+    // none of its own: the first track's cover, else its uploader's picture (as a track without a cover shows)
+    artworkUrl: raw.artwork_url ?? raw.calculated_artwork_url ?? raw.tracks?.find((t) => t.artwork_url)?.artwork_url ?? raw.tracks?.find((t) => t.user?.avatar_url)?.user?.avatar_url ?? null,
     trackCount: raw.track_count ?? raw.tracks?.length ?? 0,
     durationMs: raw.duration ?? 0,
     permalinkUrl: raw.permalink_url ?? "",

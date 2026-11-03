@@ -277,6 +277,8 @@ export interface InvokeMap {
   "data:likes": (cursor: string | null) => Page<Track>;
   "data:playlists": (cursor: string | null) => Page<Playlist>;
   "data:playlist": (id: string) => Playlist;
+  /** a cover for a playlist listed without one: its first track's (or that uploader's picture), null if none */
+  "data:playlistCover": (id: string) => string | null;
   "data:playlistTracks": (id: string, cursor: string | null) => Page<Track>;
   "data:user": (id: number) => User;
   "data:userLikes": (userId: number, cursor: string | null) => Page<Track>;
@@ -546,6 +548,7 @@ export const INVOKE_CHANNELS = [
   "data:likes",
   "data:playlists",
   "data:playlist",
+  "data:playlistCover",
   "data:playlistTracks",
   "data:user",
   "data:userLikes",

@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState, type ReactNode } from "react";
 import { artwork, type Playlist, type Track } from "@shared/types";
 import { useFeed, useLikes, usePlaylists } from "@/api/queries";
+import PlaylistCover from "@/components/playlists/PlaylistCover";
 import { Avatar, when } from "@/components/social/bits";
 import Icon from "@/components/ui/Icon";
 import { Screen } from "@/components/ui/Screen";
@@ -111,7 +112,12 @@ function LikesTile() {
 function PlaylistTile({ p }: { p: Playlist }) {
   const t = useT();
   const go = useNav((s) => s.go);
-  return <Tile cover={<Cover url={p.artworkUrl} size={52} />} title={p.title} sub={t.tracks(p.trackCount)} onClick={() => go({ name: "playlist", id: p.id })} />;
+  const cover = (
+    <span className="block h-[52px] w-[52px] shrink-0 overflow-hidden">
+      <PlaylistCover playlist={p} size="large" />
+    </span>
+  );
+  return <Tile cover={cover} title={p.title} sub={t.tracks(p.trackCount)} onClick={() => go({ name: "playlist", id: p.id })} />;
 }
 
 function StationTile({ seed }: { seed: Track }) {

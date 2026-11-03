@@ -245,6 +245,23 @@ function registerIpc() {
     const pid = str(p, "playlist id");
     return isLocal(pid) ? localPlaylist(pid) : data.getPlaylist(pid);
   });
+  // a playlist without a cover of its own shows its first track's, as on SoundCloud; lists leave the tracks out and
+  // even the playlist itself sends them as bare ids, so the first few are read. Once per playlist while the app runs
+  // (a failed read is asked again next time).
+  const covers = new Map<string, string | null>();
+  handle("data:playlistCover", async (_e, p) => {
+    const pid = str(p, "playlist id");
+    if (isLocal(pid)) return localPlaylist(pid).artworkUrl;
+    if (!covers.has(pid)) {
+      let url = (await data.getPlaylist(pid)).artworkUrl;
+      if (!url) {
+        const ids = (await data.getSourceIds({ kind: "playlist", playlistId: pid, cursor: null })).slice(0, 5);
+        url = (await data.getTracks(ids)).find((t) => t.artworkUrl)?.artworkUrl ?? null;
+      }
+      covers.set(pid, url);
+    }
+    return covers.get(pid) ?? null;
+  });
   handle("data:playlistTracks", (_e, p, c) => {
     const pid = str(p, "playlist id");
     return isLocal(pid) ? localTracks(pid, cursor(c), (ids) => data.getTracks(ids)) : data.getPlaylistTracks(pid, cursor(c));

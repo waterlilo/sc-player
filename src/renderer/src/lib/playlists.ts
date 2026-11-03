@@ -15,6 +15,16 @@ export const isLocal = (id: string) => id.startsWith("local-");
 /** Can this playlist be changed here: one of your own, on this computer. */
 export const canEdit = (p: Playlist | undefined): boolean => !!p && isLocal(p.id);
 
+/**
+ * The cover to show: the playlist's own, else — when a list gave it without one (SoundCloud's library leaves out the
+ * tracks) — its first track's, asked from main once per playlist.
+ */
+export function usePlaylistCover(p: Pick<Playlist, "id" | "artworkUrl" | "trackCount">): string | null {
+  const ask = !p.artworkUrl && p.trackCount > 0 && !isLocal(p.id);
+  const q = useQuery({ queryKey: ["playlistCover", p.id], queryFn: () => call("data:playlistCover", p.id), enabled: ask, staleTime: Infinity, retry: false });
+  return p.artworkUrl ?? q.data ?? null;
+}
+
 function refresh(id?: string) {
   void queryClient.invalidateQueries({ queryKey: ["playlists"] });
   void queryClient.invalidateQueries({ queryKey: ["myPlaylists"] });
