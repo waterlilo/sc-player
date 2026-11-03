@@ -26,16 +26,51 @@ export function proxyRules(url: string): string | null {
 /** Does this build carry sc player's own proxy (proxy.local.json at build time)? */
 export const hasBuiltinProxy = () => __SC_PROXY__ !== null;
 
-/** What goes through sc player's own proxy: SoundCloud's site, API, audio and artwork, and its bot protection. */
-const THROUGH = ["soundcloud.com", "sndcdn.com", "soundcloud.cloud", "datadome.co", "captcha-delivery.com"];
+/**
+ * What sc player reaches besides SoundCloud — updates and GitHub, lyrics, its own server, playlist imports, Whisper's
+ * model, Steam — goes straight, never through sc player's proxy (it carries SoundCloud only and refuses other hosts).
+ * A host the app starts to use goes on this list, or it fails for those whose SoundCloud goes through the proxy.
+ */
+const DIRECT = [
+  "github.com",
+  "*.github.com",
+  "*.githubusercontent.com",
+  "lrclib.net",
+  "*.lrclib.net",
+  "betterlyrics.org",
+  "*.betterlyrics.org",
+  "boidu.dev",
+  "*.boidu.dev",
+  "huggingface.co",
+  "*.huggingface.co",
+  "*.hf.co",
+  "*.yandex.net",
+  "*.yandex.ru",
+  "*.yandex.com",
+  "spotify.com",
+  "*.spotify.com",
+  "spotify.link",
+  "*.spotify.link",
+  "*.scdn.co",
+  "steamcommunity.com",
+  "*.steamcommunity.com",
+  "*.steamstatic.com",
+  "*.steamusercontent.com",
+];
 
-/** The built-in proxy as a PAC script: those domains through it, everything else (updates, lyrics…) direct. */
-function builtinPac(p: NonNullable<typeof __SC_PROXY__>) {
-  const via = `${p.scheme === "http" ? "PROXY" : "HTTPS"} ${p.host}:${p.port}`;
-  // and the secret name the server asks for the password on (Caddyfile: probe_resistance)
-  const test = [...THROUGH.map((d) => `host === "${d}" || dnsDomainIs(host, ".${d}")`), ...(p.secret ? [`host === "${p.secret}"`] : [])].join(" || ");
-  const script = `function FindProxyForURL(url, host) { if (${test}) return "${via}"; return "DIRECT"; }`;
-  return `data:application/x-ns-proxy-autoconfig;charset=utf-8,${encodeURIComponent(script)}`;
+/**
+ * The built-in proxy as fixed rules: everything through it but the hosts above (and sc player's own server). Not a
+ * PAC script: Chromium treats a PAC script as mandatory and runs it in a process of its own; where that process
+ * can't start (security software, seen 2026-11-03) every request failed with ERR_MANDATORY_PROXY_CONFIGURATION_FAILED,
+ * GitHub's too. Fixed rules need no such process (~15 MB less as well).
+ */
+function builtinRules(p: NonNullable<typeof __SC_PROXY__>): Electron.ProxyConfig {
+  const server = __SC_API__ ? new URL(__SC_API__).hostname : null;
+  return {
+    mode: "fixed_servers",
+    proxyRules: `${p.scheme}://${p.host}:${p.port}`,
+    proxyBypassRules: ["<local>", ...DIRECT, ...(server ? [server] : [])].join(","),
+  };
 }
 
 async function setAll(config: Electron.ProxyConfig, dropConnections = true) {
@@ -93,7 +128,7 @@ export async function applyProxy(p: Prefs["proxy"]) {
     return;
   }
   if (p.mode === "builtin" && __SC_PROXY__) {
-    await setAll({ mode: "pac_script", pacScript: builtinPac(__SC_PROXY__) });
+    await setAll(builtinRules(__SC_PROXY__));
     await logInToBuiltin();
     return;
   }
@@ -168,7 +203,7 @@ async function go(next: Route) {
   route = next;
   store().patch({ proxyRoute: next });
   // off a connection that doesn't work: drop what hangs on it; back to the user's own: let running downloads finish
-  await setAll(next === "ours" ? { mode: "pac_script", pacScript: builtinPac(__SC_PROXY__) } : { mode: "system" }, next === "ours");
+  await setAll(next === "ours" ? builtinRules(__SC_PROXY__) : { mode: "system" }, next === "ours");
   if (next === "ours") await logInToBuiltin();
   if (changed) log("main", `proxy auto: SoundCloud now goes ${next === "ours" ? "through sc player's proxy" : "over the user's own connection"}`);
 }
