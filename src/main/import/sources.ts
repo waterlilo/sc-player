@@ -58,6 +58,11 @@ async function yandex<T>(path: string, body?: URLSearchParams): Promise<T> {
   }
   const data = (await res.json().catch(() => null)) as { result?: T; error?: { name?: string } } | null;
   if (res.status === 404 || res.status === 403 || /not-found|no-rights/.test(data?.error?.name ?? "")) throw new ScError("not_found", m().yandexClosed);
+  // Yandex Music doesn't serve some countries (Finland, for one): the address it sees is there — often a VPN's
+  if (res.status === 451) {
+    log("main", `import: yandex ${path}: 451, closed to this country`);
+    throw new ScError("unavailable", m().yandexRegion);
+  }
   if (!res.ok || !data?.result) {
     log("main", `import: yandex ${path}: ${res.status} ${data?.error?.name ?? ""}`);
     throw new ScError("unavailable", m().yandexBusy(res.status));
