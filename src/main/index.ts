@@ -322,6 +322,7 @@ function registerIpc() {
   });
   handle("lyrics:suggestion", async (_e, t) => suggestion(await social.lyricsStatus(id(t))));
   handle("lyrics:review", async () => (await social.reviewLyrics()).map(({ lrc, ...r }) => ({ ...r, lyrics: communityLyrics(r, lrc, r.by) })));
+  handle("lyrics:history", async () => (await social.lyricsHistory()).map(({ lrc, ...r }) => ({ ...r, lyrics: communityLyrics(r, lrc, r.by) })));
   handle("lyrics:decide", async (_e, l, approve, t) => {
     await social.decideLyrics(id(l), approve === true);
     forgetLyrics(id(t));

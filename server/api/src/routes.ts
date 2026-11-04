@@ -739,16 +739,59 @@ function adminLyrics(c: Ctx) {
   });
 }
 
-/** Approved: shown for everyone, in place of an earlier approved version. Rejected: the words are dropped. */
+/** how long the moderation history goes back; rejected words are kept that long (to be read there), then dropped */
+const HISTORY = 7 * DAY;
+
+/** The moderator's own messenger device, when their app sends its secret along (X-SC-Device): who decided. */
+function moderatorDevice(c: Ctx): number | null {
+  const secret = String(c.req.headers["x-sc-device"] ?? "").trim();
+  if (secret.length < 20 || secret.length > 100) return null;
+  const d = one("SELECT id FROM devices WHERE secret = ?", sha(secret));
+  return d ? Number(d.id) : null;
+}
+
+/** Approved: shown for everyone, in place of an earlier approved version. Rejected: not shown; the words go after a week. */
 function adminDecideLyrics(c: Ctx, approve: boolean) {
   admin(c, "lyrics");
   const l = one("SELECT id, track FROM lyrics WHERE id = ? AND status = 'pending'", Number(c.params[0]));
   if (!l) return fail(404, "no such lyrics");
+  const now = Date.now();
   tx(() => {
     if (approve) run("UPDATE lyrics SET status = 'replaced' WHERE track = ? AND status = 'approved'", l.track);
-    run(`UPDATE lyrics SET status = ?, decided = ?${approve ? "" : ", lrc = ''"} WHERE id = ?`, approve ? "approved" : "rejected", Date.now(), l.id);
+    run("UPDATE lyrics SET status = ?, decided = ?, decided_by = ?, decided_key = ? WHERE id = ?", approve ? "approved" : "rejected", now, moderatorDevice(c), keyKind(c), l.id);
+    run("UPDATE lyrics SET lrc = '' WHERE status = 'rejected' AND decided < ? AND lrc != ''", now - HISTORY);
   });
   send(c.res, 204, null);
+}
+
+/** What moderators decided over the last days (?days=1..7, 7 by default), the latest first: for the owner to look over. */
+function adminLyricsHistory(c: Ctx) {
+  admin(c, "lyrics");
+  const days = int(Number(c.query.get("days") ?? 7), 1, 7, "days");
+  const rows = all(
+    `SELECT l.*, COALESCE(d.name, l.author_name) by_name, d.code by_code, m.name mod_name, m.code mod_code
+       FROM lyrics l LEFT JOIN devices d ON d.id = l.author LEFT JOIN devices m ON m.id = l.decided_by
+      WHERE l.status IN ('approved', 'rejected', 'replaced') AND l.decided > ? ORDER BY l.decided DESC LIMIT 300`,
+    Date.now() - days * DAY,
+  );
+  send(c.res, 200, {
+    lyrics: rows.map((r) => ({
+      id: r.id,
+      track: r.track,
+      title: r.title,
+      artist: r.artist,
+      durationMs: r.duration,
+      lrc: r.lrc,
+      created: r.created,
+      by: r.by_name,
+      byCode: r.by_code ?? "",
+      status: r.status,
+      decided: r.decided,
+      moderator: r.mod_name ?? "",
+      moderatorCode: r.mod_code ?? "",
+      key: r.decided_key ?? "",
+    })),
+  });
 }
 
 // ---- moderation ---------------------------------------------------------------------------------------------------
@@ -777,6 +820,12 @@ function roles(c: Ctx): Set<Role> {
 }
 
 const isAdmin = (c: Ctx, role: Role) => roles(c).has(role);
+
+/** which kind of key made the request: "full" (ADMIN_TOKEN), "lyrics", "workshop", or "" */
+function keyKind(c: Ctx): string {
+  const r = roles(c);
+  return r.has("lyrics") && r.has("workshop") ? "full" : r.has("lyrics") ? "lyrics" : r.has("workshop") ? "workshop" : "";
+}
 
 function admin(c: Ctx, role: Role) {
   if (!isAdmin(c, role)) {
@@ -915,6 +964,7 @@ const ROUTES: [string, RegExp, Handler][] = [
   ["GET", /^\/v1\/lyrics\/(\d{1,15})$/, trackLyrics],
   ["GET", /^\/v1\/admin\/me$/, adminMe],
   ["GET", /^\/v1\/admin\/lyrics$/, adminLyrics],
+  ["GET", /^\/v1\/admin\/lyrics\/history$/, adminLyricsHistory],
   ["POST", /^\/v1\/admin\/lyrics\/(\d{1,15})\/approve$/, (c) => adminDecideLyrics(c, true)],
   ["POST", /^\/v1\/admin\/lyrics\/(\d{1,15})\/reject$/, (c) => adminDecideLyrics(c, false)],
   ["GET", /^\/v1\/admin\/themes$/, adminThemes],

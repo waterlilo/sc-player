@@ -449,8 +449,16 @@ export async function reviewLyrics() {
   return (await api<{ lyrics: { id: number; track: number; title: string; artist: string; durationMs: number; lrc: string; created: number; by: string; byCode: string; replaces: boolean }[] }>("GET", "/v1/admin/lyrics", { admin: moderatorKey() })).lyrics;
 }
 
+/** Sends this computer's messenger secret along, so the history shows which moderator decided. */
 export async function decideLyrics(id: number, approve: boolean) {
-  await api("POST", `/v1/admin/lyrics/${id}/${approve ? "approve" : "reject"}`, { admin: moderatorKey() });
+  const device = getSecret("socialSecret");
+  await api("POST", `/v1/admin/lyrics/${id}/${approve ? "approve" : "reject"}`, { admin: moderatorKey(), headers: device ? { "x-sc-device": device } : {} });
+}
+
+type Decided = { id: number; track: number; title: string; artist: string; durationMs: number; lrc: string; created: number; by: string; byCode: string; status: "approved" | "rejected" | "replaced"; decided: number; moderator: string; moderatorCode: string; key: string };
+
+export async function lyricsHistory() {
+  return (await api<{ lyrics: Decided[] }>("GET", "/v1/admin/lyrics/history", { admin: moderatorKey() })).lyrics;
 }
 
 // ---- moderation ---------------------------------------------------------------------------------------------------

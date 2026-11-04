@@ -183,6 +183,18 @@ export interface LyricsForReview {
   lyrics: Lyrics;
 }
 
+/** Sent lyrics a moderator decided on, for the moderation history (the last 7 days). */
+export interface LyricsDecided extends Omit<LyricsForReview, "replaces"> {
+  /** approved (shown), rejected, or replaced (approved, then a newer version was) */
+  status: "approved" | "rejected" | "replaced";
+  decided: number;
+  /** the moderator's messenger name and code ("" when their app didn't say) */
+  moderator: string;
+  moderatorCode: string;
+  /** which kind of key: "full", "lyrics" */
+  key: string;
+}
+
 export interface Lyrics {
   /** the record's id at its source (LRCLIB's for picks by hand; 0 when the source has none) */
   id: number;

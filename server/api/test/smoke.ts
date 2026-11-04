@@ -94,6 +94,18 @@ if (ADMIN) {
   assert.equal((await api("POST", `/v1/admin/lyrics/${second.id}/reject`, { admin: ADMIN })).status, 204);
   assert.equal((await api("GET", "/v1/lyrics/555")).body.lrc, lrc);
   assert.equal((await api("GET", "/v1/lyrics/mine?track=555", { secret: b.secret })).body.status, "rejected");
+  // the history: who decided what, the latest first; the rejected words are kept to be read there
+  const history = (await api("GET", "/v1/admin/lyrics/history", { admin: ADMIN })).body.lyrics;
+  assert.deepEqual(history.map((h: { status: string }) => h.status).slice(0, 2), ["rejected", "approved"]);
+  assert.equal(history[0].lrc, "[00:02] x\n[00:03] y");
+  assert.equal(history[0].key, "full");
+  assert.equal((await api("GET", "/v1/admin/lyrics/history", { admin: "wrong-token-wrong-token-wrong" })).status, 404);
+  // with the moderator's own device along, their name is kept
+  const third = (await api("POST", "/v1/lyrics", { secret: b.secret, body: { track: 556, title: "Orbit 2", artist: "Sky", lrc } })).body;
+  await fetch(`${BASE}/v1/admin/lyrics/${third.id}/reject`, { method: "POST", headers: { authorization: `Admin ${LYRICS_KEY ?? ADMIN}`, "x-sc-device": a.secret } });
+  const h2 = (await api("GET", "/v1/admin/lyrics/history?days=1", { admin: ADMIN })).body.lyrics[0];
+  assert.equal(h2.moderator, "sky");
+  assert.equal(h2.key, LYRICS_KEY ? "lyrics" : "full");
 }
 
 // listening now, only when shared

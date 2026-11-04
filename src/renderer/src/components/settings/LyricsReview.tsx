@@ -26,6 +26,7 @@ export function useDecide() {
       await call("lyrics:decide", r.id, approve, r.track);
       client.setQueryData<LyricsForReview[]>(reviewKey, (old) => old?.filter((x) => x.id !== r.id));
       await client.invalidateQueries({ queryKey: ["lyrics", r.track] });
+      void client.invalidateQueries({ queryKey: ["lyrics-history"] });
       if (useReviewing.getState().item?.id === r.id) useReviewing.setState({ item: null });
       toast(approve ? t.lyricsApproved : t.lyricsRejected);
     } catch {

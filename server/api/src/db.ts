@@ -123,6 +123,9 @@ const columns = (table: string) => (db.prepare(`PRAGMA table_info(${table})`).al
 if (!columns("devices").includes("features")) db.exec("ALTER TABLE devices ADD COLUMN features TEXT NOT NULL DEFAULT ''");
 // a playlist from the sender's computer (JSON: title, ids); `track` is then its first track, which older apps show
 if (!columns("messages").includes("playlist")) db.exec("ALTER TABLE messages ADD COLUMN playlist TEXT");
+// who decided on sent lyrics: the moderator's messenger device (when their app sent it) and which kind of key
+if (!columns("lyrics").includes("decided_by")) db.exec("ALTER TABLE lyrics ADD COLUMN decided_by INTEGER");
+if (!columns("lyrics").includes("decided_key")) db.exec("ALTER TABLE lyrics ADD COLUMN decided_key TEXT NOT NULL DEFAULT ''");
 
 export type Row = Record<string, string | number | null>;
 

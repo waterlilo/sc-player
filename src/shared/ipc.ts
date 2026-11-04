@@ -1,6 +1,6 @@
 import type { SearchKind } from "./provider";
 import type { Friends, Message, ModRoles, Room, RoomOp, RoomState, SocialStatus, SocialTrack, SocialUpdate, WsPage, WsReported, WsSort, WsThemeFull, SharedPlaylist } from "./social";
-import type { AppErrorInfo, ImportItem, ImportList, ImportMatch, Lyrics, LyricsHit, LyricsSyncStatus, Page, Playlist, QueueSource, Resolved, SavedProfile, StreamInfo, SyncRequest, SyncResult, Track, TrackDetails, User, LyricsForReview, LyricsSuggestionState, SteamWallpaper, BackupStatus, RestoreResult } from "./types";
+import type { AppErrorInfo, ImportItem, ImportList, ImportMatch, Lyrics, LyricsHit, LyricsSyncStatus, Page, Playlist, QueueSource, Resolved, SavedProfile, StreamInfo, SyncRequest, SyncResult, Track, TrackDetails, User, LyricsForReview, LyricsDecided, LyricsSuggestionState, SteamWallpaper, BackupStatus, RestoreResult } from "./types";
 
 /**
  * The one contract between main and renderer. main registers a handler for every InvokeMap channel, preload exposes
@@ -313,6 +313,8 @@ export interface InvokeMap {
   /** the moderator's queue (with the moderator's key) */
   "lyrics:review": () => LyricsForReview[];
   "lyrics:decide": (id: number, approve: boolean, trackId: number) => void;
+  /** what moderators decided over the last 7 days, the latest first */
+  "lyrics:history": () => LyricsDecided[];
   "lyricsSync:status": () => LyricsSyncStatus;
   /** starts the model download (progress comes as lyricsSync:status events) */
   "lyricsSync:download": () => LyricsSyncStatus;
@@ -589,6 +591,7 @@ export const INVOKE_CHANNELS = [
   "lyrics:suggestion",
   "lyrics:review",
   "lyrics:decide",
+  "lyrics:history",
   "lyricsSync:status",
   "lyricsSync:download",
   "lyricsSync:deleteModel",
