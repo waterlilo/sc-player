@@ -97,7 +97,10 @@ app.on("child-process-gone", (_e, d) => {
   if (d.reason !== "clean-exit") log("main", `${d.type}${d.name ? ` (${d.name})` : ""} process gone: ${d.reason} (exit ${d.exitCode})`);
 });
 
-if (!app.requestSingleInstanceLock()) app.quit();
+// a second copy (a click on a scplayer:// link, the menu entry again) hands its arguments over and leaves — it must
+// not run the start below as well (it signed in, set the proxy and wrote files before quitting)
+const firstInstance = app.requestSingleInstanceLock();
+if (!firstInstance) app.quit();
 setCommunityLyrics((t) => social.approvedLyrics(t));
 registerBackgroundScheme();
 app.setAppUserModelId("com.skythemontage.scplayer");
@@ -750,20 +753,35 @@ function restartForKey(): boolean {
 }
 
 void app.whenReady().then(async () => {
-  if (restartForKey()) return;
+  if (!firstInstance || restartForKey()) return;
   // where a slow start goes: before this, Chromium itself (on Linux often a desktop portal or D-Bus that doesn't answer)
   const readyMs = Math.round(process.uptime() * 1000);
+  /** a start step that takes over half a second goes into the log (a slow start on Linux: which one it was) */
+  const timed = <T>(name: string, run: () => T): T => {
+    const t = performance.now();
+    const out = run();
+    const ms = Math.round(performance.now() - t);
+    if (ms > 500) log("main", `start: ${name} took ${ms} ms`);
+    return out;
+  };
+  const timedAsync = async <T>(name: string, run: () => Promise<T>): Promise<T> => {
+    const t = performance.now();
+    const out = await run();
+    const ms = Math.round(performance.now() - t);
+    if (ms > 500) log("main", `start: ${name} took ${ms} ms`);
+    return out;
+  };
   scSession().setUserAgent(chromeUserAgent());
   initProxyAuth(() => prefs().proxy.username);
   initProxyAuto();
-  await applyProxy(prefs().proxy);
+  await timedAsync("proxy", () => applyProxy(prefs().proxy));
   allowAudioCors();
   serveBackgrounds();
   serveLocalTracks();
   // backgrounds left over from a change while the old one was still playing
   dropBackgrounds(prefs().look.bgFile);
   registerIpc();
-  await auth.restore();
+  await timedAsync("sign-in", () => auth.restore());
   if (process.platform === "darwin") {
     Menu.setApplicationMenu(
       Menu.buildFromTemplate([
@@ -805,7 +823,7 @@ void app.whenReady().then(async () => {
     );
   }
   const p = prefs();
-  main = createMainWindow({ startHidden: startedHidden() && p.startMinimized, closeToTray: () => prefs().closeToTray, quitting: () => quitting });
+  main = timed("window", () => createMainWindow({ startHidden: startedHidden() && p.startMinimized, closeToTray: () => prefs().closeToTray, quitting: () => quitting }));
   main.once("ready-to-show", () => log("main", `start: ready in ${readyMs} ms, window in ${Math.round(process.uptime() * 1000)} ms`));
   // an empty window (the page never drawn) leaves nothing in the log otherwise: what failed, and with which graphics
   main.webContents.on("render-process-gone", (_e, d) => log("main", `page process gone: ${d.reason} (exit ${d.exitCode})`));
@@ -830,24 +848,25 @@ void app.whenReady().then(async () => {
   // links open the installed app (in development they would point at this checkout)
   if (app.isPackaged) {
     // an AppImage writes its menu entry first: the link handler is that entry
-    integrateLinux();
-    registerLinks();
+    timed("menu entry", integrateLinux);
+    timed("links", registerLinks);
   }
   // Windows forgets the taskbar buttons while the window is hidden
   main.on("show", () => updateThumbar(main, playerInfo, command, true));
-  createTray({
+  timed("tray", () => createTray({
     window: () => main,
     command,
     quit: () => {
       quitting = true;
       app.quit();
     },
-  });
+  }));
   initHotkeys((action) => (action === "showWindow" ? showWindow(main) : send(main, "player:command", action)));
-  const failed = applyHotkeys(p.hotkeys);
-  setDiscordEnabled(p.discordPresence);
+  const failed = timed("hotkeys", () => applyHotkeys(p.hotkeys));
+  timed("discord", () => setDiscordEnabled(p.discordPresence));
   main.webContents.once("did-finish-load", () => send(main, "hotkeys:failed", failed));
-  applyAutostart(p.startWithWindows);
+  timed("autostart", () => applyAutostart(p.startWithWindows));
+  log("main", `start: set up in ${Math.round(process.uptime() * 1000) - readyMs} ms after ready`);
   updater.initUpdater(() => main, () => prefs().checkUpdates);
   social.initSocial(() => main);
   initBackup();
