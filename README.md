@@ -139,7 +139,7 @@ New versions install over the old one; your sign-in, settings and playlists stay
 
 ## License
 
-Copyright © 2026 sky (@skythemontage) and the contributors.
+Copyright © 2026 waterlil and the contributors.
 
 sc player is free software under the [GNU General Public License v3.0](LICENSE): you may use, study, change and share
 it, and a changed version you share must stay open under the same license, with its source.
@@ -150,5 +150,5 @@ needs a name and logo of its own, so nobody takes it for this app.
 ---
 
 <div align="center">
-<sub>made by sky (@skythemontage) · SoundCloud is a trademark of SoundCloud Ltd.</sub>
+<sub>made by waterlil · SoundCloud is a trademark of SoundCloud Ltd.</sub>
 </div>
