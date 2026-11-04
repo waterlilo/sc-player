@@ -64,19 +64,25 @@ jobs:
           if kill -0 "$pid" 2>/dev/null; then kill "$pid"; ok=1; echo "running after 25 s"; else ok=0; echo "exited on start"; fi
           echo "--- what it printed (last 80 lines; addresses and logins masked) ---"
           tail -n 80 start.log | sed -E 's#://[^/@ ]+@#://***@#g; s#[0-9]{1,3}(\.[0-9]{1,3}){3}#x.x.x.x#g'
+          echo "--- how long the start took (the app's own log) ---"
+          grep "start:" "$HOME/Library/Application Support/sc player/logs/main.log" || echo "(no start line)"
           [ "$ok" = 1 ]
 
+      # run as users run it: the AppImage mounted through FUSE, not unpacked (an xz-packed image took 40 s to start)
       - name: The app starts (Linux)
         if: runner.os == 'Linux'
         shell: bash
         run: |
+          sudo apt-get install -y -qq fuse3 > /dev/null
           chmod +x dist/*.AppImage
-          SC_NO_COUNT=1 xvfb-run -a dist/*.AppImage --appimage-extract-and-run --no-sandbox > start.log 2>&1 &
+          SC_NO_COUNT=1 xvfb-run -a dist/*.AppImage --no-sandbox > start.log 2>&1 &
           pid=$!
           sleep 25
           if kill -0 "$pid" 2>/dev/null; then kill "$pid"; ok=1; echo "running after 25 s"; else ok=0; echo "exited on start"; fi
           echo "--- what it printed (last 80 lines; addresses and logins masked) ---"
           tail -n 80 start.log | sed -E 's#://[^/@ ]+@#://***@#g; s#[0-9]{1,3}(\.[0-9]{1,3}){3}#x.x.x.x#g'
+          echo "--- how long the start took (the app's own log) ---"
+          grep "start:" "$HOME/.config/sc player/logs/main.log" || echo "(no start line)"
           [ "$ok" = 1 ]
 
       - uses: actions/upload-artifact@v4

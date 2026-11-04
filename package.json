@@ -178,6 +178,12 @@
       "ru"
     ],
     "compression": "maximum",
+    "toolsets": {
+      "appimage": "1.0.3"
+    },
+    "appImage": {
+      "compression": "zstd"
+    },
     "publish": {
       "provider": "github",
       "owner": "waterlilo",
