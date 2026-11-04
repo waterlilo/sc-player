@@ -16,6 +16,7 @@
 ![Windows](https://img.shields.io/badge/Windows-10%20%2F%2011-3a3a41?style=flat-square&labelColor=111114)
 ![macOS](https://img.shields.io/badge/macOS-Apple%20Silicon%20%2F%20Intel-3a3a41?style=flat-square&labelColor=111114)
 ![Linux](https://img.shields.io/badge/Linux-AppImage%20%2F%20deb-3a3a41?style=flat-square&labelColor=111114)
+[![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-3a3a41?style=flat-square&labelColor=111114)](LICENSE)
 
 <br/>
 
@@ -158,6 +159,18 @@ New versions install over the old one; your sign-in, settings and playlists stay
   song on your computer.
 - **[ggrk52](https://github.com/ggrk52)** — the macOS version.
 - The zapret guide for SoundCloud by kkkwkswd.
+
+---
+
+## License
+
+Copyright © 2026 sky (@skythemontage) and the contributors.
+
+sc player is free software under the [GNU General Public License v3.0](LICENSE): you may use, study, change and share
+it, and a changed version you share must stay open under the same license, with its source.
+
+The name **sc player** and its logo are not covered by the license (GPL-3.0 section 7e): a changed version you share
+needs a name and logo of its own, so nobody takes it for this app.
 
 ---
 
