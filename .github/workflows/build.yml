@@ -53,6 +53,26 @@ jobs:
 
       - run: node scripts/dist.mjs
 
+      # the built app starts and is still running 25 s later (a crash on start fails the run)
+      - name: The app starts (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          SC_NO_COUNT=1 "dist/mac-arm64/sc player.app/Contents/MacOS/sc player" > start.log 2>&1 &
+          pid=$!
+          sleep 25
+          if kill -0 "$pid" 2>/dev/null; then kill "$pid"; echo "running after 25 s"; else cat start.log; exit 1; fi
+
+      - name: The app starts (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          chmod +x dist/*.AppImage
+          SC_NO_COUNT=1 xvfb-run -a dist/*.AppImage --appimage-extract-and-run --no-sandbox > start.log 2>&1 &
+          pid=$!
+          sleep 25
+          if kill -0 "$pid" 2>/dev/null; then kill "$pid"; echo "running after 25 s"; else cat start.log; exit 1; fi
+
       - uses: actions/upload-artifact@v4
         with:
           name: sc-player-${{ matrix.name }}
