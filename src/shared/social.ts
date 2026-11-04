@@ -205,6 +205,22 @@ export interface WsReported extends WsTheme {
   reasons: string;
   /** the author's friend code */
   authorCode: string;
+  /** who reported it, the latest first (missing from a server before 2.4) */
+  reporters?: WsReporter[];
+}
+
+export interface WsReporter {
+  /** their messenger name and friend code */
+  name: string;
+  code: string;
+  reason: string;
+  created: number;
+}
+
+/** What this computer's moderator key may do: check the lyrics people send, look after the workshop, or both. */
+export interface ModRoles {
+  lyrics: boolean;
+  workshop: boolean;
 }
 
 export interface WsThemeFull extends WsTheme {

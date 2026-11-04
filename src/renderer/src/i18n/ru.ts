@@ -264,9 +264,14 @@ export const ru: Dict = {
     replaced: "Одобрена более новая версия",
   },
   lyricsReview: "Тексты на проверку",
-  lyricsReviewOpen: "Открыть",
-  lyricsWaiting: (k: number) => (k ? `${k} ${plural(k, "ждёт", "ждут", "ждут")}` : "Ничего не ждёт"),
-  lyricsReviewEmpty: "Проверять нечего",
+  lyricsReviewEmpty: "Проверять нечего — всё разобрано",
+  moderation: "Модерация",
+  moderationHint: "Тексты, которые люди разметили сами и отправили для всех. Проверьте каждый с песней: одобренный увидят все у этого трека, с подписью автора.",
+  lyricsShow: "Показать текст",
+  lyricsHide: "Скрыть текст",
+  lyricsSentBy: (name: string, code: string) => (code ? `от ${name} · ${code}` : `от ${name}`),
+  suggestNeedsCode: "Чтобы отправить текст на проверку, сначала получите код для друзей во Входящих",
+  suggestGetCode: "Получить код",
   lyricsTry: "Проверить с песней",
   lyricsApprove: "Одобрить",
   lyricsReject: "Отклонить",
@@ -636,9 +641,17 @@ export const ru: Dict = {
   deleteThemeConfirm: "Удалить эту тему из мастерской?",
   deleteOthersThemeConfirm: (author: string) => `Удалить тему ${author} из мастерской? Как модератор.`,
   moderatorOpen: "Ключ модератора…",
-  moderatorKey: "Ключ модератора мастерской",
-  moderatorKeyHint: "Только для модератора мастерской: позволяет этому компьютеру удалять любые темы",
-  moderatorOn: "Этот компьютер может удалять любые темы в мастерской",
+  moderatorKey: "Ключ модератора",
+  moderatorKeyHint: "Только для модераторов: ключ открывает проверку текстов, жалобы мастерской или и то и другое",
+  moderatorOn: (lyrics: boolean, workshop: boolean) =>
+    lyrics && workshop
+      ? "Этот компьютер проверяет тексты (вкладка «Модерация») и следит за мастерской (вкладка «Жалобы»)"
+      : lyrics
+        ? "Этот компьютер проверяет тексты, которые присылают люди: вкладка «Модерация» над настройками"
+        : workshop
+          ? "Этот компьютер следит за мастерской: вкладка «Жалобы», можно удалять любые темы"
+          : "Сервер больше не принимает этот ключ",
+  reportedBy: (name: string, code: string) => (name ? `${name} · ${code}` : code),
   moderatorWrong: "Ключ не подошёл",
   removeKey: "Убрать ключ",
   publishLook: "Опубликовать моё оформление",

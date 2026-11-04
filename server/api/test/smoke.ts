@@ -67,6 +67,20 @@ assert.equal((await api("GET", "/v1/lyrics/555")).status, 404);
 assert.equal((await api("GET", "/v1/lyrics/mine?track=555", { secret: a.secret })).body.status, "pending");
 assert.equal((await api("GET", "/v1/admin/lyrics", { secret: a.secret })).status, 404);
 const ADMIN = process.env.ADMIN_TOKEN;
+const LYRICS_KEY = process.env.ADMIN_TOKEN_LYRICS;
+const WORKSHOP_KEY = process.env.ADMIN_TOKEN_WORKSHOP;
+// a moderator's key and what it may do
+assert.equal((await api("GET", "/v1/admin/me", { admin: "wrong-token-wrong-token-wrong" })).status, 404);
+if (ADMIN) assert.deepEqual((await api("GET", "/v1/admin/me", { admin: ADMIN })).body, { lyrics: true, workshop: true });
+if (LYRICS_KEY) {
+  assert.deepEqual((await api("GET", "/v1/admin/me", { admin: LYRICS_KEY })).body, { lyrics: true, workshop: false });
+  assert.equal((await api("GET", "/v1/admin/lyrics", { admin: LYRICS_KEY })).status, 200);
+  assert.equal((await api("GET", "/v1/admin/themes", { admin: LYRICS_KEY })).status, 404);
+}
+if (WORKSHOP_KEY) {
+  assert.deepEqual((await api("GET", "/v1/admin/me", { admin: WORKSHOP_KEY })).body, { lyrics: false, workshop: true });
+  assert.equal((await api("GET", "/v1/admin/lyrics", { admin: WORKSHOP_KEY })).status, 404);
+}
 if (ADMIN) {
   const queue = (await api("GET", "/v1/admin/lyrics", { admin: ADMIN })).body.lyrics;
   assert.equal(queue.at(-1).by, "sky");
@@ -136,7 +150,12 @@ const d = (await api("POST", "/v1/register", { body: {} })).body;
 for (const s of [b, c, d]) await api("POST", `/v1/themes/${th.id}/report`, { secret: s.secret, body: { reason: "test" } });
 assert.equal((await api("GET", "/v1/themes")).body.themes.length, 0);
 if (process.env.ADMIN_TOKEN) {
-  assert.equal((await api("GET", "/v1/admin/themes", { admin: process.env.ADMIN_TOKEN })).body.themes[0].reports, 3);
+  const reported = (await api("GET", "/v1/admin/themes", { admin: process.env.ADMIN_TOKEN })).body.themes[0];
+  assert.equal(reported.reports, 3);
+  // who reported it, with their code
+  assert.equal(reported.reporters.length, 3);
+  assert.ok(reported.reporters.some((r: { name: string; code: string }) => r.name === "mira" && r.code === b.code));
+  if (WORKSHOP_KEY) assert.equal((await api("GET", "/v1/admin/themes", { admin: WORKSHOP_KEY })).body.themes.length, 1);
   await api("POST", `/v1/admin/themes/${th.id}/keep`, { admin: process.env.ADMIN_TOKEN });
   assert.equal((await api("GET", "/v1/themes")).body.themes.length, 1);
 }

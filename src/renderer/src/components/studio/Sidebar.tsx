@@ -5,7 +5,9 @@ import { shortVersion } from "@/lib/format";
 import { unpin, unsaveProfile } from "@/lib/links";
 import { useSystem } from "@/lib/system";
 import { useAuth } from "@/state/auth";
+import { useModRoles } from "@/lib/moderation";
 import { useLikes } from "@/state/likes";
+import { useLyricsQueue } from "../settings/LyricsReview";
 import { useNav, type Route, type Section } from "@/state/nav";
 import { usePlayer } from "@/state/player";
 import { useSettings } from "@/state/settings";
@@ -24,6 +26,19 @@ function Nav({ section, route, icon, children, count, badge }: { section: Sectio
       <span className="truncate">{children}</span>
       {badge ? <span className="u">{badge > 99 ? "99+" : badge}</span> : count ? <span className="n">{count.toLocaleString(numberLocale())}</span> : null}
     </button>
+  );
+}
+
+/** The lyrics moderator's tab, with how many lyrics wait: only with a key that may review them (Settings → Messenger). */
+function ModerationNav() {
+  const t = useT();
+  const roles = useModRoles();
+  const waiting = useLyricsQueue(roles.lyrics).data?.length ?? 0;
+  if (!roles.lyrics) return null;
+  return (
+    <Nav section="moderation" route={{ name: "moderation" }} icon="shield" badge={waiting}>
+      {t.moderation}
+    </Nav>
   );
 }
 
@@ -214,9 +229,10 @@ export default function StudioSidebar() {
           {t.updateBanner(shortVersion(update.version))}
         </button>
       )}
-      {/* Settings stands on its own line right above who you are, at the bottom */}
+      {/* Settings stands on its own line right above who you are, at the bottom (a moderator's tab over it) */}
       <div className="mt-auto pt-2">
         <div className="mb-2">
+          <ModerationNav />
           <Nav section="settings" route={{ name: "settings" }} icon="settings">
             {t.settings}
           </Nav>

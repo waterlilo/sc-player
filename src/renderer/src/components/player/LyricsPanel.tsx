@@ -10,6 +10,7 @@ import { syncLyrics, useLyricsSync } from "@/lib/lyricsSync";
 import { call } from "@/lib/sky";
 import { holdTrack, player, useCurrentTrack, usePlayer, usePosition, useStreamTrack } from "@/state/player";
 import { ask } from "@/state/dialog";
+import { useNav } from "@/state/nav";
 import { useSettings } from "@/state/settings";
 import { useSocial } from "@/state/social";
 import { useUi } from "@/state/ui";
@@ -50,6 +51,27 @@ export function LyricsSource({ lyrics, syncing = false }: { lyrics: Lyrics | nul
   );
 }
 
+function SuggestLinkBody({ track }: { track: Track }) {
+  const t = useT();
+  const { state, busy, send } = useSuggestion(track);
+  if (state === "pending" || state === "approved") return <> · {t.suggestState[state]}</>;
+  return (
+    <>
+      {" · "}
+      <button type="button" disabled={busy} onClick={() => void send()} className="underline-offset-2 hover:text-text hover:underline disabled:opacity-50">
+        {state === "replaced" ? t.suggestAgain : t.suggestLyrics}
+      </button>
+    </>
+  );
+}
+
+/** By my own timed words: "Suggest for everyone" (sent for the moderator), or how the ones sent are doing. */
+export function SuggestLink({ track, lyrics }: { track: Track; lyrics: Lyrics | null | undefined }) {
+  const available = useSocial((s) => !!s.status?.available);
+  if (!available || lyrics?.source !== "own" || !lyrics.synced?.length) return null;
+  return <SuggestLinkBody track={track} />;
+}
+
 /** The panel's footer: the source of the words on show. */
 function PanelCredit({ track }: { track: Track }) {
   const q = useShownLyrics(track);
@@ -57,6 +79,7 @@ function PanelCredit({ track }: { track: Track }) {
   return (
     <p className="px-4 py-2 font-type text-[0.65rem] text-muted/70">
       <LyricsSource lyrics={q.data} syncing={q.syncing} />
+      <SuggestLink track={track} lyrics={q.data} />
     </p>
   );
 }
@@ -289,17 +312,27 @@ function TapSync({ trackId, lines, onCancel, onDone }: { trackId: number; lines:
   );
 }
 
-/** My timed words, sent for the moderator: once approved, everyone sees them for this track, with my name. */
-function SuggestLyrics({ track, name }: { track: Track; name: string }) {
+/**
+ * Sends my timed words for the moderator, and how the last ones sent for this track are doing. Without a friend code
+ * (the server knows nobody to sign them with) it leads to the Inbox to get one.
+ */
+function useSuggestion(track: Track) {
   const t = useT();
   const client = useQueryClient();
   const toast = useUi((s) => s.showToast);
-  const q = useQuery({ queryKey: ["lyrics-suggestion", track.id], queryFn: () => call("lyrics:suggestion", track.id), staleTime: 60_000 });
+  const profile = useSocial((s) => s.status?.profile ?? null);
+  const q = useQuery({ queryKey: ["lyrics-suggestion", track.id], queryFn: () => call("lyrics:suggestion", track.id), staleTime: 60_000, enabled: !!profile });
   const [busy, setBusy] = useState(false);
-  const state = q.data ?? "";
+  const state = profile ? (q.data ?? "") : "";
 
   const send = async () => {
-    if (!(await ask(t.suggestConfirm(name), t.suggestSend))) return;
+    if (!profile) {
+      toast(t.suggestNeedsCode);
+      useUi.setState({ fullOpen: false });
+      useNav.getState().open("inbox", { name: "inbox" });
+      return;
+    }
+    if (!(await ask(t.suggestConfirm(profile.name || profile.code), t.suggestSend))) return;
     setBusy(true);
     try {
       client.setQueryData(["lyrics-suggestion", track.id], await call("lyrics:suggest", { trackId: track.id, artist: track.artist, title: track.title, durationMs: track.durationMs }));
@@ -310,7 +343,13 @@ function SuggestLyrics({ track, name }: { track: Track; name: string }) {
       setBusy(false);
     }
   };
+  return { state, busy, send };
+}
 
+/** My timed words, sent for the moderator: once approved, everyone sees them for this track, with my name. */
+function SuggestLyrics({ track }: { track: Track }) {
+  const t = useT();
+  const { state, busy, send } = useSuggestion(track);
   return (
     <div className="mt-3 flex items-center justify-between gap-3 rounded-md bg-white/[0.03] px-3 py-2">
       <span className="min-w-0 text-xs text-muted">{state ? t.suggestState[state] : t.suggestHint}</span>
@@ -334,7 +373,7 @@ function OwnWords({ track, onDone }: { track: Track; onDone: () => void }) {
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   const [tapping, setTapping] = useState(false);
-  const profile = useSocial((s) => s.status?.profile ?? null);
+  const available = useSocial((s) => !!s.status?.available);
   // while the words are being written or timed, the track stays (it doesn't move on to the next one at its end)
   useEffect(() => (open || tapping ? holdTrack() : undefined), [open, tapping]);
   useEffect(() => void (open && keepDraft(track.id, { text })), [track.id, open, text]);
@@ -389,7 +428,7 @@ function OwnWords({ track, onDone }: { track: Track; onDone: () => void }) {
         />
       </label>
       {failed && <p className="mt-2 text-sm text-muted">{t.lyricsOffline}</p>}
-      {mine && !!current?.synced?.length && profile && <SuggestLyrics track={track} name={profile.name || profile.code} />}
+      {mine && !!current?.synced?.length && available && <SuggestLyrics track={track} />}
       <div className="mt-2 flex flex-wrap items-center justify-end gap-2">
         <button type="button" disabled={busy || linesOf(text).length < 2} onClick={() => setTapping(true)} className="s-btn mr-auto" title={t.tapSyncTitle}>
           {t.tapSync}

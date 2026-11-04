@@ -2,13 +2,14 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 import { useT } from "@/i18n";
 import { ask } from "@/state/dialog";
+import { rolesKey } from "@/lib/moderation";
 import { call } from "@/lib/sky";
 import { useSettings } from "@/state/settings";
 import { useSocial } from "@/state/social";
 import { useUi } from "@/state/ui";
 import { PaperButton } from "../ui/Buttons";
 import { Row, Section, Toggle } from "./Controls";
-import LyricsReview, { useLyricsQueue } from "./LyricsReview";
+import { reviewKey } from "./LyricsReview";
 
 /** Settings → Messenger: what friends see, pop-ups, the anonymous count, deleting the code. */
 export default function Messenger() {
@@ -100,25 +101,16 @@ export default function Messenger() {
   );
 }
 
-/** The moderator's queue of lyrics people sent. */
-function LyricsQueueRow() {
-  const t = useT();
-  const q = useLyricsQueue();
-  const [open, setOpen] = useState(false);
-  return (
-    <Row label={t.lyricsReview} hint={q.data ? t.lyricsWaiting(q.data.length) : undefined}>
-      <PaperButton onClick={() => setOpen(true)}>{t.lyricsReviewOpen}</PaperButton>
-      {open && <LyricsReview onClose={() => setOpen(false)} />}
-    </Row>
-  );
-}
-
-/** The workshop moderator's key: folded away behind a quiet link, as nobody else needs it. */
+/**
+ * A moderator's key (lyrics, the workshop, or both): folded away behind a quiet link, as nobody else needs it. With
+ * a key that may review lyrics, the Moderation tab shows above Settings.
+ */
 function ModeratorKey() {
   const t = useT();
   const client = useQueryClient();
   const toast = useUi((s) => s.showToast);
-  const on = useQuery({ queryKey: ["ws-moderator"], queryFn: () => call("ws:moderator"), staleTime: Infinity }).data === true;
+  const roles = useQuery({ queryKey: rolesKey, queryFn: () => call("mod:roles"), staleTime: Infinity }).data;
+  const on = !!roles && (roles.lyrics || roles.workshop);
   const [open, setOpen] = useState(false);
   const [key, setKey] = useState("");
   const [busy, setBusy] = useState(false);
@@ -126,7 +118,9 @@ function ModeratorKey() {
   const save = async (value: string | null) => {
     setBusy(true);
     try {
-      client.setQueryData(["ws-moderator"], await call("ws:setModerator", value));
+      client.setQueryData(rolesKey, await call("mod:setKey", value));
+      void client.invalidateQueries({ queryKey: reviewKey });
+      void client.invalidateQueries({ queryKey: ["ws-reports"] });
       setKey("");
       setOpen(false);
       toast(t.saved);
@@ -139,14 +133,11 @@ function ModeratorKey() {
 
   if (on)
     return (
-      <>
-        <Row label={t.moderatorKey} hint={t.moderatorOn}>
-          <PaperButton disabled={busy} onClick={() => void save(null)}>
-            {t.removeKey}
-          </PaperButton>
-        </Row>
-        <LyricsQueueRow />
-      </>
+      <Row label={t.moderatorKey} hint={t.moderatorOn(roles.lyrics, roles.workshop)}>
+        <PaperButton disabled={busy} onClick={() => void save(null)}>
+          {t.removeKey}
+        </PaperButton>
+      </Row>
     );
   if (!open)
     return (

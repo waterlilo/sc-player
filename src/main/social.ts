@@ -3,7 +3,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { join as joinPath } from "node:path";
 import { app, nativeImage, net, Notification, type BrowserWindow } from "electron";
 import type { Look } from "@shared/ipc";
-import type { Friends, Message, RoomInvite, SocialProfile, SocialStatus, SocialTrack, SocialUpdate, ThemeLook, WsPage, WsReported, WsSort, WsThemeFull, SharedPlaylist } from "@shared/social";
+import type { Friends, Message, ModRoles, RoomInvite, SocialProfile, SocialStatus, SocialTrack, SocialUpdate, ThemeLook, WsPage, WsReported, WsSort, WsThemeFull, SharedPlaylist } from "@shared/social";
 import { ScError } from "./soundcloud";
 import { prefs } from "./store";
 import { getSecret, setSecret } from "./store/secrets";
@@ -480,18 +480,64 @@ export async function wsModerate(id: string, hide: boolean) {
   await api("POST", `/v1/admin/themes/${encodeURIComponent(id)}/${hide ? "hide" : "keep"}`, { admin: moderatorKey() });
 }
 
-/** whether this computer holds the workshop moderator's key */
-export const isModerator = () => !!getSecret("moderatorToken");
+const NO_ROLES: ModRoles = { lyrics: false, workshop: false };
+const rolesText = (r: ModRoles) => [r.lyrics && "lyrics", r.workshop && "workshop"].filter(Boolean).join(",");
+const rolesOf = (s: string): ModRoles => ({ lyrics: s.split(",").includes("lyrics"), workshop: s.split(",").includes("workshop") });
+
+/**
+ * What a key may do, asked of the server. A server before 2.4 has no /admin/me: there the one key there was may do
+ * everything, if it opens the workshop's reports. A wrong key is "not found" (thrown).
+ */
+async function askRoles(key: string, timeout?: number): Promise<ModRoles> {
+  try {
+    return await api<ModRoles>("GET", "/v1/admin/me", { admin: key, timeout });
+  } catch (e) {
+    if (!(e instanceof ScError && e.code === "not_found")) throw e;
+    await api("GET", "/v1/admin/themes", { admin: key, timeout });
+    return { lyrics: true, workshop: true };
+  }
+}
+
+let rolesChecked = false;
+
+/**
+ * What this computer's moderator key may do. Asked of the server once a run (the owner may have changed or taken
+ * the key back); offline, what it could do last time.
+ */
+export async function modRoles(): Promise<ModRoles> {
+  const key = getSecret("moderatorToken");
+  if (!key) return NO_ROLES;
+  const kept = getSecret("moderatorRoles");
+  if (rolesChecked && kept !== null) return rolesOf(kept);
+  try {
+    const r = await askRoles(key, 5000);
+    setSecret("moderatorRoles", rolesText(r));
+    rolesChecked = true;
+    return r;
+  } catch (e) {
+    if (e instanceof ScError && e.code === "not_found") {
+      // the server doesn't take this key any more
+      setSecret("moderatorRoles", "");
+      rolesChecked = true;
+      return NO_ROLES;
+    }
+    // a key kept before roles were: it could do everything
+    return kept === null ? { lyrics: true, workshop: true } : rolesOf(kept);
+  }
+}
 
 /** Keeps the moderator's key after the server accepts it (a wrong one is "not found"); null forgets it. */
-export async function setModerator(key: string | null): Promise<boolean> {
+export async function setModerator(key: string | null): Promise<ModRoles> {
   if (!key) {
     setSecret("moderatorToken", null);
-    return false;
+    setSecret("moderatorRoles", null);
+    return NO_ROLES;
   }
-  await api("GET", "/v1/admin/themes", { admin: key });
+  const r = await askRoles(key);
   setSecret("moderatorToken", key);
-  return true;
+  setSecret("moderatorRoles", rolesText(r));
+  rolesChecked = true;
+  return r;
 }
 
 // ---- start --------------------------------------------------------------------------------------------------------

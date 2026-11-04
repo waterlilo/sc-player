@@ -1,13 +1,14 @@
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
-import type { WsReported, WsSort, WsTheme } from "@shared/social";
+import type { WsReported, WsReporter, WsSort, WsTheme } from "@shared/social";
 import Tabs from "@/components/ui/Tabs";
 import Icon from "@/components/ui/Icon";
 import { Screen } from "@/components/ui/Screen";
 import { EmptyState, ErrorState, Loading } from "@/components/ui/States";
-import { useT } from "@/i18n";
+import { dateLocale, useT } from "@/i18n";
 import { ask, askText } from "@/state/dialog";
+import { useModRoles } from "@/lib/moderation";
 import { call, errorCode } from "@/lib/sky";
 import { fitTo } from "@/lib/videoFit";
 import { useNav } from "@/state/nav";
@@ -111,7 +112,7 @@ function ThemeDialog({ id, onClose }: { id: string; onClose: () => void }) {
   };
 
   const mine = !!theme?.mine;
-  const moderator = useQuery({ queryKey: ["ws-moderator"], queryFn: () => call("ws:moderator"), staleTime: Infinity }).data === true;
+  const moderator = useModRoles().workshop;
   const likes = liked?.likes ?? theme?.likes ?? 0;
   const isLiked = liked?.liked ?? theme?.liked ?? false;
 
@@ -343,10 +344,14 @@ function Reports() {
       <p className="mb-5 max-w-2xl text-sm leading-relaxed text-muted">{t.reportsHint}</p>
       <ul className="flex flex-col gap-4">
         {q.data.map((th) => {
-          const reasons = th.reasons
-            .split(" | ")
-            .map((r) => r.trim())
-            .filter(Boolean);
+          // who reported it and why; a server before 2.4 sends only the reasons
+          const reports: Partial<WsReporter>[] =
+            th.reporters ??
+            th.reasons
+              .split(" | ")
+              .map((r) => r.trim())
+              .filter(Boolean)
+              .map((reason) => ({ reason }));
           return (
             <li key={th.id} className={`flex gap-4 rounded-md bg-white/[0.035] p-3 ${busy === th.id ? "opacity-60" : ""}`}>
               <span className="relative block aspect-[16/10] w-56 shrink-0 overflow-hidden rounded-md bg-white/[0.04]">
@@ -363,11 +368,15 @@ function Reports() {
                   {t.byAuthor(th.author || t.someone)} · {th.authorCode} · {t.installs(th.installs)}
                 </p>
                 {th.description && <p className="mt-1.5 line-clamp-2 text-xs text-text/75">{th.description}</p>}
-                <ul className="mt-2 flex flex-col gap-0.5 text-xs text-text/90">
-                  {(reasons.length ? reasons : th.reports ? [t.noReason] : []).map((r, i) => (
+                <ul className="mt-2 flex flex-col gap-1 text-xs text-text/90">
+                  {(reports.length ? reports : th.reports ? [{}] : []).map((r, i) => (
                     <li key={i} className="flex gap-1.5">
                       <span className="text-blood">•</span>
-                      <span className="min-w-0 break-words">{r}</span>
+                      <span className="min-w-0 break-words">
+                        {r.code && <span className="mr-1.5 font-semibold text-text">{t.reportedBy(r.name ?? "", r.code)}:</span>}
+                        {r.reason || <span className="text-muted">{t.noReason}</span>}
+                        {!!r.created && <span className="ml-1.5 text-muted">· {new Date(r.created).toLocaleDateString(dateLocale(), { day: "numeric", month: "short" })}</span>}
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -403,7 +412,7 @@ export default function Workshop() {
   const [q, setQ] = useState("");
   const [opened, setOpened] = useState<string | null>(null);
   const [publishing, setPublishing] = useState(false);
-  const moderator = useQuery({ queryKey: ["ws-moderator"], queryFn: () => call("ws:moderator"), staleTime: Infinity }).data === true;
+  const moderator = useModRoles().workshop;
   const reports = useQuery({ queryKey: ["ws-reports"], queryFn: () => call("ws:reports"), enabled: moderator, staleTime: 30_000 }).data;
 
   useEffect(() => {

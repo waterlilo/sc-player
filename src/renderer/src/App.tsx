@@ -27,6 +27,7 @@ import Playlist from "@/screens/Playlist";
 import Playlists from "@/screens/Playlists";
 import Profile from "@/screens/Profile";
 import Search from "@/screens/Search";
+import Moderation from "@/screens/Moderation";
 import Settings from "@/screens/Settings";
 import Track from "@/screens/Track";
 import TrackMenu from "@/components/tracks/TrackMenu";
@@ -70,6 +71,8 @@ function ScreenFor({ route }: { route: Route }) {
       return <Workshop />;
     case "settings":
       return <Settings />;
+    case "moderation":
+      return <Moderation />;
     case "signin":
       return <Login />;
     case "import":

@@ -19,7 +19,7 @@ import Icon from "../ui/Icon";
 import { WindowButtons } from "../chrome/TitleBar";
 import { QueueList, useSourceLabel } from "../studio/Queue";
 import { outlinePoint, spectrum } from "./CoverRing";
-import { LyricsSource, ManualSearch, useShownLyrics } from "./LyricsPanel";
+import { LyricsSource, ManualSearch, SuggestLink, useShownLyrics } from "./LyricsPanel";
 import { BottomSpectrum, SpectrumPopover } from "./Spectrum";
 import { AddToPlaylistButton, LikeButton, PlayButton } from "./PlayerBar";
 import Waveform from "./Waveform";
@@ -550,7 +550,8 @@ function StudioFull() {
             </button>
           ) : hasWords(words.data) ? (
             <>
-              <LyricsSource lyrics={words.data} syncing={words.syncing} /> ·
+              <LyricsSource lyrics={words.data} syncing={words.syncing} />
+              <SuggestLink track={track} lyrics={words.data} /> ·
               <button type="button" className="hover:text-text" onClick={() => setSearchFor(track.id)}>
                 {t.lyricsWrong}
               </button>

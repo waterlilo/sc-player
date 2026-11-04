@@ -1,5 +1,5 @@
 import type { SearchKind } from "./provider";
-import type { Friends, Message, Room, RoomOp, RoomState, SocialStatus, SocialTrack, SocialUpdate, WsPage, WsReported, WsSort, WsThemeFull, SharedPlaylist } from "./social";
+import type { Friends, Message, ModRoles, Room, RoomOp, RoomState, SocialStatus, SocialTrack, SocialUpdate, WsPage, WsReported, WsSort, WsThemeFull, SharedPlaylist } from "./social";
 import type { AppErrorInfo, ImportItem, ImportList, ImportMatch, Lyrics, LyricsHit, LyricsSyncStatus, Page, Playlist, QueueSource, Resolved, SavedProfile, StreamInfo, SyncRequest, SyncResult, Track, TrackDetails, User, LyricsForReview, LyricsSuggestionState, SteamWallpaper, BackupStatus, RestoreResult } from "./types";
 
 /**
@@ -470,10 +470,10 @@ export interface InvokeMap {
   "ws:report": (id: string, reason: string) => void;
   /** `moderator`: someone else's theme, with the moderator's key */
   "ws:delete": (id: string, moderator?: boolean) => void;
-  /** whether this computer holds the workshop moderator's key */
-  "ws:moderator": () => boolean;
-  /** checks the key with the server and keeps it (null forgets it) */
-  "ws:setModerator": (key: string | null) => boolean;
+  /** what this computer's moderator key may do (none without a key) */
+  "mod:roles": () => ModRoles;
+  /** checks the key with the server and keeps it (null forgets it); what it may do */
+  "mod:setKey": (key: string | null) => ModRoles;
   /** the moderator's list: reported and hidden themes, the most reported first (with the moderator's key) */
   "ws:reports": () => WsReported[];
   /** a reported theme hidden from the workshop, or kept (shown again, its reports cleared) */
@@ -540,8 +540,8 @@ export const INVOKE_CHANNELS = [
   "ws:like",
   "ws:report",
   "ws:delete",
-  "ws:moderator",
-  "ws:setModerator",
+  "mod:roles",
+  "mod:setKey",
   "ws:reports",
   "ws:moderate",
   "bg:pick",

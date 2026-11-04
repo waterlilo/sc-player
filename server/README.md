@@ -58,13 +58,15 @@ docker compose pull && docker compose up -d --build   # after updating the files
 curl https://<domain>/v1/stats                   # running apps today / week / month
 ```
 
-Moderation (the token from `.env`):
+Moderation (a key from `.env`: `ADMIN_TOKEN` may do everything, `ADMIN_TOKEN_LYRICS` only the lyrics people send,
+`ADMIN_TOKEN_WORKSHOP` only the workshop; a moderator enters theirs in the app, Settings → Messenger):
 
 ```bash
 curl -H "Authorization: Admin $ADMIN_TOKEN" https://<domain>/v1/admin/themes          # reported or hidden
 curl -X POST -H "Authorization: Admin $ADMIN_TOKEN" https://<domain>/v1/admin/themes/<id>/keep   # fine, show again
 curl -X POST -H "Authorization: Admin $ADMIN_TOKEN" https://<domain>/v1/admin/themes/<id>/hide
 curl -X DELETE -H "Authorization: Admin $ADMIN_TOKEN" https://<domain>/v1/themes/<id>
+curl -H "Authorization: Admin $ADMIN_TOKEN_LYRICS" https://<domain>/v1/admin/me              # what a key may do
 ```
 
 Backup (the database and theme files live in the `api-data` volume):
@@ -77,8 +79,8 @@ docker run --rm -v sc-player_api-data:/d -v $PWD:/b alpine tar czf /b/api-data-$
 
 ```bash
 cd api
-DATA_DIR=./data-dev ADMIN_TOKEN=dev-admin-token-0123456789 TRUST_PROXY=0 node src/main.ts
-ADMIN_TOKEN=dev-admin-token-0123456789 node test/smoke.ts     # the whole API end to end
+DATA_DIR=./data-dev ADMIN_TOKEN=dev-admin-token-0123456789 ADMIN_TOKEN_LYRICS=dev-lyrics-token-0123456789 ADMIN_TOKEN_WORKSHOP=dev-workshop-token-012345678 TRUST_PROXY=0 node src/main.ts
+ADMIN_TOKEN=dev-admin-token-0123456789 ADMIN_TOKEN_LYRICS=dev-lyrics-token-0123456789 ADMIN_TOKEN_WORKSHOP=dev-workshop-token-012345678 node test/smoke.ts     # the whole API end to end
 ```
 
 ## API

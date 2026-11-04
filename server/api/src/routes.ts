@@ -544,7 +544,7 @@ function themeRow(id: string) {
 function getTheme(c: Ctx) {
   const t = themeRow(c.params[0]!);
   const d = optionalMe(c);
-  if ((!t.published || t.hidden) && t.author !== d?.id && !isAdmin(c)) fail(404, "no such theme");
+  if ((!t.published || t.hidden) && t.author !== d?.id && !isAdmin(c, "workshop")) fail(404, "no such theme");
   const liked = d ? !!one("SELECT 1 FROM theme_votes WHERE theme = ? AND device = ? AND kind = 'like'", t.id, d.id) : false;
   send(c.res, 200, themeOut(t, { look: JSON.parse(String(t.look)), css: t.css, mine: t.author === d?.id, liked }));
 }
@@ -613,7 +613,7 @@ async function putPreview(c: Ctx) {
 
 function themeFile(c: Ctx, which: "bg" | "preview") {
   const t = themeRow(c.params[0]!);
-  if (t.hidden && !isAdmin(c)) fail(404, "no such theme");
+  if (t.hidden && !isAdmin(c, "workshop")) fail(404, "no such theme");
   const name = String(t[which] ?? "");
   if (!name) fail(404, "none");
   const path = join(DATA, "themes", name);
@@ -674,7 +674,7 @@ function removeThemeFiles(id: string) {
 
 function deleteTheme(c: Ctx) {
   const t = themeRow(c.params[0]!);
-  if (!isAdmin(c) && t.author !== me(c).id) fail(403, "not your theme");
+  if (!isAdmin(c, "workshop") && t.author !== me(c).id) fail(403, "not your theme");
   removeThemeFiles(String(t.id));
   run("DELETE FROM themes WHERE id = ?", t.id);
   send(c.res, 204, null);
@@ -728,7 +728,7 @@ function trackLyrics(c: Ctx) {
 }
 
 function adminLyrics(c: Ctx) {
-  admin(c);
+  admin(c, "lyrics");
   const rows = all(
     `SELECT l.*, COALESCE(d.name, l.author_name) by_name, d.code by_code,
             (SELECT COUNT(*) FROM lyrics a WHERE a.track = l.track AND a.status = 'approved') approved
@@ -741,7 +741,7 @@ function adminLyrics(c: Ctx) {
 
 /** Approved: shown for everyone, in place of an earlier approved version. Rejected: the words are dropped. */
 function adminDecideLyrics(c: Ctx, approve: boolean) {
-  admin(c);
+  admin(c, "lyrics");
   const l = one("SELECT id, track FROM lyrics WHERE id = ? AND status = 'pending'", Number(c.params[0]));
   if (!l) return fail(404, "no such lyrics");
   tx(() => {
@@ -753,24 +753,50 @@ function adminDecideLyrics(c: Ctx, approve: boolean) {
 
 // ---- moderation ---------------------------------------------------------------------------------------------------
 
-function isAdmin(c: Ctx) {
-  const token = process.env.ADMIN_TOKEN ?? "";
+type Role = "lyrics" | "workshop";
+
+/**
+ * Moderators' keys, each with what it may do: ADMIN_TOKEN both, ADMIN_TOKEN_LYRICS the lyrics people send,
+ * ADMIN_TOKEN_WORKSHOP the workshop's themes and reports. A key shorter than 24 characters is off.
+ */
+function roles(c: Ctx): Set<Role> {
   const auth = String(c.req.headers.authorization ?? "");
-  if (token.length < 24 || !auth.startsWith("Admin ")) return false;
-  const a = Buffer.from(sha(auth.slice(6).trim()));
-  const b = Buffer.from(sha(token));
-  return timingSafeEqual(a, b);
+  const out = new Set<Role>();
+  if (!auth.startsWith("Admin ")) return out;
+  const given = Buffer.from(sha(auth.slice(6).trim()));
+  const keys: [string | undefined, Role[]][] = [
+    [process.env.ADMIN_TOKEN, ["lyrics", "workshop"]],
+    [process.env.ADMIN_TOKEN_LYRICS, ["lyrics"]],
+    [process.env.ADMIN_TOKEN_WORKSHOP, ["workshop"]],
+  ];
+  for (const [token, can] of keys) {
+    // every key is compared, so the time taken doesn't tell which one matched
+    if (token && token.length >= 24 && timingSafeEqual(given, Buffer.from(sha(token)))) can.forEach((r) => out.add(r));
+  }
+  return out;
 }
 
-function admin(c: Ctx) {
-  if (!isAdmin(c)) {
+const isAdmin = (c: Ctx, role: Role) => roles(c).has(role);
+
+function admin(c: Ctx, role: Role) {
+  if (!isAdmin(c, role)) {
     limit(`admin-miss:${c.ip}`, 10, HOUR);
     fail(404, "not found");
   }
 }
 
+/** What this moderator's key may do (a key that may do nothing is "not found", like a wrong one). */
+function adminMe(c: Ctx) {
+  const r = roles(c);
+  if (!r.size) {
+    limit(`admin-miss:${c.ip}`, 10, HOUR);
+    fail(404, "not found");
+  }
+  send(c.res, 200, { lyrics: r.has("lyrics"), workshop: r.has("workshop") });
+}
+
 function adminThemes(c: Ctx) {
-  admin(c);
+  admin(c, "workshop");
   const rows = all(
     `SELECT t.*, a.name author_name, a.code author_code,
             (SELECT group_concat(reason, ' | ') FROM theme_votes v WHERE v.theme = t.id AND v.kind = 'report') reasons
@@ -778,11 +804,27 @@ function adminThemes(c: Ctx) {
       WHERE t.reports > 0 OR t.hidden = 1 OR ? = 1 ORDER BY t.reports DESC, t.created DESC LIMIT 200`,
     c.query.get("all") === "1" ? 1 : 0,
   );
-  send(c.res, 200, { themes: rows.map((t) => themeOut(t, { authorCode: t.author_code, reports: t.reports, hidden: !!t.hidden, reasons: t.reasons ?? "", css: t.css })) });
+  // who reported each theme, the latest first: their messenger name and code, and what they said
+  const by = new Map<string, { name: string; code: string; reason: string; created: number }[]>();
+  if (rows.length) {
+    const ids = rows.map((t) => String(t.id));
+    for (const v of all(
+      `SELECT v.theme, v.reason, v.created, d.name, d.code FROM theme_votes v JOIN devices d ON d.id = v.device
+        WHERE v.kind = 'report' AND v.theme IN (${ids.map(() => "?").join(",")}) ORDER BY v.created DESC`,
+      ...ids,
+    )) {
+      const list = by.get(String(v.theme)) ?? [];
+      list.push({ name: String(v.name ?? ""), code: String(v.code ?? ""), reason: String(v.reason ?? ""), created: Number(v.created) });
+      by.set(String(v.theme), list);
+    }
+  }
+  send(c.res, 200, {
+    themes: rows.map((t) => themeOut(t, { authorCode: t.author_code, reports: t.reports, hidden: !!t.hidden, reasons: t.reasons ?? "", reporters: by.get(String(t.id)) ?? [], css: t.css })),
+  });
 }
 
 function adminSet(c: Ctx, hidden: boolean) {
-  admin(c);
+  admin(c, "workshop");
   const t = themeRow(c.params[0]!);
   tx(() => {
     run("UPDATE themes SET hidden = ? WHERE id = ?", hidden ? 1 : 0, t.id);
@@ -871,6 +913,7 @@ const ROUTES: [string, RegExp, Handler][] = [
   ["POST", /^\/v1\/lyrics$/, suggestLyrics],
   ["GET", /^\/v1\/lyrics\/mine$/, myLyrics],
   ["GET", /^\/v1\/lyrics\/(\d{1,15})$/, trackLyrics],
+  ["GET", /^\/v1\/admin\/me$/, adminMe],
   ["GET", /^\/v1\/admin\/lyrics$/, adminLyrics],
   ["POST", /^\/v1\/admin\/lyrics\/(\d{1,15})\/approve$/, (c) => adminDecideLyrics(c, true)],
   ["POST", /^\/v1\/admin\/lyrics\/(\d{1,15})\/reject$/, (c) => adminDecideLyrics(c, false)],

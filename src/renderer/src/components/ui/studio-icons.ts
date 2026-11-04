@@ -52,6 +52,7 @@ export const STUDIO_ICONS: Record<string, { fill?: string; stroke?: string }> = 
   brush: { stroke: "M14.5 4.5 19.5 9.5 11 18l-5-5zM6 13c-2 0-3 1.5-3 3.5S2 20 2 20s3 .5 5-1 2-3.5 2-3.5" },
   copy: { stroke: `${rect(8, 8, 11, 11, 1.5)}M5 15.5V6.5A1.5 1.5 0 0 1 6.5 5h9` },
   check: { stroke: "m5 12.5 4.5 4.5L19 7.5" },
+  shield: { stroke: "M12 3.5 19 6.1v5.4c0 4.4-3 7.6-7 9-4-1.4-7-4.6-7-9V6.1zM8.8 12l2.3 2.3 4.2-4.6" },
   expand: { stroke: "M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" },
   collapse: { stroke: "M4 14h6v6M20 10h-6V4" },
   grip: { fill: `${circle(9, 6.5, 1.2)}${circle(15, 6.5, 1.2)}${circle(9, 12, 1.2)}${circle(15, 12, 1.2)}${circle(9, 17.5, 1.2)}${circle(15, 17.5, 1.2)}` },

@@ -18,6 +18,8 @@ services:
     restart: unless-stopped
     environment:
       ADMIN_TOKEN: ${ADMIN_TOKEN}
+      ADMIN_TOKEN_LYRICS: ${ADMIN_TOKEN_LYRICS:-}
+      ADMIN_TOKEN_WORKSHOP: ${ADMIN_TOKEN_WORKSHOP:-}
     volumes:
       - api-data:/data
     # reachable only through Caddy

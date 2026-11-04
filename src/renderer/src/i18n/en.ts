@@ -242,9 +242,14 @@ export const en = {
     replaced: "A newer version was approved",
   } as Record<"" | "pending" | "approved" | "rejected" | "replaced", string>,
   lyricsReview: "Lyrics to review",
-  lyricsReviewOpen: "Open",
-  lyricsWaiting: (n: number) => (n ? `${n} waiting` : "Nothing waiting"),
-  lyricsReviewEmpty: "Nothing to review",
+  lyricsReviewEmpty: "Nothing to review — all checked",
+  moderation: "Moderation",
+  moderationHint: "Lyrics people timed themselves and sent for everyone. Try each with its song: approved ones show for everyone at this track, signed with the sender's name.",
+  lyricsShow: "Show the words",
+  lyricsHide: "Hide the words",
+  lyricsSentBy: (name: string, code: string) => (code ? `from ${name} · ${code}` : `from ${name}`),
+  suggestNeedsCode: "To send them for review, get your friend code in the Inbox first",
+  suggestGetCode: "Get a code",
   lyricsTry: "Try with the song",
   lyricsApprove: "Approve",
   lyricsReject: "Reject",
@@ -613,9 +618,17 @@ export const en = {
   deleteThemeConfirm: "Delete this theme from the workshop?",
   deleteOthersThemeConfirm: (author: string) => `Delete ${author}'s theme from the workshop? As the moderator.`,
   moderatorOpen: "Moderator key…",
-  moderatorKey: "Workshop moderator key",
-  moderatorKeyHint: "Only for the workshop's moderator: lets this computer delete any theme",
-  moderatorOn: "This computer can delete any theme in the workshop",
+  moderatorKey: "Moderator key",
+  moderatorKeyHint: "Only for moderators: the key opens the review of lyrics people send, the workshop's reports, or both",
+  moderatorOn: (lyrics: boolean, workshop: boolean): string =>
+    lyrics && workshop
+      ? "This computer reviews lyrics (the Moderation tab) and looks after the workshop (its Reports tab)"
+      : lyrics
+        ? "This computer reviews the lyrics people send: the Moderation tab above Settings"
+        : workshop
+          ? "This computer looks after the workshop: its Reports tab, and it can delete any theme"
+          : "The server doesn't take this key any more",
+  reportedBy: (name: string, code: string) => (name ? `${name} · ${code}` : code),
   moderatorWrong: "That key didn't fit",
   removeKey: "Remove key",
   publishLook: "Publish my look",
