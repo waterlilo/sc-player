@@ -15,14 +15,33 @@ const run = (cmd, args) => {
 
 run("npm", ["run", "lint"]);
 run("npm", ["run", "build"]);
-run("npx", [
-  "electron-builder",
-  "--win",
-  "nsis",
-  "portable",
-  "--publish",
-  "never",
-  `-c.nsis.artifactName=sc-player-setup-${short}.\${ext}`,
-  `-c.portable.artifactName=sc-player-portable-${short}.\${ext}`,
-]);
+
+const isMac = process.platform === "darwin";
+const customArch = process.argv.find((a) => a.startsWith("--arch="))?.split("=")[1];
+const targetArch = customArch || (isMac ? process.arch : "x64");
+
+if (isMac) {
+  run("npx", [
+    "electron-builder",
+    "--mac",
+    "dmg",
+    "zip",
+    `--${targetArch}`,
+    "--publish",
+    "never",
+    `-c.mac.artifactName=sc-player-${short}-${targetArch}.\${ext}`,
+    `-c.dmg.artifactName=sc-player-${short}-${targetArch}.\${ext}`,
+  ]);
+} else {
+  run("npx", [
+    "electron-builder",
+    "--win",
+    "nsis",
+    "portable",
+    "--publish",
+    "never",
+    `-c.nsis.artifactName=sc-player-setup-${short}.\${ext}`,
+    `-c.portable.artifactName=sc-player-portable-${short}.\${ext}`,
+  ]);
+}
 console.log(`\nsc player ${short} (${version}) → dist/`);

@@ -647,6 +647,7 @@ export const _channelsComplete: [MissingInvoke, MissingEvent] extends [never, ne
 
 /** What preload puts on window.sky. */
 export interface SkyBridge {
+  platform: string;
   invoke<K extends InvokeChannel>(channel: K, ...args: Parameters<InvokeMap[K]>): Promise<Result<ReturnType<InvokeMap[K]>>>;
   on<K extends keyof EventMap>(channel: K, listener: (payload: EventMap[K]) => void): () => void;
   /** where a file dropped onto the window is on disk (to add music from this computer) */

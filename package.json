@@ -57,6 +57,14 @@
     "appId": "com.skythemontage.scplayer",
     "productName": "sc player",
     "copyright": "sky (@skythemontage)",
+    "protocols": [
+      {
+        "name": "sc-player",
+        "schemes": [
+          "scplayer"
+        ]
+      }
+    ],
     "directories": {
       "output": "dist",
       "buildResources": "build"
@@ -65,7 +73,7 @@
       "out/**/*",
       "resources/**/*",
       "package.json",
-      "!node_modules/onnxruntime-node/bin/napi-v6/{darwin,linux}/**",
+      "!node_modules/onnxruntime-node/bin/napi-v6/linux/**",
       "!node_modules/onnxruntime-node/bin/napi-v6/win32/arm64/**",
       "!node_modules/onnxruntime-node/bin/napi-v6/win32/x64/{DirectML.dll,dxcompiler.dll,dxil.dll}",
       "!node_modules/onnxruntime-node/{lib,script}/**"
@@ -74,6 +82,23 @@
     "asarUnpack": [
       "node_modules/onnxruntime-node/bin/**"
     ],
+    "mac": {
+      "icon": "build/icon.png",
+      "target": [
+        { "target": "dmg" },
+        { "target": "zip" }
+      ],
+      "category": "public.app-category.music",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false
+    },
+    "dmg": {
+      "contents": [
+        { "x": 130, "y": 220 },
+        { "x": 410, "y": 220, "type": "link", "path": "/Applications" }
+      ],
+      "window": { "width": 540, "height": 380 }
+    },
     "win": {
       "icon": "build/icon.png",
       "target": [

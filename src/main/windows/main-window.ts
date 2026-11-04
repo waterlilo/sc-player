@@ -20,6 +20,7 @@ export function send<K extends keyof EventMap>(win: BrowserWindow | null, channe
  * Snap Layouts flyout working on the real maximize button.
  */
 export function createMainWindow(opts: { startHidden: boolean; closeToTray: () => boolean; quitting: () => boolean }) {
+  const isMac = process.platform === "darwin";
   const win = new BrowserWindow({
     width: 1240,
     height: 800,
@@ -29,8 +30,10 @@ export function createMainWindow(opts: { startHidden: boolean; closeToTray: () =
     title: "sc player",
     icon: appIcon(),
     backgroundColor: "#07050d",
-    titleBarStyle: "hidden",
-    titleBarOverlay: { color: "#00000000", symbolColor: "#00000000", height: TITLEBAR_HEIGHT },
+    titleBarStyle: isMac ? "hiddenInset" : "hidden",
+    ...(isMac
+      ? { trafficLightPosition: { x: 14, y: 12 } }
+      : { titleBarOverlay: { color: "#00000000", symbolColor: "#00000000", height: TITLEBAR_HEIGHT } }),
     webPreferences: {
       preload: join(import.meta.dirname, "../preload/index.cjs"),
       sandbox: true,
@@ -49,9 +52,11 @@ export function createMainWindow(opts: { startHidden: boolean; closeToTray: () =
 
   // the ✕ hides the window to the tray (Settings → close button), the music keeps playing
   win.on("close", (e) => {
-    if (opts.quitting() || !opts.closeToTray()) return;
-    e.preventDefault();
-    win.hide();
+    if (opts.quitting()) return;
+    if (isMac || opts.closeToTray()) {
+      e.preventDefault();
+      win.hide();
+    }
   });
 
   // the window only ever shows the app itself; links go to the real browser

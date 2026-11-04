@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { isMac } from "@shared/platform";
 import { useT } from "@/i18n";
 import { call, on } from "@/lib/sky";
 import { useNav } from "@/state/nav";
@@ -15,6 +16,8 @@ export function WindowButtons() {
   const [maximized, setMaximized] = useState(false);
   const overlay = !!(navigator as Navigator & { windowControlsOverlay?: { visible: boolean } }).windowControlsOverlay?.visible;
   useEffect(() => on("win:maximized", setMaximized), []);
+
+  if (isMac()) return null;
 
   const buttons: { icon: IconName; label: string; action: () => void; danger?: boolean }[] = [
     { icon: "minimize", label: t.minimize, action: () => void call("win:minimize") },
@@ -49,8 +52,9 @@ export default function TitleBar() {
   const t = useT();
   const canGoBack = useNav((s) => s.stack.length > 0);
   const back = useNav((s) => s.back);
+  const mac = isMac();
   return (
-    <header className="panel drag relative z-30 flex h-10 items-center gap-2 pl-2">
+    <header className={`panel drag relative z-30 flex h-10 items-center gap-2 ${mac ? "pl-[76px]" : "pl-2"}`}>
       <button type="button" onClick={back} disabled={!canGoBack} aria-label={t.back} title={t.back} className="no-drag grid h-8 w-8 place-items-center rounded-full text-muted enabled:hover:text-text disabled:opacity-30">
         <Icon name="back" size={18} />
       </button>

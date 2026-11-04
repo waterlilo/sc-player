@@ -8,7 +8,11 @@ export const HIDDEN_ARG = "--hidden";
  */
 export function applyAutostart(enabled: boolean) {
   if (!app.isPackaged || process.env.PORTABLE_EXECUTABLE_DIR) return;
-  app.setLoginItemSettings({ openAtLogin: enabled, args: [HIDDEN_ARG] });
+  try {
+    app.setLoginItemSettings({ openAtLogin: enabled, args: [HIDDEN_ARG] });
+  } catch {
+    /* ignore login item permission errors when running unpackaged or outside /Applications */
+  }
 }
 
 export const startedHidden = () => process.argv.includes(HIDDEN_ARG);
