@@ -1,3 +1,5 @@
+// first: the moment our code began (see boot.ts)
+import { scriptStartMs } from "./boot";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
@@ -88,6 +90,8 @@ async function tracksOf(ids: number[]): Promise<Track[]> {
 const status = async (): Promise<AuthStatus> => (DEMO ? { mode: "session", user: await data.getMe() } : authStatus());
 // Memory saver (Settings → App): Chromium draws on the processor and the graphics card's process, ~100 MB of the
 // app's ~300, isn't started. The choice only counts before the app is ready, so changing it takes a restart.
+/** our modules loaded (ms after the process started) */
+const modulesLoadedMs = Math.round(process.uptime() * 1000);
 const memorySaver = prefs().memorySaver;
 if (memorySaver) app.disableHardwareAcceleration();
 /** the system for a report and the log: Windows 10.0.19045, macOS 15.1, Linux 6.8.0-49-generic */
@@ -824,7 +828,7 @@ void app.whenReady().then(async () => {
   }
   const p = prefs();
   main = timed("window", () => createMainWindow({ startHidden: startedHidden() && p.startMinimized, closeToTray: () => prefs().closeToTray, quitting: () => quitting }));
-  main.once("ready-to-show", () => log("main", `start: ready in ${readyMs} ms, window in ${Math.round(process.uptime() * 1000)} ms`));
+  main.once("ready-to-show", () => log("main", `start: our code at ${scriptStartMs} ms, modules loaded at ${modulesLoadedMs} ms, ready in ${readyMs} ms, window in ${Math.round(process.uptime() * 1000)} ms`));
   // an empty window (the page never drawn) leaves nothing in the log otherwise: what failed, and with which graphics
   main.webContents.on("render-process-gone", (_e, d) => log("main", `page process gone: ${d.reason} (exit ${d.exitCode})`));
   main.webContents.on("did-fail-load", (_e, code, desc, url, isMain) => {
