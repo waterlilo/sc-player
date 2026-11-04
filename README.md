@@ -112,12 +112,12 @@
 1. Download `sc-player-v…-arm64.dmg` (Apple Silicon: M1 and newer) or `sc-player-v…-x64.dmg` (Intel) from the
    [latest release](../../releases/latest).
 2. Open the `.dmg` and drag **sc player** into **Applications**.
-3. The app isn't signed with a paid Apple certificate, so the first launch is blocked. Open **System Settings →
-   Privacy & Security**, scroll down and click **Open Anyway** next to sc player. If macOS says the app "is damaged",
-   run this in Terminal once:
+3. The app isn't signed with a paid Apple certificate, so macOS blocks the first launch ("sc player can't be
+   opened", or "is damaged"). Open **Terminal** and run this once, then open sc player as usual:
    ```bash
    xattr -cr "/Applications/sc player.app"
    ```
+   (Or, if macOS offers it: **System Settings → Privacy & Security**, scroll down, **Open Anyway** next to sc player.)
 4. Lyrics auto-sync (the speech model) needs Apple Silicon; everything else works on Intel Macs too.
 
 ### Linux
