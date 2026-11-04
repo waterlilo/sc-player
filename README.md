@@ -16,6 +16,7 @@
 ![Windows](https://img.shields.io/badge/Windows-10%20%2F%2011-3a3a41?style=flat-square&labelColor=111114)
 ![macOS](https://img.shields.io/badge/macOS-Apple%20Silicon%20%2F%20Intel-3a3a41?style=flat-square&labelColor=111114)
 ![Linux](https://img.shields.io/badge/Linux-AppImage%20%2F%20deb-3a3a41?style=flat-square&labelColor=111114)
+[![iPhone](https://img.shields.io/badge/iPhone-IPA-3a3a41?style=flat-square&labelColor=111114)](https://github.com/waterlilo/sc-player-ios)
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-3a3a41?style=flat-square&labelColor=111114)](LICENSE)
 
 <br/>
@@ -127,6 +128,15 @@
 - **Debian / Ubuntu:** download `sc-player-v…-amd64.deb` and install it (`sudo apt install ./sc-player-*.deb`).
 - On GNOME the tray icon needs the AppIndicator extension.
 
+### iPhone
+[sc player for iPhone](https://github.com/waterlilo/sc-player-ios) is the native iOS version, made by
+[pipse363team](https://github.com/pipse363team).
+1. Download `sc-player.ipa` from [its latest release](https://github.com/waterlilo/sc-player-ios/releases/latest).
+2. It isn't signed, so install it with **Sideloadly**, **AltStore** or **SideStore** and a free Apple ID (re-sign it
+   every 7 days), or with your own certificate.
+3. Unlike the computer version it has no route of its own to SoundCloud: where SoundCloud is blocked, it needs your
+   own VPN.
+
 ### Sign in
 Click **Sign in to SoundCloud** to see your likes and playlists. If the sign-in window says "access temporarily restricted" or "something unexpected happened", use **Sign in with your browser** instead. Without signing in you can still search, listen, make playlists and open any public profile.
 
@@ -158,6 +168,7 @@ New versions install over the old one; your sign-in, settings and playlists stay
 - **[Whisper](https://github.com/openai/whisper)** by OpenAI (MIT) — the speech model that matches plain lyrics to the
   song on your computer.
 - **[ggrk52](https://github.com/ggrk52)** — the macOS version.
+- **[pipse363team](https://github.com/pipse363team)** — [the iPhone version](https://github.com/waterlilo/sc-player-ios).
 - The zapret guide for SoundCloud by kkkwkswd.
 
 ---
