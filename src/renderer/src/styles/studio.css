@@ -180,6 +180,25 @@ html[data-design="studio"] .marker-fill svg {
 html[data-design="studio"] .paper-fill {
   background: rgba(255, 255, 255, 0.06);
 }
+/* the settings switches: the same pill as the queue's (.s-sw), off and on alike — no outline (rounded-full turned it
+   into an ellipse when off, and the knob had a ring) */
+html[data-design="studio"] button[role="switch"].sketch {
+  border-radius: 999px;
+  background: var(--s-faint);
+}
+html[data-design="studio"] button[role="switch"].sketch::after {
+  border: 0;
+}
+html[data-design="studio"] button[role="switch"].sketch.marker-fill {
+  background: var(--text);
+}
+html[data-design="studio"] button[role="switch"].sketch > span {
+  border: 0;
+  background: var(--muted);
+}
+html[data-design="studio"] button[role="switch"].sketch.marker-fill > span {
+  background: #0b0b0d;
+}
 html[data-design="studio"] .torn,
 html[data-design="studio"] .tape-strip {
   clip-path: none;

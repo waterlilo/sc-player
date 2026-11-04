@@ -747,6 +747,8 @@ function restartForKey(): boolean {
 
 void app.whenReady().then(async () => {
   if (restartForKey()) return;
+  // where a slow start goes: before this, Chromium itself (on Linux often a desktop portal or D-Bus that doesn't answer)
+  const readyMs = Math.round(process.uptime() * 1000);
   scSession().setUserAgent(chromeUserAgent());
   initProxyAuth(() => prefs().proxy.username);
   initProxyAuto();
@@ -800,6 +802,7 @@ void app.whenReady().then(async () => {
   }
   const p = prefs();
   main = createMainWindow({ startHidden: startedHidden() && p.startMinimized, closeToTray: () => prefs().closeToTray, quitting: () => quitting });
+  main.once("ready-to-show", () => log("main", `start: ready in ${readyMs} ms, window in ${Math.round(process.uptime() * 1000)} ms`));
   onSyncStatus((s) => send(main, "lyricsSync:status", s));
   main.on("closed", () => (main = null));
   // the app's own load, for "Report a problem"

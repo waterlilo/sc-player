@@ -37,7 +37,8 @@ export function initUpdater(win: () => BrowserWindow | null, enabled: () => bool
   });
   autoUpdater.on("update-downloaded", (info) => setStatus({ state: "ready", version: info.version }));
   autoUpdater.on("error", (err) => {
-    log("main", `update: ${err.message}`);
+    // the first line only: electron-updater appends the response headers and a stack
+    log("main", `update: ${err.message.split("\n")[0]}`);
     setStatus({ state: "error", message: err.message });
   });
   const auto = () => {

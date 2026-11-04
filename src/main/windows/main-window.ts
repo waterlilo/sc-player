@@ -31,9 +31,13 @@ export function createMainWindow(opts: { startHidden: boolean; closeToTray: () =
     icon: appIcon(),
     backgroundColor: "#07050d",
     titleBarStyle: isMac ? "hiddenInset" : "hidden",
+    // Linux: no overlay — Electron draws its own round buttons there, which didn't line up with the page's; the page's
+    // drawn buttons are the real ones instead (WindowButtons without the overlay)
     ...(isMac
       ? { trafficLightPosition: { x: 14, y: 12 } }
-      : { titleBarOverlay: { color: "#00000000", symbolColor: "#00000000", height: TITLEBAR_HEIGHT } }),
+      : process.platform === "win32"
+        ? { titleBarOverlay: { color: "#00000000", symbolColor: "#00000000", height: TITLEBAR_HEIGHT } }
+        : { frame: false }),
     webPreferences: {
       preload: join(import.meta.dirname, "../preload/index.cjs"),
       sandbox: true,
