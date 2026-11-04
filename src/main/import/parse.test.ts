@@ -38,6 +38,20 @@ test("YouTube and YouTube Music links", () => {
   assert.deepEqual(parseInput("https://www.youtube.com/@someone"), []);
 });
 
+test("VK links", () => {
+  const vk = (url: string, key: string) => [{ kind: "vkList", url, key }];
+  assert.deepEqual(parseInput("https://vk.com/music/playlist/629082899_5"), vk("https://vk.com/music/playlist/629082899_5", "629082899_5"));
+  // shared by link only: the hash goes along
+  assert.deepEqual(parseInput("https://vk.ru/music/playlist/-147845620_2425_5e5b0c1a7f3d2b9c11"), vk("https://vk.com/music/playlist/-147845620_2425_5e5b0c1a7f3d2b9c11", "-147845620_2425"));
+  assert.deepEqual(parseInput("https://m.vk.com/music/album/-2000123456_17123456_ab12cd34ef"), vk("https://vk.com/music/album/-2000123456_17123456_ab12cd34ef", "-2000123456_17123456"));
+  assert.deepEqual(parseInput("https://vk.com/audio_playlist-36018360_85409173"), vk("https://vk.com/music/playlist/-36018360_85409173", "-36018360_85409173"));
+  assert.deepEqual(parseInput("https://vk.com/audios629082899?z=audio_playlist629082899_5%2Fa1b2c3d4e5"), vk("https://vk.com/music/playlist/629082899_5_a1b2c3d4e5", "629082899_5"));
+  assert.deepEqual(parseInput("https://vk.com/music/playlist/629082899_5?access_hash=a1b2c3d4e5"), vk("https://vk.com/music/playlist/629082899_5_a1b2c3d4e5", "629082899_5"));
+  assert.deepEqual(parseInput("https://vk.com/audios629082899"), vk("https://vk.com/audios629082899?section=all", "audios629082899"));
+  // a track, a profile: nothing to read
+  assert.deepEqual(parseInput("https://vk.com/audio-2001141706_96141706\nhttps://vk.com/id1"), []);
+});
+
 test("YouTube names as a title and an artist", () => {
   // a YouTube Music song comes clean
   assert.deepEqual(youtubeTitle("One More Time", "Daft Punk", false), { title: "One More Time", artist: "Daft Punk" });

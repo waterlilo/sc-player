@@ -744,9 +744,9 @@ export const en = {
 
   // importing playlists from other services
   importTitle: "Import",
-  importOpen: "From Spotify / Yandex / YouTube",
-  importOpenHint: "Bring a playlist over from Yandex Music, Spotify, YouTube Music or a list of tracks",
-  importIntro: "Bring a playlist over from Yandex Music, Spotify or YouTube Music — or any list of tracks. Each track is looked for on SoundCloud; you check the doubtful ones, and the playlist is kept on this computer. No accounts or passwords needed.",
+  importOpen: "From Spotify / Yandex / YouTube / VK",
+  importOpenHint: "Bring a playlist over from Yandex Music, Spotify, YouTube Music, VK or a list of tracks",
+  importIntro: "Bring a playlist over from Yandex Music, Spotify, YouTube Music or VK — or any list of tracks. Each track is looked for on SoundCloud; you check the doubtful ones, and the playlist is kept on this computer. A link is enough; only VK asks you to sign in, on its own page.",
   importPlaceholder: "Paste a link to a playlist or album, track links, or lines like “Artist — Title”",
   importFind: "Find on SoundCloud",
   importReading: "Reading…",
@@ -756,6 +756,11 @@ export const en = {
   importSpotifyHow: "A playlist or album: Share → Copy link. Spotify shows only a playlist's first 100 tracks — for a longer one or Liked Songs, open it in the Spotify app, press Ctrl+A, then Ctrl+C, and paste here.",
   importYoutube: "YouTube Music",
   importYoutubeHow: "A playlist or album: Share → Copy link. A playlist opens if it is Public or Unlisted; “Liked music” opens only to you — add its songs to a playlist of your own first.",
+  importVk: "VK Music",
+  importVkHow:
+    "VK shows music only to someone signed in. “Open VK” opens its window here: sign in (the QR code is quickest), open “My music” or any playlist and press “Import this page”. The sign-in is wiped when the window closes. A playlist link pasted above opens the same window.",
+  importVkOpen: "Open VK",
+  importVkBookmark: "Or with a bookmark in your browser",
   importOther: "Anything else",
   importOtherHow: "One track per line: “Artist — Title”. A length at the end (3:45) helps to find the right version.",
   importLooseTracks: "Tracks",

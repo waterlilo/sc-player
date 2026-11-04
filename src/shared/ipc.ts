@@ -346,8 +346,12 @@ export interface InvokeMap {
   "data:exportPlaylists": () => number | null;
   /** own playlists from such a file, added: how many, or null (none picked) */
   "data:importPlaylists": () => number | null;
-  /** what a pasted link (a Yandex Music or Spotify playlist, album, tracks) or lines of "Artist — Title" hold */
+  /** what a pasted link (a Yandex Music, Spotify, YouTube or VK playlist, album, tracks) or lines of "Artist — Title" hold */
   "import:read": (text: string) => ImportList;
+  /** the VK window, to sign in and bring "My music" or a playlist (resolves when a page is read) */
+  "import:vk": () => ImportList;
+  /** the page in the browser with the VK bookmark */
+  "import:vkBookmark": () => void;
   /** one of those tracks looked for on SoundCloud (a track link is read first) */
   "import:match": (item: ImportItem) => ImportMatch;
   "data:search": (query: string, kind: SearchKind, cursor: string | null) => Page<Track> | Page<Playlist> | Page<User>;
@@ -605,6 +609,8 @@ export const INVOKE_CHANNELS = [
   "data:exportPlaylists",
   "data:importPlaylists",
   "import:read",
+  "import:vk",
+  "import:vkBookmark",
   "import:match",
   "data:search",
   "data:suggest",

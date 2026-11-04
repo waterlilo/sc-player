@@ -19,6 +19,7 @@ import { auth, authStatus, chromeUserAgent, provider, ScError, scSession, finish
 import { flushAlternatives } from "./soundcloud/alternatives";
 import { m } from "./i18n";
 import { readImport, resolveItem } from "./import/sources";
+import { openVkBookmark, readVk } from "./import/vk";
 import * as rooms from "./rooms";
 import * as social from "./social";
 import { patchRenderer, prefs, store } from "./store";
@@ -376,7 +377,13 @@ function registerIpc() {
     if (text.length > 20 * 1024 * 1024) return bad("file");
     return importLocal(text);
   });
-  handle("import:read", (_e, text) => readImport(typeof text === "string" && text.length < 500_000 ? text : bad("text")));
+  handle("import:read", (_e, text) => readImport(typeof text === "string" && text.length < 500_000 ? text : bad("text"), (target) => readVk(target, main)));
+  handle("import:vk", async () => {
+    const read = await readVk(null, main);
+    if (!read.items.length) throw new ScError("not_found", m().importEmpty);
+    return { service: "vk" as const, title: read.title, items: read.items.slice(0, 3000), partial: false };
+  });
+  handle("import:vkBookmark", () => openVkBookmark());
   handle("import:match", async (_e, raw) => {
     const item = await resolveItem(importItem(raw));
     const find = (title: string, artist: string) => provider.findImported({ title, artist, uploader: artist, durationMs: item.durationMs ?? 0 }, item.durationMs !== null);

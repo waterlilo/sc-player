@@ -1,6 +1,6 @@
 /**
  * What a pasted text asks to import: links to Yandex Music, Spotify and YouTube (Music) playlists, albums and tracks,
- * or lines of "Artist — Title". Pure functions (no imports) so they can be tested on their own (npm test).
+ * VK playlists, or lines of "Artist — Title". Pure functions (no imports) so they can be tested on their own (npm test).
  */
 
 export type Source =
@@ -19,6 +19,11 @@ export type Source =
   | { kind: "youtubeAlbum"; id: string }
   /** a video's id (11 characters) */
   | { kind: "youtubeTrack"; id: string }
+  /**
+   * A VK playlist or album (`key` "owner_id"), or someone's music (`key` "audios<id>"): read in a VK window the
+   * person signs in to (VK opens music to no one without an account).
+   */
+  | { kind: "vkList"; url: string; key: string }
   | { kind: "line"; artist: string; title: string; durationMs: number | null };
 
 const YANDEX = /^https?:\/\/(?:www\.)?music\.yandex\.(?:ru|com|by|kz|uz|ua)(\/[^\s?#]*)/i;
@@ -47,6 +52,34 @@ function youtubeSource(word: string): Source | null {
   if (album) return { kind: "youtubeAlbum", id: album };
   if (list && LIST_ID.test(list) && (!/^RD/.test(list) || list.startsWith("RDCLAK5uy_"))) return { kind: "youtubePlaylist", id: list };
   if (VIDEO_ID.test(video)) return { kind: "youtubeTrack", id: video };
+  return null;
+}
+
+const VK = /^https?:\/\/(?:(?:m|www)\.)?vk\.(?:com|ru)\//i;
+
+/**
+ * A VK link: a playlist or album (`/music/playlist/-1_2_hash`, `/music/album/…`, the older `/audio_playlist-1_2`, or
+ * any page with `z=audio_playlist-1_2/hash`), or someone's music (`/audios123`). The hash opens a playlist that is
+ * shared by link only.
+ */
+function vkSource(word: string): Source | null {
+  let url: URL;
+  try {
+    url = new URL(word);
+  } catch {
+    return null;
+  }
+  const hashOf = (h: string | undefined) => (h && /^[0-9a-f]{6,40}$/i.test(h) ? h : (url.searchParams.get("access_hash") ?? undefined));
+  const list = (type: string, owner: string, id: string, hash: string | undefined): Source => {
+    const h = hashOf(hash);
+    return { kind: "vkList", url: `https://vk.com/music/${type}/${owner}_${id}${h ? `_${h}` : ""}`, key: `${owner}_${id}` };
+  };
+  let m: RegExpMatchArray | null;
+  const z = url.searchParams.get("z") ?? url.searchParams.get("w") ?? "";
+  if ((m = z.match(/^audio_playlist(-?\d+)_(\d+)(?:\/([0-9a-f]+))?/i))) return list("playlist", m[1]!, m[2]!, m[3]);
+  if ((m = url.pathname.match(/^\/music\/(playlist|album)\/(-?\d+)_(\d+)(?:_([0-9a-f]+))?\/?$/i))) return list(m[1]!.toLowerCase(), m[2]!, m[3]!, m[4]);
+  if ((m = url.pathname.match(/^\/audio_playlist(-?\d+)_(\d+)(?:_([0-9a-f]+))?\/?$/i))) return list("playlist", m[1]!, m[2]!, m[3]);
+  if ((m = url.pathname.match(/^\/audios(-?\d+)\/?$/))) return { kind: "vkList", url: `https://vk.com/audios${m[1]}?section=all`, key: `audios${m[1]}` };
   return null;
 }
 
@@ -80,6 +113,7 @@ function linkSource(word: string): Source | null {
   }
   if (SPOTIFY_SHORT.test(word)) return { kind: "spotifyShort", url: word };
   if (YOUTUBE.test(word)) return youtubeSource(word);
+  if (VK.test(word)) return vkSource(word);
   return null;
 }
 
@@ -127,8 +161,8 @@ export function parseInput(text: string, limit = 1000): Source[] {
 }
 
 /** A version that changes the song (a remix, a live take, an edit for a film) stays part of its name; a remaster doesn't. */
-const SAME_SONG = /remaster|^(radio|single|album|clean|explicit|original|mono|stereo)( (edit|version|mix))?$|^(from|из) |саундтрек|soundtrack|^\d{4}( version)?$/i;
-const OTHER_VERSION = /\b(remix|rmx|mix|live|acoustic|instrumental|slowed|sped up|speed up|nightcore|bootleg|flip|cover|demo|unplugged|orchestral|piano|edit|extended|version)\b|ремикс|кавер|акустик/i;
+export const SAME_SONG = /remaster|^(radio|single|album|clean|explicit|original|mono|stereo)( (edit|version|mix))?$|^(from|из) |саундтрек|soundtrack|^\d{4}( version)?$/i;
+export const OTHER_VERSION = /\b(remix|rmx|mix|live|acoustic|instrumental|slowed|sped up|speed up|nightcore|bootleg|flip|cover|demo|unplugged|orchestral|piano|edit|extended|version)\b|ремикс|кавер|акустик/i;
 
 const keepVersion = (v: string) => !SAME_SONG.test(v.trim()) && OTHER_VERSION.test(v);
 

@@ -44,6 +44,17 @@ const en = {
   youtubeTrack: "This YouTube video doesn't open.",
   importNothing: "Nothing to import here. Paste a link to a playlist or album, track links, or lines like “Artist — Title”.",
   importEmpty: "There are no tracks in this playlist.",
+  vkTitle: "VK — import to sc player",
+  vkSignIn: "Sign in to VK (quickest: the QR code, with the VK app on your phone). The sign-in lives in this window only and is wiped when it closes.",
+  vkOpen: "Open “My music” or any playlist — yours or someone else's — then press “Import this page”.",
+  vkReady: "This page's tracks can be brought to sc player.",
+  vkGo: "Import this page",
+  vkWaiting: "Opening the playlist…",
+  vkReading: (n: number) => `Reading the tracks… ${n}`,
+  vkNoTracks: "No tracks found on this page. Open “My music” or a playlist.",
+  vkClosed: "The VK window was closed before anything was read.",
+  vkMyMusic: "My music (VK)",
+  vkBookmarkTitle: "VK → sc player",
 };
 
 const ru: typeof en = {
@@ -76,6 +87,17 @@ const ru: typeof en = {
   youtubeTrack: "Это видео YouTube не открывается.",
   importNothing: "Здесь нечего импортировать. Вставьте ссылку на плейлист или альбом, ссылки на треки или строки вида «Исполнитель — Название».",
   importEmpty: "В этом плейлисте нет треков.",
+  vkTitle: "VK — перенос в sc player",
+  vkSignIn: "Войдите в VK — быстрее всего по QR-коду через приложение VK на телефоне. Вход живёт только в этом окне и стирается, когда оно закроется.",
+  vkOpen: "Откройте «Мою музыку» или любой плейлист — свой или чужой — и нажмите «Перенести эту страницу».",
+  vkReady: "Треки с этой страницы можно перенести в sc player.",
+  vkGo: "Перенести эту страницу",
+  vkWaiting: "Открываю плейлист…",
+  vkReading: (n: number) => `Читаю треки… ${n}`,
+  vkNoTracks: "На этой странице нет треков. Откройте «Мою музыку» или плейлист.",
+  vkClosed: "Окно VK закрыли раньше, чем треки прочитались.",
+  vkMyMusic: "Моя музыка (VK)",
+  vkBookmarkTitle: "VK → sc player",
 };
 
 /** the strings in the language chosen now */

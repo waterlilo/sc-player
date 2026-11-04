@@ -253,7 +253,7 @@ export interface ImportItem {
   ref?: string;
 }
 
-export type ImportService = "yandex" | "spotify" | "youtube" | "text";
+export type ImportService = "yandex" | "spotify" | "youtube" | "vk" | "text";
 
 /** What was read from a pasted link (or links, or lines of text). */
 export interface ImportList {

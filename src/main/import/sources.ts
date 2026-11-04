@@ -18,7 +18,8 @@ import { parseInput, spotifyTitle, withVersion, youtubeTitle, type Source } from
  * Nobody's password or token is asked for.
  */
 
-const MAX_ITEMS = 1000;
+// a VK "My music" of a couple of thousand tracks fits (saved as playlists of 500)
+const MAX_ITEMS = 3000;
 const TIMEOUT = 15_000;
 
 // ---- Yandex Music -------------------------------------------------------------------------------------------------
@@ -347,14 +348,25 @@ async function youtubeTrack(id: string): Promise<ImportItem> {
 // ---- reading ------------------------------------------------------------------------------------------------------
 
 const isList = (s: Source) =>
-  s.kind === "yandexPlaylist" || s.kind === "yandexShared" || s.kind === "yandexAlbum" || s.kind === "spotifyPlaylist" || s.kind === "spotifyAlbum" || s.kind === "youtubePlaylist" || s.kind === "youtubeAlbum";
+  s.kind === "yandexPlaylist" ||
+  s.kind === "yandexShared" ||
+  s.kind === "yandexAlbum" ||
+  s.kind === "spotifyPlaylist" ||
+  s.kind === "spotifyAlbum" ||
+  s.kind === "youtubePlaylist" ||
+  s.kind === "youtubeAlbum" ||
+  s.kind === "vkList";
+
+const fail = (_: unknown): never => {
+  throw new ScError("unknown", "VK is read in its own window");
+};
 
 /**
  * The pasted text read: a playlist or album link → its tracks (the first such link; one list at a time); otherwise
  * track links and lines of text → those tracks, a link's title and artist read later (`resolveItem`), while
- * SoundCloud is searched, so a long list shows its progress.
+ * SoundCloud is searched, so a long list shows its progress. A VK link is read by `vk` (a window to sign in to).
  */
-export async function readImport(text: string): Promise<ImportList> {
+export async function readImport(text: string, vk?: (target: { url: string; key: string }) => Promise<{ title: string | null; items: ImportItem[] }>): Promise<ImportList> {
   let sources = parseInput(text, MAX_ITEMS);
   // a short link is replaced by what it leads to
   if (sources.some((s) => s.kind === "spotifyShort")) {
@@ -373,7 +385,9 @@ export async function readImport(text: string): Promise<ImportList> {
   const list = sources.find(isList);
   if (list) {
     const read =
-      list.kind === "yandexPlaylist"
+      list.kind === "vkList"
+        ? { ...(await (vk ?? fail)(list)), service: "vk" as const, partial: false }
+        : list.kind === "yandexPlaylist"
         ? { ...(await yandexPlaylist(`/users/${encodeURIComponent(list.owner)}/playlists/${list.id}`)), service: "yandex" as const, partial: false }
         : list.kind === "yandexShared"
           ? { ...(await yandexPlaylist(`/playlist/${list.uuid}`)), service: "yandex" as const, partial: false }
