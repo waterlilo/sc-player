@@ -14,6 +14,7 @@
 [![Latest release](https://img.shields.io/github/v/release/waterlilo/sc-player?style=flat-square&label=release&labelColor=111114&color=3a3a41)](../../releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/waterlilo/sc-player/total?style=flat-square&labelColor=111114&color=3a3a41)](../../releases)
 ![Windows](https://img.shields.io/badge/Windows-10%20%2F%2011-3a3a41?style=flat-square&labelColor=111114)
+[![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-3a3a41?style=flat-square&labelColor=111114)](LICENSE)
 
 <br/>
 
@@ -133,6 +134,18 @@ New versions install over the old one; your sign-in, settings and playlists stay
 - **[Whisper](https://github.com/openai/whisper)** by OpenAI (MIT) — the speech model that matches plain lyrics to the
   song on your computer.
 - The zapret guide for SoundCloud by kkkwkswd.
+
+---
+
+## License
+
+Copyright © 2026 sky (@skythemontage) and the contributors.
+
+sc player is free software under the [GNU General Public License v3.0](LICENSE): you may use, study, change and share
+it, and a changed version you share must stay open under the same license, with its source.
+
+The name **sc player** and its logo are not covered by the license (GPL-3.0 section 7e): a changed version you share
+needs a name and logo of its own, so nobody takes it for this app.
 
 ---
 

@@ -5,6 +5,7 @@
   "private": true,
   "description": "sc player — a SoundCloud desktop client for Windows",
   "author": "sky (@skythemontage)",
+  "license": "GPL-3.0-only",
   "main": "out/main/index.js",
   "type": "module",
   "scripts": {
@@ -73,6 +74,12 @@
     "asar": true,
     "asarUnpack": [
       "node_modules/onnxruntime-node/bin/**"
+    ],
+    "extraResources": [
+      {
+        "from": "LICENSE",
+        "to": "LICENSE.sc-player.txt"
+      }
     ],
     "win": {
       "icon": "build/icon.png",
