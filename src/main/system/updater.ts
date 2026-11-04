@@ -27,6 +27,9 @@ export function initUpdater(win: () => BrowserWindow | null, enabled: () => bool
     if (w && !w.isDestroyed()) w.webContents.send("update:status", s);
   };
   if (!app.isPackaged) return;
+  // the feed itself, not resources/app-update.yml: the portable .exe has no such file, so it never heard of a new
+  // version ("update: ENOENT … app-update.yml"). Same as package.json → build.publish.
+  autoUpdater.setFeedURL({ provider: "github", owner: "waterlilo", repo: "sc-player" });
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.on("checking-for-update", () => setStatus({ state: "checking" }));

@@ -90,6 +90,12 @@ const status = async (): Promise<AuthStatus> => (DEMO ? { mode: "session", user:
 // app's ~300, isn't started. The choice only counts before the app is ready, so changing it takes a restart.
 const memorySaver = prefs().memorySaver;
 if (memorySaver) app.disableHardwareAcceleration();
+/** the system for a report and the log: Windows 10.0.19045, macOS 15.1, Linux 6.8.0-49-generic */
+const systemName = () => (process.platform === "darwin" ? `macOS ${process.getSystemVersion()}` : process.platform === "linux" ? `Linux ${release()}` : `Windows ${release()}`);
+// the graphics process failing is what leaves an empty window; Chromium retries and then draws without it
+app.on("child-process-gone", (_e, d) => {
+  if (d.reason !== "clean-exit") log("main", `${d.type}${d.name ? ` (${d.name})` : ""} process gone: ${d.reason} (exit ${d.exitCode})`);
+});
 
 if (!app.requestSingleInstanceLock()) app.quit();
 setCommunityLyrics((t) => social.approvedLyrics(t));
@@ -554,8 +560,6 @@ function registerIpc() {
    * opens. Nothing secret: no tokens, codes or names — only whether one is signed in — and anything token-like in the
    * log is blanked.
    */
-  /** the system for a report: Windows 10.0.19045, macOS 15.1, Linux 6.8.0-49-generic */
-  const systemName = () => (process.platform === "darwin" ? `macOS ${process.getSystemVersion()}` : process.platform === "linux" ? `Linux ${release()}` : `Windows ${release()}`);
   handle("diag:report", async () => {
     const p = prefs();
     const read = async (name: string) => (await readFile(join(logsDir(), name), "utf8").catch(() => "")).split(/\r?\n/);
@@ -803,6 +807,15 @@ void app.whenReady().then(async () => {
   const p = prefs();
   main = createMainWindow({ startHidden: startedHidden() && p.startMinimized, closeToTray: () => prefs().closeToTray, quitting: () => quitting });
   main.once("ready-to-show", () => log("main", `start: ready in ${readyMs} ms, window in ${Math.round(process.uptime() * 1000)} ms`));
+  // an empty window (the page never drawn) leaves nothing in the log otherwise: what failed, and with which graphics
+  main.webContents.on("render-process-gone", (_e, d) => log("main", `page process gone: ${d.reason} (exit ${d.exitCode})`));
+  main.webContents.on("did-fail-load", (_e, code, desc, url, isMain) => {
+    if (isMain) log("main", `page didn't load: ${desc} (${code}) ${url}`);
+  });
+  main.webContents.once("did-finish-load", () => {
+    const status = app.getGPUFeatureStatus() as unknown as Record<string, string>;
+    log("main", `start: page loaded; ${systemName()}; gpu_compositing ${status.gpu_compositing}, webgl ${status.webgl}${memorySaver ? "; memory saver on" : ""}`);
+  });
   onSyncStatus((s) => send(main, "lyricsSync:status", s));
   main.on("closed", () => (main = null));
   // the app's own load, for "Report a problem"
