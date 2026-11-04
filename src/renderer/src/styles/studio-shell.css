@@ -758,3 +758,11 @@ html[data-design="studio"] [role="menu"].float-card button:focus-visible {
   outline: none;
   box-shadow: none;
 }
+
+/* macOS: its own window buttons (traffic lights) sit at the top left of the window */
+html[data-platform="darwin"] .s-tb {
+  padding-left: 76px;
+}
+html[data-platform="darwin"] .s-ftb {
+  padding-left: 84px;
+}

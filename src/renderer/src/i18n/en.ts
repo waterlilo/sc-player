@@ -122,7 +122,7 @@ export const en = {
   proxyAuto: "Automatic",
   proxyAutoOwn: "SoundCloud opens over your own connection (VPN, zapret or none): sc player's server isn't used. If SoundCloud stops opening, the app switches to it by itself.",
   proxyAutoOurs: "SoundCloud doesn't open over your own connection, so it goes through sc player's server. Every 10 minutes the app checks whether your own works again (a VPN or zapret turned on) and goes back to it.",
-  proxySystem: "Windows settings",
+  proxySystem: "System settings",
   proxyDirect: "No proxy",
   proxyCustom: "Custom",
   proxyBuiltin: "sc player proxy",
@@ -158,11 +158,11 @@ export const en = {
   closeToTray: "Hide to tray",
   closeQuits: "Quit",
   closeHint: "In the tray, the music keeps playing; right-click the tray icon to quit.",
-  startWithWindows: "Start with Windows",
+  startWithWindows: "Start with the system",
   startMinimized: "Start in the tray",
   autostartUnavailable: "Only for the installed version.",
   notifications: "Track notifications",
-  notificationsHint: "A Windows notification when the track changes while the window is in the background.",
+  notificationsHint: "A system notification when the track changes while the window is in the background.",
   like: "Like",
   unlike: "Remove from likes",
   likeFailed: "Couldn't like the track",
@@ -408,7 +408,7 @@ export const en = {
   copyReport: "Copy report",
   reportCopied: "Report copied",
   reportProblem: "Report a problem",
-  reportProblemHint: "Saves a short report (version, Windows, processor and graphics card, the app's load over the last 10 minutes, the end of the log — nothing private) to attach, and opens the page to write on",
+  reportProblemHint: "Saves a short report (version, system, processor and graphics card, the app's load over the last 10 minutes, the end of the log — nothing private) to attach, and opens the page to write on",
   reportSaved: "Report saved — attach the file to your message",
   reportFailed: "Couldn't save the report",
   openLogs: "Open logs folder",
@@ -795,7 +795,7 @@ export const en = {
 
   // language
   language: "Language",
-  languageHint: "“Same as the system” follows Windows.",
+  languageHint: "“Same as the system” follows the system's language.",
   languageAuto: "Same as the system",
 
   // memory

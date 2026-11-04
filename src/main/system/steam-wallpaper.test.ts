@@ -12,6 +12,8 @@ test("defaultSteamPath resolves macOS Library path on darwin and Windows path on
   const macPath = defaultSteamPath("darwin", "/Users/tester");
   assert.equal(macPath, "/Users/tester/Library/Application Support/Steam");
 
+  assert.equal(defaultSteamPath("linux", "/home/tester"), "/home/tester/.local/share/Steam");
+
   const winPath = defaultSteamPath("win32", "");
   assert.equal(winPath, "C:\\Program Files (x86)\\Steam");
 });

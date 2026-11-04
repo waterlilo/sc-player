@@ -4,7 +4,6 @@
 dist/
 node_modules/
 out/
-.superpowers/
 
 # the built-in proxy's address and password (server/README.md); the server's address and secrets
 proxy.local.json

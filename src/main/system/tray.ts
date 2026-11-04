@@ -1,6 +1,8 @@
-import { app, Menu, nativeImage, Tray, type BrowserWindow } from "electron";
+import { app, Menu, nativeImage, Tray, type BrowserWindow, type NativeImage } from "electron";
 import type { PlayerCommand, PlayerInfo } from "@shared/ipc";
 import iconPath from "../../../resources/icon.png?asset";
+import trayTemplate1 from "../../../resources/trayTemplate.png?asset";
+import trayTemplate2 from "../../../resources/trayTemplate@2x.png?asset";
 import { m } from "../i18n";
 import { log } from "./log";
 
@@ -20,6 +22,23 @@ export function showWindow(win: BrowserWindow | null) {
   win.show();
   win.focus();
   if (process.platform === "darwin") app.focus({ steal: true });
+}
+
+/**
+ * The picture in the tray: on macOS the black-on-clear template (the menu bar colours it; the coloured logo would be a
+ * blob), on Linux a bigger one (the panel scales it to its own size), on Windows 16 px.
+ */
+function trayIcon(icon: NativeImage): NativeImage {
+  if (process.platform === "darwin") {
+    const t = nativeImage.createFromPath(trayTemplate1);
+    const big = nativeImage.createFromPath(trayTemplate2);
+    if (!big.isEmpty()) t.addRepresentation({ scaleFactor: 2, buffer: big.toPNG() });
+    if (!t.isEmpty()) {
+      t.setTemplateImage(true);
+      return t;
+    }
+  }
+  return icon.resize(process.platform === "linux" ? { width: 32, height: 32 } : { width: 16, height: 16 });
 }
 
 const cut = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
@@ -48,11 +67,7 @@ export function createTray(d: NonNullable<typeof deps>) {
   const icon = appIcon();
   // the picture ships in app.asar/resources (package.json build.files); an empty one means it was left out
   if (icon.isEmpty()) log("main", `tray: icon missing at ${iconPath}`);
-  const trayImage = icon.resize({ width: 16, height: 16 });
-  if (process.platform === "darwin") {
-    trayImage.setTemplateImage(true);
-  }
-  tray = new Tray(trayImage);
+  tray = new Tray(trayIcon(icon));
   tray.on("click", () => {
     const win = d.window();
     if (!win) return;

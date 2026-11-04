@@ -3,7 +3,7 @@ import { prefs } from "./store";
 
 /**
  * The few strings main shows itself (the tray menu, the taskbar buttons, file dialogs, the browser sign-in question,
- * import errors), in the interface's language: Settings → App → Language, "auto" following Windows like the window.
+ * import errors), in the interface's language: Settings → App → Language, "auto" following the system like the window.
  */
 export type Lang = "en" | "ru";
 
@@ -32,7 +32,7 @@ const en = {
   yandexClosed: "This Yandex Music playlist doesn't open. If it's private, copy its link with Share in Yandex Music, or make it public.",
   yandexBusy: (status: number) => `Yandex Music didn't answer (${status}). Try again in a minute.`,
   yandexTrack: "This Yandex Music track doesn't open.",
-  yandexRegion: "Yandex Music is closed to the country it sees you in (451). If a VPN is on, turn it off while the link is read (Settings → Network: “Windows settings”), then turn it back on.",
+  yandexRegion: "Yandex Music is closed to the country it sees you in (451). If a VPN is on, turn it off while the link is read (Settings → Network: “System settings”), then turn it back on.",
   spotifyOffline: "Couldn't reach Spotify. Check the connection and try again.",
   spotifyClosed: "This Spotify link doesn't open. The playlist may be private or deleted: in Spotify, make it public, or copy its tracks (see below).",
   spotifyBusy: (status: number) => `Spotify didn't answer (${status}). Try again in a minute.`,
@@ -55,6 +55,7 @@ const en = {
   vkClosed: "The VK window was closed before anything was read.",
   vkMyMusic: "My music (VK)",
   vkBookmarkTitle: "VK → sc player",
+  lyricsSyncIntelMac: "Auto-sync needs a Mac with Apple Silicon (M1 or newer): the speech model has no build for Intel Macs.",
 };
 
 const ru: typeof en = {
@@ -75,7 +76,7 @@ const ru: typeof en = {
   yandexClosed: "Этот плейлист Яндекс Музыки не открывается. Если он закрытый, скопируйте ссылку через «Поделиться» в Яндекс Музыке или сделайте его открытым.",
   yandexBusy: (status: number) => `Яндекс Музыка не ответила (${status}). Попробуйте через минуту.`,
   yandexTrack: "Этот трек Яндекс Музыки не открывается.",
-  yandexRegion: "Яндекс Музыка закрыта для страны, в которой она вас видит (451). Если включён VPN — выключите его, пока читается ссылка (Настройки → Сеть: «Настройки Windows»), потом включите обратно.",
+  yandexRegion: "Яндекс Музыка закрыта для страны, в которой она вас видит (451). Если включён VPN — выключите его, пока читается ссылка (Настройки → Сеть: «Настройки системы»), потом включите обратно.",
   spotifyOffline: "Не удалось связаться со Spotify. Проверьте подключение и попробуйте ещё раз.",
   spotifyClosed: "Эта ссылка Spotify не открывается. Возможно, плейлист закрытый или удалён: сделайте его открытым в Spotify или скопируйте его треки (см. ниже).",
   spotifyBusy: (status: number) => `Spotify не ответил (${status}). Попробуйте через минуту.`,
@@ -98,6 +99,7 @@ const ru: typeof en = {
   vkClosed: "Окно VK закрыли раньше, чем треки прочитались.",
   vkMyMusic: "Моя музыка (VK)",
   vkBookmarkTitle: "VK → sc player",
+  lyricsSyncIntelMac: "Авто-синхронизации нужен Mac на Apple Silicon (M1 и новее): для Mac на Intel у модели распознавания нет сборки.",
 };
 
 /** the strings in the language chosen now */

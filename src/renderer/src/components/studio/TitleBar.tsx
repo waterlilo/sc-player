@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import logo from "../../../../../assets/app-icon-small.svg";
-import { isMac } from "@shared/platform";
 import { errorText, useT } from "@/i18n";
 import { looksLikeLink, openLink } from "@/lib/links";
 import { errorCode } from "@/lib/sky";
@@ -110,7 +109,7 @@ export default function StudioTitleBar() {
   const social = useSocial((s) => !!s.status?.available);
   const unread = useSocial((s) => unreadTotal(s.unread) + (s.friends?.incoming.length ?? 0));
   return (
-    <header className="s-tb" style={isMac() ? { paddingLeft: "76px" } : undefined}>
+    <header className="s-tb">
       <div className="s-brand">
         <img src={logo} alt="" draggable={false} />
         {t.appName}

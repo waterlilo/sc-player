@@ -4,6 +4,7 @@ import { dirname, join } from "node:path";
 import { app, net, utilityProcess, type UtilityProcess } from "electron";
 import { fitTiming } from "@shared/fitTiming";
 import type { LyricsSyncStatus, SyncRequest, SyncResult } from "@shared/types";
+import { m as msg } from "../i18n";
 import { prefs } from "../store";
 import { JsonFile } from "../store/json-file";
 import { log } from "../system/log";
@@ -44,8 +45,12 @@ export function onSyncStatus(fn: (s: LyricsSyncStatus) => void) {
 const present = (m: ModelName, f: { path: string; size: number }) => existsSync(fileOf(m, f.path)) && statSync(fileOf(m, f.path)).size === f.size;
 const haveModel = (m: ModelName) => MODELS[m].files.every((f) => present(m, f));
 
+/** onnxruntime (what runs Whisper) ships no build for Intel Macs */
+const SUPPORTED = !(process.platform === "darwin" && process.arch === "x64");
+
 export function syncStatus(): LyricsSyncStatus {
   const name = current();
+  if (!SUPPORTED) return { name, model: "error", progress: 0, error: msg().lyricsSyncIntelMac, sizeMb: Math.round(modelBytes(name) / 1e6), busy: false };
   const model = downloading?.model === name ? "downloading" : haveModel(name) ? "ready" : failed ? "error" : "missing";
   return { name, model, progress: downloading?.model === name ? downloading.progress : 0, error: model === "error" ? failed! : "", sizeMb: Math.round(modelBytes(name) / 1e6), busy };
 }
@@ -54,7 +59,7 @@ const changed = () => onStatus(syncStatus());
 /** Downloads what is missing of the model the settings ask for, file by file, each checked against its SHA-256. */
 export function downloadModel(): LyricsSyncStatus {
   const m = current();
-  if (downloading || haveModel(m)) return syncStatus();
+  if (!SUPPORTED || downloading || haveModel(m)) return syncStatus();
   const total = modelBytes(m);
   downloading = { model: m, progress: 0 };
   failed = null;

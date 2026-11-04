@@ -1,8 +1,9 @@
 /**
- * On macOS, unsigned/ad-hoc signed .app packages cannot be silently updated by Squirrel.Mac.
- * Treating macOS like portable Windows releases tells the user a new version exists and gives
- * them a link to the release DMG without triggering signature rejection errors.
+ * Builds that can't replace themselves are only told a new version exists (with a link to the release):
+ * - a portable Windows .exe;
+ * - macOS — the app isn't signed with an Apple certificate, and Squirrel.Mac refuses unsigned updates;
+ * - Linux, except an AppImage (a .deb belongs to the package manager).
  */
-export function isPortableRelease(platform = process.platform, isPortableEnv = !!process.env.PORTABLE_EXECUTABLE_DIR): boolean {
-  return platform === "darwin" || isPortableEnv;
+export function isPortableRelease(platform = process.platform, isPortableEnv = !!process.env.PORTABLE_EXECUTABLE_DIR, isAppImage = !!process.env.APPIMAGE): boolean {
+  return platform === "darwin" || isPortableEnv || (platform === "linux" && !isAppImage);
 }

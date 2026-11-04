@@ -4,7 +4,7 @@
 
 # sc player
 
-**A SoundCloud player for Windows & macOS — no ads, lyrics word by word, and friends to listen with.**
+**A SoundCloud player for Windows, macOS and Linux — no ads, lyrics word by word, and friends to listen with.**
 
 [Download](../../releases/latest) •
 [Features](#features) •
@@ -15,6 +15,7 @@
 [![Downloads](https://img.shields.io/github/downloads/waterlilo/sc-player/total?style=flat-square&labelColor=111114&color=3a3a41)](../../releases)
 ![Windows](https://img.shields.io/badge/Windows-10%20%2F%2011-3a3a41?style=flat-square&labelColor=111114)
 ![macOS](https://img.shields.io/badge/macOS-Apple%20Silicon%20%2F%20Intel-3a3a41?style=flat-square&labelColor=111114)
+![Linux](https://img.shields.io/badge/Linux-AppImage%20%2F%20deb-3a3a41?style=flat-square&labelColor=111114)
 
 <br/>
 
@@ -85,16 +86,19 @@
   profiles to the sidebar.
 - **Your own playlists:** make them, add to them, reorder, rename — kept on your computer, no sign-in needed; copy any
   SoundCloud playlist to change it, save the queue as one, export them to a file and back.
+- **Bring your playlists over** from Spotify, Yandex Music, YouTube Music and VK Music (or a list of lines): paste a
+  link, and every track is looked up on SoundCloud.
 - **Honest shuffle** over the whole playlist or all your likes; **autopilot** keeps playing similar tracks.
 - **Protected tracks:** when SoundCloud only streams a track with DRM or as a 30-second preview, sc player plays
   another upload of the same recording, checked by its sound (marked `ALT`).
 - Seek on the waveform, a queue you can drag, crossfade, a 10-band equalizer, output device, sleep timer.
 
-**System & Desktop**
-- Media keys, system media overlay, tray / menu bar icon, global hotkeys, notifications.
-- **Windows:** Window Controls Overlay, ⏮ ⏯ ⏭ under the taskbar preview.
-- **macOS:** Native traffic light window controls, hide-on-close (audio continues in background, restore via Dock icon).
-- Updates itself (on Windows) or notifies with a release download link (macOS / portable). Nothing moves while the window is hidden — only the sound keeps going.
+**On your computer**
+- Media keys, the system's media controls, tray / menu bar icon, global hotkeys, notifications, start with the system.
+- **Windows:** ⏮ ⏯ ⏭ under the taskbar preview.
+- **macOS:** the window's own buttons; closing the window keeps the music playing (the Dock icon brings it back).
+- Updates itself (Windows installer, Linux AppImage), or tells you a new version is out (macOS, .deb, portable).
+  Nothing moves while the window is hidden — only the sound keeps going.
 
 ---
 
@@ -105,16 +109,24 @@
 2. The app isn't code-signed, so Windows may say "Windows protected your PC": click **More info → Run anyway**.
 
 ### macOS
-1. Download `sc-player-v…-arm64.dmg` (Apple Silicon) or `sc-player-v…-x64.dmg` (Intel) from the [latest release](../../releases/latest).
-2. Open the `.dmg` and drag **sc player** into your **Applications** folder.
-3. The app is self-built without a paid Apple Developer certificate. If macOS blocks launching ("app is damaged or can't be opened"):
-   - Right-click `sc player.app` in Finder and click **Open**, or
-   - In Terminal, run:
-     ```bash
-     xattr -cr "/Applications/sc player.app"
-     ```
+1. Download `sc-player-v…-arm64.dmg` (Apple Silicon: M1 and newer) or `sc-player-v…-x64.dmg` (Intel) from the
+   [latest release](../../releases/latest).
+2. Open the `.dmg` and drag **sc player** into **Applications**.
+3. The app isn't signed with a paid Apple certificate, so the first launch is blocked. Open **System Settings →
+   Privacy & Security**, scroll down and click **Open Anyway** next to sc player. If macOS says the app "is damaged",
+   run this in Terminal once:
+   ```bash
+   xattr -cr "/Applications/sc player.app"
+   ```
+4. Lyrics auto-sync (the speech model) needs Apple Silicon; everything else works on Intel Macs too.
 
-### Sign In
+### Linux
+- **AppImage** (any distribution): download `sc-player-v…-x86_64.AppImage`, make it executable
+  (`chmod +x sc-player-*.AppImage`) and run it. It adds itself to the app menu and updates itself.
+- **Debian / Ubuntu:** download `sc-player-v…-amd64.deb` and install it (`sudo apt install ./sc-player-*.deb`).
+- On GNOME the tray icon needs the AppIndicator extension.
+
+### Sign in
 Click **Sign in to SoundCloud** to see your likes and playlists. If the sign-in window says "access temporarily restricted" or "something unexpected happened", use **Sign in with your browser** instead. Without signing in you can still search, listen, make playlists and open any public profile.
 
 New versions install over the old one; your sign-in, settings and playlists stay.
@@ -144,6 +156,7 @@ New versions install over the old one; your sign-in, settings and playlists stay
 - **[LRCLIB](https://lrclib.net)** — the open lyrics database.
 - **[Whisper](https://github.com/openai/whisper)** by OpenAI (MIT) — the speech model that matches plain lyrics to the
   song on your computer.
+- **[ggrk52](https://github.com/ggrk52)** — the macOS version.
 - The zapret guide for SoundCloud by kkkwkswd.
 
 ---

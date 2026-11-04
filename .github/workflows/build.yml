@@ -1,0 +1,67 @@
+# sc player for macOS (Apple Silicon + Intel: .dmg, .zip) and Linux (x64: .AppImage, .deb), built on GitHub's
+# machines — nobody here has a Mac. Windows is still built locally (npm run dist). The files come out as the run's
+# artifacts and are attached to the release by hand, with latest-mac.yml and latest-linux.yml (the update check).
+#
+# The built-in proxy and the server address are not in git: the repository secrets SC_PROXY_JSON and SC_SERVER_JSON
+# hold proxy.local.json and server.local.json (a build without them simply has neither).
+name: Build macOS and Linux
+
+on:
+  push:
+    branches: [v2, platforms]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            name: macos
+          - os: ubuntu-24.04
+            name: linux
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: The built-in proxy and the server address
+        shell: bash
+        env:
+          PROXY_JSON: ${{ secrets.SC_PROXY_JSON }}
+          SERVER_JSON: ${{ secrets.SC_SERVER_JSON }}
+        run: |
+          if [ -n "$PROXY_JSON" ]; then printf '%s' "$PROXY_JSON" > proxy.local.json; echo "proxy: yes"; else echo "proxy: none"; fi
+          if [ -n "$SERVER_JSON" ]; then printf '%s' "$SERVER_JSON" > server.local.json; echo "server: yes"; else echo "server: none"; fi
+
+      - run: npm test
+
+      - run: node scripts/dist.mjs
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sc-player-${{ matrix.name }}
+          path: |
+            dist/*.dmg
+            dist/*.zip
+            dist/*.AppImage
+            dist/*.deb
+            dist/*.blockmap
+            dist/latest-*.yml
+          if-no-files-found: error
+          retention-days: 14

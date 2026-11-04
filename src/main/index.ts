@@ -25,6 +25,7 @@ import * as social from "./social";
 import { patchRenderer, prefs, store } from "./store";
 import { getSecret, setSecret, unopenedSecrets } from "./store/secrets";
 import { applyAutostart, startedHidden } from "./system/autostart";
+import { integrateLinux } from "./system/linux";
 import { backgroundSize, dropBackgrounds, keepImport, pickBackground, registerBackgroundScheme, saveBackground, serveBackgrounds } from "./system/background";
 import { findWallpaper, workshopId } from "./system/steam-wallpaper";
 import { applyHotkeys, initHotkeys, suspendHotkeys } from "./system/hotkeys";
@@ -553,6 +554,8 @@ function registerIpc() {
    * opens. Nothing secret: no tokens, codes or names — only whether one is signed in — and anything token-like in the
    * log is blanked.
    */
+  /** the system for a report: Windows 10.0.19045, macOS 15.1, Linux 6.8.0-49-generic */
+  const systemName = () => (process.platform === "darwin" ? `macOS ${process.getSystemVersion()}` : process.platform === "linux" ? `Linux ${release()}` : `Windows ${release()}`);
   handle("diag:report", async () => {
     const p = prefs();
     const read = async (name: string) => (await readFile(join(logsDir(), name), "utf8").catch(() => "")).split(/\r?\n/);
@@ -560,7 +563,7 @@ function registerIpc() {
     const version = app.getVersion();
     const text = [
       `sc player ${version}${app.isPackaged ? "" : " (development)"}${process.env.PORTABLE_EXECUTABLE_DIR ? " portable" : ""}`,
-      `Windows ${release()}`,
+      `${systemName()} (${process.arch})`,
       `signed in to SoundCloud: ${signedIn() ? "yes" : "no"}; messenger: ${social.myCode() ? "yes" : "no"}`,
       `proxy: ${p.proxy.mode}${proxyRoute() ? ` (${proxyRoute()})` : ""}; stream quality: ${p.streamQuality}; lyrics auto-sync: ${p.autoSyncLyrics ? "on" : "off"}`,
       ...(await loadReport(p.look, memorySaver)),
@@ -576,7 +579,7 @@ function registerIpc() {
     if (r.canceled || !r.filePath) return false;
     await writeFile(r.filePath, text, "utf8");
     shell.showItemInFolder(r.filePath);
-    const body = `sc player ${version}, Windows ${release()}\n\nWhat happened:\n\n\nWhat I expected:\n\n\n(The report file ${r.filePath.split(/[\\/]/).pop()} is attached.)`;
+    const body = `sc player ${version}, ${systemName()}\n\nWhat happened:\n\n\nWhat I expected:\n\n\n(The report file ${r.filePath.split(/[\\/]/).pop()} is attached.)`;
     void shell.openExternal(`https://github.com/waterlilo/sc-player/issues/new?title=${encodeURIComponent("Problem: ")}&body=${encodeURIComponent(body)}`);
     return true;
   });
@@ -809,7 +812,11 @@ void app.whenReady().then(async () => {
     friendLink(startupArgs);
   });
   // links open the installed app (in development they would point at this checkout)
-  if (app.isPackaged) registerLinks();
+  if (app.isPackaged) {
+    // an AppImage writes its menu entry first: the link handler is that entry
+    integrateLinux();
+    registerLinks();
+  }
   // Windows forgets the taskbar buttons while the window is hidden
   main.on("show", () => updateThumbar(main, playerInfo, command, true));
   createTray({
