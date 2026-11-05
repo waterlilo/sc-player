@@ -47,10 +47,25 @@ function Paste() {
         </MarkerButton>
         {error && <p role="alert" className="text-sm text-glow">{error.message || errorText(t, error.code)}</p>}
       </div>
-      <dl className="mt-8 grid gap-4 text-sm leading-relaxed sm:grid-cols-3">
+      <dl className="mt-8 grid gap-4 text-sm leading-relaxed sm:grid-cols-2">
+        <div className="rounded-lg border border-[var(--card-edge)] bg-[var(--card)] p-4 sm:col-span-2">
+          <dt className="mb-1 font-semibold text-text">{t.importVk}</dt>
+          <dd className="text-muted">
+            {t.importVkHow}
+            <span className="mt-3 flex flex-wrap items-center gap-3">
+              <PaperButton disabled={reading} onClick={() => void startImport(null)}>
+                {t.importVkOpen}
+              </PaperButton>
+              <button type="button" onClick={() => void call("import:vkBookmark")} className="text-sm text-muted underline underline-offset-2 hover:text-text">
+                {t.importVkBookmark}
+              </button>
+            </span>
+          </dd>
+        </div>
         {[
           [t.importYandex, t.importYandexHow],
           [t.importSpotify, t.importSpotifyHow],
+          [t.importYoutube, t.importYoutubeHow],
           [t.importOther, t.importOtherHow],
         ].map(([title, how]) => (
           <div key={title} className="rounded-lg border border-[var(--card-edge)] bg-[var(--card)] p-4">
@@ -212,7 +227,7 @@ function Results() {
     <div className="max-w-4xl">
       <div className="mb-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <h2 className="truncate text-xl font-semibold text-text">{title ?? t.importLooseTracks}</h2>
-        {service && service !== "text" && <span className="font-type text-xs uppercase tracking-wider text-muted">{service === "yandex" ? t.importYandex : t.importSpotify}</span>}
+        {service && service !== "text" && <span className="font-type text-xs uppercase tracking-wider text-muted">{service === "yandex" ? t.importYandex : service === "youtube" ? t.importYoutube : service === "vk" ? t.importVk : t.importSpotify}</span>}
       </div>
       <div className="mb-3 flex flex-wrap items-center gap-3">
         <div className="min-w-48 flex-1">
@@ -264,7 +279,7 @@ function Results() {
   );
 }
 
-/** Playlists from Yandex Music, Spotify or a list of text, found on SoundCloud and kept on this computer. */
+/** Playlists from Yandex Music, Spotify, YouTube Music, VK or a list of text, found on SoundCloud and kept on this computer. */
 export default function Import() {
   const t = useT();
   const hasRows = useImport((s) => s.rows.length > 0);

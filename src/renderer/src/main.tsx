@@ -32,6 +32,8 @@ import { useSettings } from "@/state/settings";
 import App from "./App";
 
 async function boot() {
+  // macOS keeps its own window buttons at the top left: the title bars leave room for them (studio-shell.css)
+  document.documentElement.dataset.platform = window.sky.platform;
   initActivity();
   watchLyricsSync();
   initRoom();

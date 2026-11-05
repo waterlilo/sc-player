@@ -346,8 +346,12 @@ export interface InvokeMap {
   "data:exportPlaylists": () => number | null;
   /** own playlists from such a file, added: how many, or null (none picked) */
   "data:importPlaylists": () => number | null;
-  /** what a pasted link (a Yandex Music or Spotify playlist, album, tracks) or lines of "Artist — Title" hold */
+  /** what a pasted link (a Yandex Music, Spotify, YouTube or VK playlist, album, tracks) or lines of "Artist — Title" hold */
   "import:read": (text: string) => ImportList;
+  /** the VK window, to sign in and bring "My music" or a playlist (resolves when a page is read) */
+  "import:vk": () => ImportList;
+  /** the page in the browser with the VK bookmark */
+  "import:vkBookmark": () => void;
   /** one of those tracks looked for on SoundCloud (a track link is read first) */
   "import:match": (item: ImportItem) => ImportMatch;
   "data:search": (query: string, kind: SearchKind, cursor: string | null) => Page<Track> | Page<Playlist> | Page<User>;
@@ -399,7 +403,7 @@ export interface InvokeMap {
   "log:write": (message: string) => void;
   "diag:openLogs": () => void;
   "diag:netcheck": () => NetCheck[];
-  /** a report file the person saves (version, Windows, a few settings, the end of the log), then the page to write on; false when cancelled */
+  /** a report file the person saves (version, Windows, a few settings, the computer and the app's load, the end of the log), then the page to write on; false when cancelled */
   "diag:report": () => boolean;
   "diag:clearCache": () => void;
   /** the proxy password, kept encrypted; "" removes it. Returns whether one is set. */
@@ -605,6 +609,8 @@ export const INVOKE_CHANNELS = [
   "data:exportPlaylists",
   "data:importPlaylists",
   "import:read",
+  "import:vk",
+  "import:vkBookmark",
   "import:match",
   "data:search",
   "data:suggest",
@@ -641,6 +647,7 @@ export const _channelsComplete: [MissingInvoke, MissingEvent] extends [never, ne
 
 /** What preload puts on window.sky. */
 export interface SkyBridge {
+  platform: string;
   invoke<K extends InvokeChannel>(channel: K, ...args: Parameters<InvokeMap[K]>): Promise<Result<ReturnType<InvokeMap[K]>>>;
   on<K extends keyof EventMap>(channel: K, listener: (payload: EventMap[K]) => void): () => void;
   /** where a file dropped onto the window is on disk (to add music from this computer) */

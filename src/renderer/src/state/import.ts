@@ -6,7 +6,7 @@ import { call, errorCode, SkyError } from "@/lib/sky";
 import { askCheck } from "./check";
 
 /**
- * Bringing a playlist over from Yandex Music, Spotify or a list of text: main reads it, then every track is looked
+ * Bringing a playlist over from Yandex Music, Spotify, YouTube Music, VK or a list of text: main reads it, then every track is looked
  * for on SoundCloud here, two at a time with a pause between searches (SoundCloud's bot protection notices bursts).
  * Lives outside the screen, so the search goes on while the person looks around the app.
  */
@@ -93,12 +93,12 @@ async function search() {
   if (me === run) useImport.setState({ phase: "done" });
 }
 
-/** Read a pasted link, links or lines, then look for every track. */
-export async function startImport(text: string) {
+/** Read a pasted link, links or lines (or, with null, what is chosen in the VK window), then look for every track. */
+export async function startImport(text: string | null) {
   run++;
   useImport.setState({ ...blank, phase: "reading" });
   try {
-    const list = await call("import:read", text);
+    const list = text === null ? await call("import:vk") : await call("import:read", text);
     useImport.setState({ service: list.service, title: list.title, partial: list.partial, rows: list.items.map((item) => ({ item, state: "waiting", pick: null, options: [] })) });
   } catch (err) {
     useImport.setState({ phase: "idle", error: info(err) });
@@ -152,7 +152,7 @@ export async function saveImport(name: string): Promise<Playlist> {
 /** A track link not read yet, as the link it came from. */
 export function refLink(ref: string | undefined): string {
   const [service, id] = (ref ?? "").split(":");
-  return service === "spotify" ? `https://open.spotify.com/track/${id}` : service === "yandex" ? `https://music.yandex.ru/track/${id}` : "";
+  return service === "spotify" ? `https://open.spotify.com/track/${id}` : service === "yandex" ? `https://music.yandex.ru/track/${id}` : service === "youtube" ? `https://music.youtube.com/watch?v=${id}` : "";
 }
 
 /** The tracks left without an upload, as lines of "Artist — Title" (to look for elsewhere). */

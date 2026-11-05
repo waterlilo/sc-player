@@ -1,6 +1,6 @@
 /**
- * What a pasted text asks to import: links to Yandex Music and Spotify playlists, albums and tracks, or lines of
- * "Artist — Title". Pure functions (no imports) so they can be tested on their own (npm test).
+ * What a pasted text asks to import: links to Yandex Music, Spotify and YouTube (Music) playlists, albums and tracks,
+ * VK playlists, or lines of "Artist — Title". Pure functions (no imports) so they can be tested on their own (npm test).
  */
 
 export type Source =
@@ -13,12 +13,75 @@ export type Source =
   | { kind: "spotifyTrack"; id: string }
   /** spotify.link/… — Spotify's short link, read by following it */
   | { kind: "spotifyShort"; url: string }
+  /** a playlist's id ("PL…", an album's "OLAK5uy_…"; "LM" — someone's likes, which open to no one else) */
+  | { kind: "youtubePlaylist"; id: string }
+  /** an album page of YouTube Music ("MPREb_…") */
+  | { kind: "youtubeAlbum"; id: string }
+  /** a video's id (11 characters) */
+  | { kind: "youtubeTrack"; id: string }
+  /**
+   * A VK playlist or album (`key` "owner_id"), or someone's music (`key` "audios<id>"): read in a VK window the
+   * person signs in to (VK opens music to no one without an account).
+   */
+  | { kind: "vkList"; url: string; key: string }
   | { kind: "line"; artist: string; title: string; durationMs: number | null };
 
 const YANDEX = /^https?:\/\/(?:www\.)?music\.yandex\.(?:ru|com|by|kz|uz|ua)(\/[^\s?#]*)/i;
 const SPOTIFY = /^https?:\/\/open\.spotify\.com\/(?:intl-[a-z-]+\/)?(?:embed\/)?(playlist|album|track)\/([A-Za-z0-9]{22})/i;
 const SPOTIFY_URI = /^spotify:(playlist|album|track):([A-Za-z0-9]{22})$/i;
 const SPOTIFY_SHORT = /^https?:\/\/spotify\.link\/[A-Za-z0-9]+$/i;
+const YOUTUBE = /^https?:\/\/(?:(?:www|m|music)\.)?(?:youtube\.com|youtu\.be)\//i;
+const VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
+const LIST_ID = /^[A-Za-z0-9_-]{2,64}$/;
+
+/**
+ * A YouTube or YouTube Music link: a playlist (also as `watch?v=…&list=…`, playing from it), an album page, or one
+ * video (`watch?v=`, `youtu.be/`). A mix ("RD…", made up by YouTube as it plays) is not a playlist: its video is
+ * (YouTube Music's own playlists are "RDCLAK5uy_…", real ones).
+ */
+function youtubeSource(word: string): Source | null {
+  let url: URL;
+  try {
+    url = new URL(word);
+  } catch {
+    return null;
+  }
+  const list = url.searchParams.get("list");
+  const video = url.hostname.endsWith("youtu.be") ? url.pathname.slice(1).split("/")[0]! : url.pathname === "/watch" ? (url.searchParams.get("v") ?? "") : (url.pathname.match(/^\/(?:shorts|embed|live)\/([^/]+)/)?.[1] ?? "");
+  const album = url.pathname.match(/^\/browse\/(MPREb_[A-Za-z0-9_-]+)/)?.[1];
+  if (album) return { kind: "youtubeAlbum", id: album };
+  if (list && LIST_ID.test(list) && (!/^RD/.test(list) || list.startsWith("RDCLAK5uy_"))) return { kind: "youtubePlaylist", id: list };
+  if (VIDEO_ID.test(video)) return { kind: "youtubeTrack", id: video };
+  return null;
+}
+
+const VK = /^https?:\/\/(?:(?:m|www)\.)?vk\.(?:com|ru)\//i;
+
+/**
+ * A VK link: a playlist or album (`/music/playlist/-1_2_hash`, `/music/album/…`, the older `/audio_playlist-1_2`, or
+ * any page with `z=audio_playlist-1_2/hash`), or someone's music (`/audios123`). The hash opens a playlist that is
+ * shared by link only.
+ */
+function vkSource(word: string): Source | null {
+  let url: URL;
+  try {
+    url = new URL(word);
+  } catch {
+    return null;
+  }
+  const hashOf = (h: string | undefined) => (h && /^[0-9a-f]{6,40}$/i.test(h) ? h : (url.searchParams.get("access_hash") ?? undefined));
+  const list = (type: string, owner: string, id: string, hash: string | undefined): Source => {
+    const h = hashOf(hash);
+    return { kind: "vkList", url: `https://vk.com/music/${type}/${owner}_${id}${h ? `_${h}` : ""}`, key: `${owner}_${id}` };
+  };
+  let m: RegExpMatchArray | null;
+  const z = url.searchParams.get("z") ?? url.searchParams.get("w") ?? "";
+  if ((m = z.match(/^audio_playlist(-?\d+)_(\d+)(?:\/([0-9a-f]+))?/i))) return list("playlist", m[1]!, m[2]!, m[3]);
+  if ((m = url.pathname.match(/^\/music\/(playlist|album)\/(-?\d+)_(\d+)(?:_([0-9a-f]+))?\/?$/i))) return list(m[1]!.toLowerCase(), m[2]!, m[3]!, m[4]);
+  if ((m = url.pathname.match(/^\/audio_playlist(-?\d+)_(\d+)(?:_([0-9a-f]+))?\/?$/i))) return list("playlist", m[1]!, m[2]!, m[3]);
+  if ((m = url.pathname.match(/^\/audios(-?\d+)\/?$/))) return { kind: "vkList", url: `https://vk.com/audios${m[1]}?section=all`, key: `audios${m[1]}` };
+  return null;
+}
 
 function yandexSource(path: string): Source | null {
   let m: RegExpMatchArray | null;
@@ -49,6 +112,8 @@ function linkSource(word: string): Source | null {
     return { kind: type === "playlist" ? "spotifyPlaylist" : type === "album" ? "spotifyAlbum" : "spotifyTrack", id: m[2]! };
   }
   if (SPOTIFY_SHORT.test(word)) return { kind: "spotifyShort", url: word };
+  if (YOUTUBE.test(word)) return youtubeSource(word);
+  if (VK.test(word)) return vkSource(word);
   return null;
 }
 
@@ -96,8 +161,8 @@ export function parseInput(text: string, limit = 1000): Source[] {
 }
 
 /** A version that changes the song (a remix, a live take, an edit for a film) stays part of its name; a remaster doesn't. */
-const SAME_SONG = /remaster|^(radio|single|album|clean|explicit|original|mono|stereo)( (edit|version|mix))?$|^(from|из) |саундтрек|soundtrack|^\d{4}( version)?$/i;
-const OTHER_VERSION = /\b(remix|rmx|mix|live|acoustic|instrumental|slowed|sped up|speed up|nightcore|bootleg|flip|cover|demo|unplugged|orchestral|piano|edit|extended|version)\b|ремикс|кавер|акустик/i;
+export const SAME_SONG = /remaster|^(radio|single|album|clean|explicit|original|mono|stereo)( (edit|version|mix))?$|^(from|из) |саундтрек|soundtrack|^\d{4}( version)?$/i;
+export const OTHER_VERSION = /\b(remix|rmx|mix|live|acoustic|instrumental|slowed|sped up|speed up|nightcore|bootleg|flip|cover|demo|unplugged|orchestral|piano|edit|extended|version)\b|ремикс|кавер|акустик/i;
 
 const keepVersion = (v: string) => !SAME_SONG.test(v.trim()) && OTHER_VERSION.test(v);
 
@@ -113,4 +178,39 @@ export function spotifyTitle(title: string): string {
   if (at <= 0) return title;
   const v = title.slice(at + 3).trim();
   return keepVersion(v) ? `${title.slice(0, at)} (${v})` : title.slice(0, at);
+}
+
+/** what a video's name says about the video, not the song: "(Official Music Video)", "[Lyrics]", "(HD)", "(Клип)" */
+const VIDEO_WORDS =
+  /^(?:official\s+)?(?:(?:hd|hq|4k)\s+)?(?:music\s+|lyrics?\s+|hd\s+)?(?:video|audio|visuali[sz]er|clip|lyrics?)(?:\s+(?:hd|hq|4k))?$|^(?:hd|hq|4k|mv|m\/v|official|lyrics?|audio only)$|^(?:премьера|клип|официальный клип|official video премьера).*$/i;
+const DASH = /\s+[-–—]\s+/;
+/** "Artist - Topic", "ArtistVEVO", "Artist Official": a channel's name as the artist's */
+const channelArtist = (name: string) => name.replace(/\s*-\s*Topic$/i, "").replace(/VEVO$/, "").replace(/\s+official(?:\s+channel)?$/i, "").trim();
+const same = (a: string, b: string) => a.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "") === b.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+
+/**
+ * A YouTube (Music) track as a title and an artist to look for. A song of YouTube Music comes clean; a video's name
+ * loses what it says about the video, "Artist - Song" gives the artist when the uploader is just a channel
+ * (`uploaded`) or names the same artist, and any other " - Part" is a version (kept when it changes the song).
+ */
+export function youtubeTitle(name: string, artist: string, uploaded: boolean): { title: string; artist: string } {
+  let title = name
+    // "(Official Video, 2022)" too
+    .replace(/\s*[([【]([^)\]】]*)[)\]】]/g, (all, inside: string) => (VIDEO_WORDS.test(inside.replace(/[,\s]*(?:19|20)\d{2}$/, "").trim()) ? "" : all))
+    .replace(/\s+[|｜].*$/, "")
+    .replace(/\s+(?:official\s+(?:music\s+)?video|official\s+audio|lyric\s+video)$/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  let who = channelArtist(artist);
+  const sep = title.match(DASH);
+  if (sep?.index) {
+    const left = title.slice(0, sep.index).trim();
+    const right = title.slice(sep.index + sep[0].length).trim();
+    if (uploaded || !who || same(left, who) || same(left, artist)) {
+      who = left;
+      title = right;
+    } else title = spotifyTitle(`${left} - ${right}`);
+  }
+  title = title.replace(/^["«“]|["»”]$/g, "").trim() || name.trim();
+  return { title, artist: who };
 }

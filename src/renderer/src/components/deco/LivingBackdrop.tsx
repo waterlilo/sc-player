@@ -234,21 +234,29 @@ function LiquidField({ react, onReady }: { react: number; onReady: () => void })
     const uRes = u("res"), uT = u("t"), uBand = u("band"), uHigh = u("high");
     const uC = [0, 1, 2, 3, 4].map((i) => u("c" + i));
 
+    const playingNow = () => usePlayer.getState().status === "playing";
     let levels: Levels = { bass: 0, treble: 0, beat: 0, energy: 0 };
     let from: RGB[] = palette().field;
     let to: RGB[] = from;
     let fade = 1;
     let time = 37;
     let last = performance.now();
+    // how much it moves and reacts: eases to 0 on pause and back to 1 on play (~0.5 s) instead of snapping, so
+    // the field neither goes dark nor jumps bright in one frame
+    let pace = playingNow() ? 1 : 0;
+    const settled = () => pace === (playingNow() ? 1 : 0);
 
     const draw = () => {
       const now = performance.now();
       const dt = Math.min(0.1, (now - last) / 1000);
       last = now;
-      if (usePlayer.getState().status === "playing") time += dt;
+      const target = playingNow() ? 1 : 0;
+      pace = getActivity() === "active" ? pace + (target - pace) * Math.min(1, dt / 0.18) : target;
+      if (Math.abs(target - pace) < 0.01) pace = target;
+      time += dt * pace;
       fade = Math.min(1, fade + dt / 1.2);
       const m = fade * fade * (3 - 2 * fade);
-      const kk = k.current;
+      const kk = k.current * pace;
       const b = Math.min(1.5, levels.bass * kk), e = Math.min(1.5, levels.energy * kk), h = Math.min(1.5, levels.treble * kk);
       gl.viewport(0, 0, cv.width, cv.height);
       gl.uniform2f(uRes, cv.width, cv.height);
@@ -262,12 +270,13 @@ function LiquidField({ react, onReady }: { react: number; onReady: () => void })
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     };
 
-    // run at 30 fps while it moves (music playing, window in front) or while a new palette fades in
+    // run at 30 fps while it moves (music playing, window in front), while a new palette fades in, or while it eases
+    // into a pause or out of one
     let timer = 0;
     const tick = () => {
       draw();
-      const moving = usePlayer.getState().status === "playing" && getActivity() === "active";
-      if (!moving && fade >= 1) stop();
+      const moving = playingNow() && getActivity() === "active";
+      if (!moving && fade >= 1 && settled()) stop();
     };
     const start = () => {
       if (timer) return;
@@ -278,11 +287,14 @@ function LiquidField({ react, onReady }: { react: number; onReady: () => void })
       window.clearInterval(timer);
       timer = 0;
     };
-    const sync = () => (usePlayer.getState().status === "playing" && getActivity() === "active" ? start() : draw());
+    const sync = () => (getActivity() === "active" && (playingNow() || !settled()) ? start() : draw());
     draw();
     sync();
     readyRef.current();
-    const offLevels = onLevels((l) => (levels = l));
+    // paused, the last levels are kept and faded out with the pace (they'd drop to nothing at once otherwise)
+    const offLevels = onLevels((l) => {
+      if (playingNow()) levels = l;
+    });
     const offPalette = onPalette((p) => {
       const m = fade * fade * (3 - 2 * fade);
       from = from.map((a, i) => {

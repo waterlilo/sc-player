@@ -1,4 +1,5 @@
 import { connect, type Socket } from "node:net";
+import { join } from "node:path";
 import type { PlayerInfo } from "@shared/ipc";
 import { artwork, isLocalTrack } from "@shared/types";
 import { log } from "./log";
@@ -38,14 +39,29 @@ function frame(op: number, payload: unknown) {
   return Buffer.concat([head, body]);
 }
 
-/** Discord listens on discord-ipc-0, or the next free number when several Discord builds run. */
-function openPipe(n = 0): Promise<Socket> {
+/**
+ * Where Discord listens: discord-ipc-0, or the next free number when several Discord builds run. On Windows a named
+ * pipe; on macOS and Linux a socket in the temp folder (Linux: also inside the Flatpak's and the Snap's folders).
+ */
+function pipePaths(): string[] {
+  const out: string[] = [];
+  if (process.platform === "win32") {
+    for (let n = 0; n < 10; n++) out.push(`\\\\?\\pipe\\discord-ipc-${n}`);
+    return out;
+  }
+  const base = process.env.XDG_RUNTIME_DIR || process.env.TMPDIR || process.env.TMP || process.env.TEMP || "/tmp";
+  const dirs = process.platform === "linux" ? [base, join(base, "app", "com.discordapp.Discord"), join(base, "snap.discord")] : [base];
+  for (let n = 0; n < 10; n++) for (const d of dirs) out.push(join(d, `discord-ipc-${n}`));
+  return out;
+}
+
+function openPipe(paths = pipePaths()): Promise<Socket> {
   return new Promise((resolve, reject) => {
-    const s = connect(`\\\\?\\pipe\\discord-ipc-${n}`);
+    const s = connect(paths[0]!);
     s.once("connect", () => resolve(s));
     s.once("error", (err) => {
       s.destroy();
-      if (n < 9) openPipe(n + 1).then(resolve, reject);
+      if (paths.length > 1) openPipe(paths.slice(1)).then(resolve, reject);
       else reject(err);
     });
   });

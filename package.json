@@ -1,9 +1,9 @@
 {
   "name": "sc-player",
   "productName": "sc player",
-  "version": "2.2.1",
+  "version": "2.3.0",
   "private": true,
-  "description": "sc player — a SoundCloud desktop client for Windows",
+  "description": "sc player — a SoundCloud desktop client for Windows, macOS and Linux",
   "author": "waterlil",
   "license": "GPL-3.0-only",
   "main": "out/main/index.js",
@@ -58,6 +58,14 @@
     "appId": "com.skythemontage.scplayer",
     "productName": "sc player",
     "copyright": "waterlil",
+    "protocols": [
+      {
+        "name": "sc-player",
+        "schemes": [
+          "scplayer"
+        ]
+      }
+    ],
     "directories": {
       "output": "dist",
       "buildResources": "build"
@@ -66,9 +74,6 @@
       "out/**/*",
       "resources/**/*",
       "package.json",
-      "!node_modules/onnxruntime-node/bin/napi-v6/{darwin,linux}/**",
-      "!node_modules/onnxruntime-node/bin/napi-v6/win32/arm64/**",
-      "!node_modules/onnxruntime-node/bin/napi-v6/win32/x64/{DirectML.dll,dxcompiler.dll,dxil.dll}",
       "!node_modules/onnxruntime-node/{lib,script}/**"
     ],
     "asar": true,
@@ -81,11 +86,65 @@
         "to": "LICENSE.sc-player.txt"
       }
     ],
+    "mac": {
+      "icon": "build/icon.png",
+      "target": [
+        {
+          "target": "dmg"
+        },
+        {
+          "target": "zip"
+        }
+      ],
+      "category": "public.app-category.music",
+      "identity": "-",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "notarize": false,
+      "electronLanguages": [
+        "en",
+        "ru"
+      ],
+      "files": [
+        "out/**/*",
+        "resources/**/*",
+        "package.json",
+        "!node_modules/onnxruntime-node/{lib,script}/**",
+        "!node_modules/onnxruntime-node/bin/napi-v6/{win32,linux}/**"
+      ]
+    },
+    "dmg": {
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ],
+      "window": {
+        "width": 540,
+        "height": 380
+      }
+    },
     "win": {
       "icon": "build/icon.png",
       "target": [
         "nsis",
         "portable"
+      ],
+      "files": [
+        "out/**/*",
+        "resources/**/*",
+        "package.json",
+        "!node_modules/onnxruntime-node/{lib,script}/**",
+        "!node_modules/onnxruntime-node/bin/napi-v6/{darwin,linux}/**",
+        "!node_modules/onnxruntime-node/bin/napi-v6/win32/arm64/**",
+        "!node_modules/onnxruntime-node/bin/napi-v6/win32/x64/{DirectML.dll,dxcompiler.dll,dxil.dll}"
       ]
     },
     "nsis": {
@@ -95,11 +154,43 @@
       "createDesktopShortcut": true,
       "shortcutName": "sc player"
     },
+    "linux": {
+      "icon": "build/icon.png",
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "executableName": "sc-player",
+      "category": "Audio",
+      "synopsis": "A SoundCloud player: no ads, lyrics word by word, friends to listen with",
+      "maintainer": "waterlilo <https://github.com/waterlilo/sc-player>",
+      "desktop": {
+        "entry": {
+          "Name": "sc player",
+          "Comment": "SoundCloud player",
+          "Categories": "AudioVideo;Audio;Player;"
+        }
+      },
+      "files": [
+        "out/**/*",
+        "resources/**/*",
+        "package.json",
+        "!node_modules/onnxruntime-node/{lib,script}/**",
+        "!node_modules/onnxruntime-node/bin/napi-v6/{win32,darwin}/**",
+        "!node_modules/onnxruntime-node/bin/napi-v6/linux/arm64/**"
+      ]
+    },
     "electronLanguages": [
       "en-US",
       "ru"
     ],
     "compression": "maximum",
+    "toolsets": {
+      "appimage": "1.0.3"
+    },
+    "appImage": {
+      "compression": "zstd"
+    },
     "publish": {
       "provider": "github",
       "owner": "waterlilo",

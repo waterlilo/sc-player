@@ -5,6 +5,7 @@ const invokable = new Set<string>(INVOKE_CHANNELS);
 const events = new Set<string>(EVENT_CHANNELS);
 
 const bridge: SkyBridge = {
+  platform: process.platform,
   invoke(channel, ...args) {
     if (!invokable.has(channel)) return Promise.reject(new Error(`blocked channel ${channel}`));
     return ipcRenderer.invoke(channel, ...args);

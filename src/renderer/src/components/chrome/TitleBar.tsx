@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { isMac } from "@shared/platform";
 import { useT } from "@/i18n";
 import { call, on } from "@/lib/sky";
 import { useNav } from "@/state/nav";
@@ -16,6 +17,8 @@ export function WindowButtons() {
   const overlay = !!(navigator as Navigator & { windowControlsOverlay?: { visible: boolean } }).windowControlsOverlay?.visible;
   useEffect(() => on("win:maximized", setMaximized), []);
 
+  if (isMac()) return null;
+
   const buttons: { icon: IconName; label: string; action: () => void; danger?: boolean }[] = [
     { icon: "minimize", label: t.minimize, action: () => void call("win:minimize") },
     { icon: maximized ? "restore" : "maximize", label: maximized ? t.restore : t.maximize, action: () => void call("win:toggleMaximize") },
@@ -24,7 +27,13 @@ export function WindowButtons() {
 
   if (overlay) {
     return (
-      <div aria-hidden="true" className="pointer-events-none flex h-full shrink-0" style={{ width: "calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw))" }}>
+      // drawn exactly over Windows' own buttons (their hover squares): from the window's top, as tall as that strip,
+      // and out to the window's right edge (.wco cancels the main window's side padding)
+      <div
+        aria-hidden="true"
+        className="wco pointer-events-none flex shrink-0 self-start"
+        style={{ width: "calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw))", height: "env(titlebar-area-height, 48px)" }}
+      >
         {buttons.map((b) => (
           <div key={b.icon} className="grid flex-1 place-items-center text-muted">
             <Icon name={b.icon} size={16} />
@@ -49,8 +58,9 @@ export default function TitleBar() {
   const t = useT();
   const canGoBack = useNav((s) => s.stack.length > 0);
   const back = useNav((s) => s.back);
+  const mac = isMac();
   return (
-    <header className="panel drag relative z-30 flex h-10 items-center gap-2 pl-2">
+    <header className={`panel drag relative z-30 flex h-10 items-center gap-2 ${mac ? "pl-[76px]" : "pl-2"}`}>
       <button type="button" onClick={back} disabled={!canGoBack} aria-label={t.back} title={t.back} className="no-drag grid h-8 w-8 place-items-center rounded-full text-muted enabled:hover:text-text disabled:opacity-30">
         <Icon name="back" size={18} />
       </button>

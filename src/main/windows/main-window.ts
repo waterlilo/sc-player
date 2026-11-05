@@ -3,7 +3,9 @@ import { app, BrowserWindow, shell } from "electron";
 import type { EventMap, WindowActivity } from "@shared/ipc";
 import { appIcon } from "../system/tray";
 
-export const TITLEBAR_HEIGHT = 40;
+/** Windows' own window buttons: as tall as the page's title bars (the main one's 52 px box, the full screen player's 48),
+ * so their hover squares sit around the page's drawn icons (WindowButtons draws them in this same strip) */
+export const TITLEBAR_HEIGHT = 48;
 const DEV_URL = process.env.ELECTRON_RENDERER_URL;
 
 export function isAppUrl(url: string) {
@@ -20,6 +22,7 @@ export function send<K extends keyof EventMap>(win: BrowserWindow | null, channe
  * Snap Layouts flyout working on the real maximize button.
  */
 export function createMainWindow(opts: { startHidden: boolean; closeToTray: () => boolean; quitting: () => boolean }) {
+  const isMac = process.platform === "darwin";
   const win = new BrowserWindow({
     width: 1240,
     height: 800,
@@ -29,8 +32,14 @@ export function createMainWindow(opts: { startHidden: boolean; closeToTray: () =
     title: "sc player",
     icon: appIcon(),
     backgroundColor: "#07050d",
-    titleBarStyle: "hidden",
-    titleBarOverlay: { color: "#00000000", symbolColor: "#00000000", height: TITLEBAR_HEIGHT },
+    titleBarStyle: isMac ? "hiddenInset" : "hidden",
+    // Linux: no overlay — Electron draws its own round buttons there, which didn't line up with the page's; the page's
+    // drawn buttons are the real ones instead (WindowButtons without the overlay)
+    ...(isMac
+      ? { trafficLightPosition: { x: 14, y: 12 } }
+      : process.platform === "win32"
+        ? { titleBarOverlay: { color: "#00000000", symbolColor: "#00000000", height: TITLEBAR_HEIGHT } }
+        : { frame: false }),
     webPreferences: {
       preload: join(import.meta.dirname, "../preload/index.cjs"),
       sandbox: true,
@@ -49,9 +58,11 @@ export function createMainWindow(opts: { startHidden: boolean; closeToTray: () =
 
   // the ✕ hides the window to the tray (Settings → close button), the music keeps playing
   win.on("close", (e) => {
-    if (opts.quitting() || !opts.closeToTray()) return;
-    e.preventDefault();
-    win.hide();
+    if (opts.quitting()) return;
+    if (isMac || opts.closeToTray()) {
+      e.preventDefault();
+      win.hide();
+    }
   });
 
   // the window only ever shows the app itself; links go to the real browser

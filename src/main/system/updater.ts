@@ -2,6 +2,7 @@ import { app, type BrowserWindow } from "electron";
 import electronUpdater from "electron-updater";
 import type { UpdateStatus } from "@shared/ipc";
 import { log } from "./log";
+import { isPortableRelease } from "./updater-check";
 
 const { autoUpdater } = electronUpdater;
 const EVERY = 6 * 3600 * 1000;
@@ -13,7 +14,7 @@ const EVERY = 6 * 3600 * 1000;
  */
 let status: UpdateStatus = { state: "idle" };
 let send: (s: UpdateStatus) => void = () => {};
-const portable = () => !!process.env.PORTABLE_EXECUTABLE_DIR;
+const portable = () => isPortableRelease();
 
 function setStatus(next: UpdateStatus) {
   status = next;
@@ -26,6 +27,9 @@ export function initUpdater(win: () => BrowserWindow | null, enabled: () => bool
     if (w && !w.isDestroyed()) w.webContents.send("update:status", s);
   };
   if (!app.isPackaged) return;
+  // the feed itself, not resources/app-update.yml: the portable .exe has no such file, so it never heard of a new
+  // version ("update: ENOENT … app-update.yml"). Same as package.json → build.publish.
+  autoUpdater.setFeedURL({ provider: "github", owner: "waterlilo", repo: "sc-player" });
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.on("checking-for-update", () => setStatus({ state: "checking" }));
@@ -36,7 +40,8 @@ export function initUpdater(win: () => BrowserWindow | null, enabled: () => bool
   });
   autoUpdater.on("update-downloaded", (info) => setStatus({ state: "ready", version: info.version }));
   autoUpdater.on("error", (err) => {
-    log("main", `update: ${err.message}`);
+    // the first line only: electron-updater appends the response headers and a stack
+    log("main", `update: ${err.message.split("\n")[0]}`);
     setStatus({ state: "error", message: err.message });
   });
   const auto = () => {

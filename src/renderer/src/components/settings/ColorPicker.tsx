@@ -55,7 +55,7 @@ function Line({
 }) {
   return (
     <label className="flex items-center gap-3">
-      <span className="w-20 shrink-0 text-sm text-muted">{label}</span>
+      <span className="w-[6.75rem] shrink-0 whitespace-nowrap text-sm text-muted">{label}</span>
       <input
         type="range"
         min={min}

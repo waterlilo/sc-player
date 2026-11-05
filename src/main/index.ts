@@ -1,9 +1,11 @@
+// first: the moment our code began (see boot.ts)
+import { scriptStartMs } from "./boot";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { release } from "node:os";
 import { join } from "node:path";
-import { app, BrowserWindow, clipboard, dialog, ipcMain, session, shell, type IpcMainInvokeEvent } from "electron";
+import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, session, shell, type IpcMainInvokeEvent } from "electron";
 import { RENDERER_DEFAULTS, type AuthStatus, type InvokeChannel, type InvokeMap, type PlayerCommand, type PlayerInfo, type RendererState, type Result } from "@shared/ipc";
 import type { MusicProvider, SearchKind } from "@shared/provider";
 import type { RoomOp, SocialTrack } from "@shared/social";
@@ -19,15 +21,18 @@ import { auth, authStatus, chromeUserAgent, provider, ScError, scSession, finish
 import { flushAlternatives } from "./soundcloud/alternatives";
 import { m } from "./i18n";
 import { readImport, resolveItem } from "./import/sources";
+import { openVkBookmark, readVk } from "./import/vk";
 import * as rooms from "./rooms";
 import * as social from "./social";
 import { patchRenderer, prefs, store } from "./store";
 import { getSecret, setSecret, unopenedSecrets } from "./store/secrets";
 import { applyAutostart, startedHidden } from "./system/autostart";
+import { integrateLinux } from "./system/linux";
 import { backgroundSize, dropBackgrounds, keepImport, pickBackground, registerBackgroundScheme, saveBackground, serveBackgrounds } from "./system/background";
 import { findWallpaper, workshopId } from "./system/steam-wallpaper";
 import { applyHotkeys, initHotkeys, suspendHotkeys } from "./system/hotkeys";
 import { log, logsDir } from "./system/log";
+import { loadReport, watchLoad } from "./system/diagnostics";
 import { netCheck } from "./system/netcheck";
 import { applyProxy, hasBuiltinProxy, initProxyAuth, initProxyAuto, proxyRoute } from "./system/proxy";
 import { setDiscordEnabled, updateDiscord } from "./system/discord";
@@ -85,10 +90,21 @@ async function tracksOf(ids: number[]): Promise<Track[]> {
 const status = async (): Promise<AuthStatus> => (DEMO ? { mode: "session", user: await data.getMe() } : authStatus());
 // Memory saver (Settings → App): Chromium draws on the processor and the graphics card's process, ~100 MB of the
 // app's ~300, isn't started. The choice only counts before the app is ready, so changing it takes a restart.
+/** our modules loaded (ms after the process started) */
+const modulesLoadedMs = Math.round(process.uptime() * 1000);
 const memorySaver = prefs().memorySaver;
 if (memorySaver) app.disableHardwareAcceleration();
+/** the system for a report and the log: Windows 10.0.19045, macOS 15.1, Linux 6.8.0-49-generic */
+const systemName = () => (process.platform === "darwin" ? `macOS ${process.getSystemVersion()}` : process.platform === "linux" ? `Linux ${release()}` : `Windows ${release()}`);
+// the graphics process failing is what leaves an empty window; Chromium retries and then draws without it
+app.on("child-process-gone", (_e, d) => {
+  if (d.reason !== "clean-exit") log("main", `${d.type}${d.name ? ` (${d.name})` : ""} process gone: ${d.reason} (exit ${d.exitCode})`);
+});
 
-if (!app.requestSingleInstanceLock()) app.quit();
+// a second copy (a click on a scplayer:// link, the menu entry again) hands its arguments over and leaves — it must
+// not run the start below as well (it signed in, set the proxy and wrote files before quitting)
+const firstInstance = app.requestSingleInstanceLock();
+if (!firstInstance) app.quit();
 setCommunityLyrics((t) => social.approvedLyrics(t));
 registerBackgroundScheme();
 app.setAppUserModelId("com.skythemontage.scplayer");
@@ -123,7 +139,8 @@ function importItem(v: unknown): ImportItem {
   const i = (typeof v === "object" && v !== null ? v : bad("item")) as Record<string, unknown>;
   const durationMs = i.durationMs === null ? null : typeof i.durationMs === "number" && Number.isFinite(i.durationMs) && i.durationMs >= 0 ? i.durationMs : bad("durationMs");
   const ref = i.ref === undefined ? undefined : str(i.ref, "ref").slice(0, 64);
-  return { title: str(i.title, "title").slice(0, 300), artist: str(i.artist, "artist").slice(0, 300), durationMs, ...(ref ? { ref } : {}) };
+  const artistAlt = i.artistAlt === undefined ? undefined : str(i.artistAlt, "artist").slice(0, 300);
+  return { title: str(i.title, "title").slice(0, 300), artist: str(i.artist, "artist").slice(0, 300), durationMs, ...(ref ? { ref } : {}), ...(artistAlt ? { artistAlt } : {}) };
 }
 function syncRequest(v: unknown): SyncRequest {
   const q = (typeof v === "object" && v !== null ? v : bad("request")) as Record<string, unknown>;
@@ -374,11 +391,22 @@ function registerIpc() {
     if (text.length > 20 * 1024 * 1024) return bad("file");
     return importLocal(text);
   });
-  handle("import:read", (_e, text) => readImport(typeof text === "string" && text.length < 500_000 ? text : bad("text")));
+  handle("import:read", (_e, text) => readImport(typeof text === "string" && text.length < 500_000 ? text : bad("text"), (target) => readVk(target, main)));
+  handle("import:vk", async () => {
+    const read = await readVk(null, main);
+    if (!read.items.length) throw new ScError("not_found", m().importEmpty);
+    return { service: "vk" as const, title: read.title, items: read.items.slice(0, 3000), partial: false };
+  });
+  handle("import:vkBookmark", () => openVkBookmark());
   handle("import:match", async (_e, raw) => {
     const item = await resolveItem(importItem(raw));
     const find = (title: string, artist: string) => provider.findImported({ title, artist, uploader: artist, durationMs: item.durationMs ?? 0 }, item.durationMs !== null);
     const r = await find(item.title, item.artist);
+    // the artist as another language names them ("Кулио" found nothing: "Coolio")
+    if (!r.found && item.artistAlt) {
+      const other = await find(item.title, item.artistAlt);
+      if (other.found) return { item: { ...item, artist: item.artistAlt }, ...other };
+    }
     // a line of text may have the title first: "Dreams — Fleetwood Mac"
     if (!r.found && item.durationMs === null && item.artist && !item.ref) {
       const swapped = await find(item.artist, item.title);
@@ -534,9 +562,10 @@ function registerIpc() {
   });
   handle("diag:netcheck", () => netCheck());
   /**
-   * "Report a problem": what the app knows that helps (version, Windows, a few settings, the end of the log) in a file
-   * the person saves and attaches; then the page to write on opens. Nothing secret: no tokens, codes or names — only
-   * whether one is signed in — and anything token-like in the log is blanked.
+   * "Report a problem": what the app knows that helps (version, Windows, a few settings, the computer and the app's
+   * load over the last minutes, the end of the log) in a file the person saves and attaches; then the page to write on
+   * opens. Nothing secret: no tokens, codes or names — only whether one is signed in — and anything token-like in the
+   * log is blanked.
    */
   handle("diag:report", async () => {
     const p = prefs();
@@ -545,9 +574,10 @@ function registerIpc() {
     const version = app.getVersion();
     const text = [
       `sc player ${version}${app.isPackaged ? "" : " (development)"}${process.env.PORTABLE_EXECUTABLE_DIR ? " portable" : ""}`,
-      `Windows ${release()}`,
+      `${systemName()} (${process.arch})`,
       `signed in to SoundCloud: ${signedIn() ? "yes" : "no"}; messenger: ${social.myCode() ? "yes" : "no"}`,
       `proxy: ${p.proxy.mode}${proxyRoute() ? ` (${proxyRoute()})` : ""}; stream quality: ${p.streamQuality}; lyrics auto-sync: ${p.autoSyncLyrics ? "on" : "off"}`,
+      ...(await loadReport(p.look, memorySaver)),
       "",
       "--- the end of the log ---",
       ...lines.map((l) => l.replace(/[A-Za-z0-9_-]{24,}/g, "…")),
@@ -560,7 +590,7 @@ function registerIpc() {
     if (r.canceled || !r.filePath) return false;
     await writeFile(r.filePath, text, "utf8");
     shell.showItemInFolder(r.filePath);
-    const body = `sc player ${version}, Windows ${release()}\n\nWhat happened:\n\n\nWhat I expected:\n\n\n(The report file ${r.filePath.split(/[\\/]/).pop()} is attached.)`;
+    const body = `sc player ${version}, ${systemName()}\n\nWhat happened:\n\n\nWhat I expected:\n\n\n(The report file ${r.filePath.split(/[\\/]/).pop()} is attached.)`;
     void shell.openExternal(`https://github.com/waterlilo/sc-player/issues/new?title=${encodeURIComponent("Problem: ")}&body=${encodeURIComponent(body)}`);
     return true;
   });
@@ -659,13 +689,33 @@ function friendLink(argv: string[]) {
   if (code) send(main, "social:friendLink", code);
 }
 
+let pendingUrls: string[] = [];
+
+function handleIncomingUrls(urls: string[]) {
+  if (main && !main.webContents.isLoading()) {
+    showWindow(main);
+    void signInFromBrowser(urls);
+    friendLink(urls);
+  } else {
+    pendingUrls.push(...urls);
+  }
+}
+
 app.on("second-instance", (_e, argv) => {
-  showWindow(main);
-  void signInFromBrowser(argv);
-  friendLink(argv);
+  handleIncomingUrls(argv);
 });
 
-app.on("window-all-closed", () => app.quit());
+app.on("open-url", (event, url) => {
+  event.preventDefault();
+  handleIncomingUrls([url]);
+});
+
+app.on("window-all-closed", () => {
+  if (process.platform !== "darwin") app.quit();
+});
+app.on("activate", () => {
+  showWindow(main);
+});
 app.on("before-quit", () => {
   quitting = true;
   store().flush();
@@ -707,44 +757,120 @@ function restartForKey(): boolean {
 }
 
 void app.whenReady().then(async () => {
-  if (restartForKey()) return;
+  if (!firstInstance || restartForKey()) return;
+  // where a slow start goes: before this, Chromium itself (on Linux often a desktop portal or D-Bus that doesn't answer)
+  const readyMs = Math.round(process.uptime() * 1000);
+  /** a start step that takes over half a second goes into the log (a slow start on Linux: which one it was) */
+  const timed = <T>(name: string, run: () => T): T => {
+    const t = performance.now();
+    const out = run();
+    const ms = Math.round(performance.now() - t);
+    if (ms > 500) log("main", `start: ${name} took ${ms} ms`);
+    return out;
+  };
+  const timedAsync = async <T>(name: string, run: () => Promise<T>): Promise<T> => {
+    const t = performance.now();
+    const out = await run();
+    const ms = Math.round(performance.now() - t);
+    if (ms > 500) log("main", `start: ${name} took ${ms} ms`);
+    return out;
+  };
   scSession().setUserAgent(chromeUserAgent());
   initProxyAuth(() => prefs().proxy.username);
   initProxyAuto();
-  await applyProxy(prefs().proxy);
+  await timedAsync("proxy", () => applyProxy(prefs().proxy));
   allowAudioCors();
   serveBackgrounds();
   serveLocalTracks();
   // backgrounds left over from a change while the old one was still playing
   dropBackgrounds(prefs().look.bgFile);
   registerIpc();
-  await auth.restore();
+  await timedAsync("sign-in", () => auth.restore());
+  if (process.platform === "darwin") {
+    Menu.setApplicationMenu(
+      Menu.buildFromTemplate([
+        {
+          label: app.name,
+          submenu: [
+            { role: "about" },
+            { type: "separator" },
+            { role: "services" },
+            { type: "separator" },
+            { role: "hide" },
+            { role: "hideOthers" },
+            { role: "unhide" },
+            { type: "separator" },
+            { role: "quit" },
+          ],
+        },
+        {
+          label: "Edit",
+          submenu: [
+            { role: "undo" },
+            { role: "redo" },
+            { type: "separator" },
+            { role: "cut" },
+            { role: "copy" },
+            { role: "paste" },
+            { role: "selectAll" },
+          ],
+        },
+        {
+          label: "Window",
+          submenu: [
+            { role: "minimize" },
+            { role: "zoom" },
+            { role: "close" },
+          ],
+        },
+      ]),
+    );
+  }
   const p = prefs();
-  main = createMainWindow({ startHidden: startedHidden() && p.startMinimized, closeToTray: () => prefs().closeToTray, quitting: () => quitting });
+  main = timed("window", () => createMainWindow({ startHidden: startedHidden() && p.startMinimized, closeToTray: () => prefs().closeToTray, quitting: () => quitting }));
+  main.once("ready-to-show", () => log("main", `start: our code at ${scriptStartMs} ms, modules loaded at ${modulesLoadedMs} ms, ready in ${readyMs} ms, window in ${Math.round(process.uptime() * 1000)} ms`));
+  // an empty window (the page never drawn) leaves nothing in the log otherwise: what failed, and with which graphics
+  main.webContents.on("render-process-gone", (_e, d) => log("main", `page process gone: ${d.reason} (exit ${d.exitCode})`));
+  main.webContents.on("did-fail-load", (_e, code, desc, url, isMain) => {
+    if (isMain) log("main", `page didn't load: ${desc} (${code}) ${url}`);
+  });
+  main.webContents.once("did-finish-load", () => {
+    const status = app.getGPUFeatureStatus() as unknown as Record<string, string>;
+    log("main", `start: page loaded; ${systemName()}; gpu_compositing ${status.gpu_compositing}, webgl ${status.webgl}${memorySaver ? "; memory saver on" : ""}`);
+  });
   onSyncStatus((s) => send(main, "lyricsSync:status", s));
   main.on("closed", () => (main = null));
+  // the app's own load, for "Report a problem"
+  watchLoad(() => ({ playing: playerInfo.playing, window: !main ? "closed" : !main.isVisible() ? "in the tray" : main.isMinimized() ? "minimized" : main.isFocused() ? "in front" : "shown" }));
   // started by the browser sign-in's link (the app wasn't running)
   main.webContents.once("did-finish-load", () => {
-    void signInFromBrowser(process.argv);
-    friendLink(process.argv);
+    const startupArgs = [...process.argv, ...pendingUrls];
+    pendingUrls = [];
+    void signInFromBrowser(startupArgs);
+    friendLink(startupArgs);
   });
   // links open the installed app (in development they would point at this checkout)
-  if (app.isPackaged) registerLinks();
+  if (app.isPackaged) {
+    // an AppImage writes its menu entry first: the link handler is that entry
+    timed("menu entry", integrateLinux);
+    timed("links", registerLinks);
+  }
   // Windows forgets the taskbar buttons while the window is hidden
   main.on("show", () => updateThumbar(main, playerInfo, command, true));
-  createTray({
+  timed("tray", () => createTray({
     window: () => main,
     command,
     quit: () => {
       quitting = true;
       app.quit();
     },
-  });
+  }));
   initHotkeys((action) => (action === "showWindow" ? showWindow(main) : send(main, "player:command", action)));
-  const failed = applyHotkeys(p.hotkeys);
-  setDiscordEnabled(p.discordPresence);
+  const failed = timed("hotkeys", () => applyHotkeys(p.hotkeys));
+  timed("discord", () => setDiscordEnabled(p.discordPresence));
   main.webContents.once("did-finish-load", () => send(main, "hotkeys:failed", failed));
-  applyAutostart(p.startWithWindows);
+  timed("autostart", () => applyAutostart(p.startWithWindows));
+  log("main", `start: set up in ${Math.round(process.uptime() * 1000) - readyMs} ms after ready`);
   updater.initUpdater(() => main, () => prefs().checkUpdates);
   social.initSocial(() => main);
   initBackup();

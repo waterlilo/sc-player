@@ -1,0 +1,99 @@
+# sc player for macOS (Apple Silicon + Intel: .dmg, .zip) and Linux (x64: .AppImage, .deb), built on GitHub's
+# machines — nobody here has a Mac. Windows is still built locally (npm run dist). The files come out as the run's
+# artifacts and are attached to the release by hand, with latest-mac.yml and latest-linux.yml (the update check).
+#
+# The built-in proxy and the server address are not in git: the repository secrets SC_PROXY_JSON and SC_SERVER_JSON
+# hold proxy.local.json and server.local.json (a build without them simply has neither).
+name: Build macOS and Linux
+
+on:
+  push:
+    branches: [v2, platforms]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            name: macos
+          - os: ubuntu-24.04
+            name: linux
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: The built-in proxy and the server address
+        shell: bash
+        env:
+          PROXY_JSON: ${{ secrets.SC_PROXY_JSON }}
+          SERVER_JSON: ${{ secrets.SC_SERVER_JSON }}
+        run: |
+          if [ -n "$PROXY_JSON" ]; then printf '%s' "$PROXY_JSON" > proxy.local.json; echo "proxy: yes"; else echo "proxy: none"; fi
+          if [ -n "$SERVER_JSON" ]; then printf '%s' "$SERVER_JSON" > server.local.json; echo "server: yes"; else echo "server: none"; fi
+
+      - run: npm test
+
+      - run: node scripts/dist.mjs
+
+      # the built app starts and is still running 25 s later (a crash on start fails the run)
+      - name: The app starts (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          SC_NO_COUNT=1 "dist/mac-arm64/sc player.app/Contents/MacOS/sc player" > start.log 2>&1 &
+          pid=$!
+          sleep 25
+          if kill -0 "$pid" 2>/dev/null; then kill "$pid"; ok=1; echo "running after 25 s"; else ok=0; echo "exited on start"; fi
+          echo "--- what it printed (last 80 lines; addresses and logins masked) ---"
+          tail -n 80 start.log | sed -E 's#://[^/@ ]+@#://***@#g; s#[0-9]{1,3}(\.[0-9]{1,3}){3}#x.x.x.x#g'
+          echo "--- how long the start took (the app's own log) ---"
+          grep "start:" "$HOME/Library/Application Support/sc player/logs/main.log" || echo "(no start line)"
+          [ "$ok" = 1 ]
+
+      # run as users run it: the AppImage mounted through FUSE, not unpacked (an xz-packed image took 40 s to start)
+      - name: The app starts (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get install -y -qq fuse3 > /dev/null
+          chmod +x dist/*.AppImage
+          SC_NO_COUNT=1 xvfb-run -a dist/*.AppImage --no-sandbox > start.log 2>&1 &
+          pid=$!
+          sleep 25
+          if kill -0 "$pid" 2>/dev/null; then kill "$pid"; ok=1; echo "running after 25 s"; else ok=0; echo "exited on start"; fi
+          echo "--- what it printed (last 80 lines; addresses and logins masked) ---"
+          tail -n 80 start.log | sed -E 's#://[^/@ ]+@#://***@#g; s#[0-9]{1,3}(\.[0-9]{1,3}){3}#x.x.x.x#g'
+          echo "--- how long the start took (the app's own log) ---"
+          grep "start:" "$HOME/.config/sc player/logs/main.log" || echo "(no start line)"
+          [ "$ok" = 1 ]
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sc-player-${{ matrix.name }}
+          path: |
+            dist/*.dmg
+            dist/*.zip
+            dist/*.AppImage
+            dist/*.deb
+            dist/*.blockmap
+            dist/latest-*.yml
+          if-no-files-found: error
+          retention-days: 14

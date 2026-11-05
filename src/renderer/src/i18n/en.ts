@@ -122,7 +122,7 @@ export const en = {
   proxyAuto: "Automatic",
   proxyAutoOwn: "SoundCloud opens over your own connection (VPN, zapret or none): sc player's server isn't used. If SoundCloud stops opening, the app switches to it by itself.",
   proxyAutoOurs: "SoundCloud doesn't open over your own connection, so it goes through sc player's server. Every 10 minutes the app checks whether your own works again (a VPN or zapret turned on) and goes back to it.",
-  proxySystem: "Windows settings",
+  proxySystem: "System settings",
   proxyDirect: "No proxy",
   proxyCustom: "Custom",
   proxyBuiltin: "sc player proxy",
@@ -158,11 +158,11 @@ export const en = {
   closeToTray: "Hide to tray",
   closeQuits: "Quit",
   closeHint: "In the tray, the music keeps playing; right-click the tray icon to quit.",
-  startWithWindows: "Start with Windows",
+  startWithWindows: "Start with the system",
   startMinimized: "Start in the tray",
   autostartUnavailable: "Only for the installed version.",
   notifications: "Track notifications",
-  notificationsHint: "A Windows notification when the track changes while the window is in the background.",
+  notificationsHint: "A system notification when the track changes while the window is in the background.",
   like: "Like",
   unlike: "Remove from likes",
   likeFailed: "Couldn't like the track",
@@ -408,7 +408,7 @@ export const en = {
   copyReport: "Copy report",
   reportCopied: "Report copied",
   reportProblem: "Report a problem",
-  reportProblemHint: "Saves a short report (version, Windows, the end of the log — nothing private) to attach, and opens the page to write on",
+  reportProblemHint: "Saves a short report (version, system, processor and graphics card, the app's load over the last 10 minutes, the end of the log — nothing private) to attach, and opens the page to write on",
   reportSaved: "Report saved — attach the file to your message",
   reportFailed: "Couldn't save the report",
   openLogs: "Open logs folder",
@@ -744,9 +744,9 @@ export const en = {
 
   // importing playlists from other services
   importTitle: "Import",
-  importOpen: "From Spotify / Yandex",
-  importOpenHint: "Bring a playlist over from Yandex Music, Spotify or a list of tracks",
-  importIntro: "Bring a playlist over from Yandex Music or Spotify — or any list of tracks. Each track is looked for on SoundCloud; you check the doubtful ones, and the playlist is kept on this computer. No accounts or passwords needed.",
+  importOpen: "From Spotify / Yandex / YouTube / VK",
+  importOpenHint: "Bring a playlist over from Yandex Music, Spotify, YouTube Music, VK or a list of tracks",
+  importIntro: "Bring a playlist over from Yandex Music, Spotify, YouTube Music or VK — or any list of tracks. Each track is looked for on SoundCloud; you check the doubtful ones, and the playlist is kept on this computer. A link is enough; only VK asks you to sign in, on its own page.",
   importPlaceholder: "Paste a link to a playlist or album, track links, or lines like “Artist — Title”",
   importFind: "Find on SoundCloud",
   importReading: "Reading…",
@@ -754,6 +754,13 @@ export const en = {
   importYandexHow: "A playlist, an album or your “Мне нравится”: Share → Copy link. A private playlist opens by its Share link too.",
   importSpotify: "Spotify",
   importSpotifyHow: "A playlist or album: Share → Copy link. Spotify shows only a playlist's first 100 tracks — for a longer one or Liked Songs, open it in the Spotify app, press Ctrl+A, then Ctrl+C, and paste here.",
+  importYoutube: "YouTube Music",
+  importYoutubeHow: "A playlist or album: Share → Copy link. A playlist opens if it is Public or Unlisted; “Liked music” opens only to you — add its songs to a playlist of your own first.",
+  importVk: "VK Music",
+  importVkHow:
+    "VK shows music only to someone signed in. “Open VK” opens its window here: sign in (the QR code is quickest), open “My music” or any playlist and press “Import this page”. The sign-in is wiped when the window closes. A playlist link pasted above opens the same window.",
+  importVkOpen: "Open VK",
+  importVkBookmark: "Or with a bookmark in your browser",
   importOther: "Anything else",
   importOtherHow: "One track per line: “Artist — Title”. A length at the end (3:45) helps to find the right version.",
   importLooseTracks: "Tracks",
@@ -788,7 +795,7 @@ export const en = {
 
   // language
   language: "Language",
-  languageHint: "“Same as the system” follows Windows.",
+  languageHint: "“Same as the system” follows the system's language.",
   languageAuto: "Same as the system",
 
   // memory

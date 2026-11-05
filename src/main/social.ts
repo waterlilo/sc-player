@@ -318,8 +318,11 @@ function startPolling() {
 
 // ---- the anonymous count ------------------------------------------------------------------------------------------
 
+/** Count me as a user (Settings); the start check on GitHub's machines (SC_NO_COUNT) is nobody */
+const counted = () => !!BASE && prefs().countMe && !process.env.SC_NO_COUNT;
+
 async function ping() {
-  if (!BASE || !prefs().countMe) return;
+  if (!counted()) return;
   const s = loc();
   const today = new Date().toISOString().slice(0, 10);
   if (s.pinged === today) return;
@@ -495,7 +498,7 @@ export async function setModerator(key: string | null): Promise<boolean> {
 
 /** "Still on", every 5 minutes while the app runs (Count me as a user): how many people use sc player at once. */
 function stillOn() {
-  if (!BASE || !prefs().countMe) return;
+  if (!counted()) return;
   void api("POST", "/v1/online", { body: { install: loc().install }, auth: false, timeout: 10_000 }).catch(() => undefined);
 }
 

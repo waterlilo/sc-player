@@ -4,7 +4,7 @@
 
 # sc player
 
-**A SoundCloud player for Windows — no ads, lyrics word by word, and friends to listen with.**
+**A SoundCloud player for Windows, macOS and Linux — no ads, lyrics word by word, and friends to listen with.**
 
 [Download](../../releases/latest) •
 [Features](#features) •
@@ -14,6 +14,9 @@
 [![Latest release](https://img.shields.io/github/v/release/waterlilo/sc-player?style=flat-square&label=release&labelColor=111114&color=3a3a41)](../../releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/waterlilo/sc-player/total?style=flat-square&labelColor=111114&color=3a3a41)](../../releases)
 ![Windows](https://img.shields.io/badge/Windows-10%20%2F%2011-3a3a41?style=flat-square&labelColor=111114)
+![macOS](https://img.shields.io/badge/macOS-Apple%20Silicon%20%2F%20Intel-3a3a41?style=flat-square&labelColor=111114)
+![Linux](https://img.shields.io/badge/Linux-AppImage%20%2F%20deb-3a3a41?style=flat-square&labelColor=111114)
+[![iPhone](https://img.shields.io/badge/iPhone-IPA-3a3a41?style=flat-square&labelColor=111114)](https://github.com/waterlilo/sc-player-ios)
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-3a3a41?style=flat-square&labelColor=111114)](LICENSE)
 
 <br/>
@@ -85,26 +88,57 @@
   profiles to the sidebar.
 - **Your own playlists:** make them, add to them, reorder, rename — kept on your computer, no sign-in needed; copy any
   SoundCloud playlist to change it, save the queue as one, export them to a file and back.
+- **Bring your playlists over** from Spotify, Yandex Music, YouTube Music and VK Music (or a list of lines): paste a
+  link, and every track is looked up on SoundCloud.
 - **Honest shuffle** over the whole playlist or all your likes; **autopilot** keeps playing similar tracks.
 - **Protected tracks:** when SoundCloud only streams a track with DRM or as a 30-second preview, sc player plays
   another upload of the same recording, checked by its sound (marked `ALT`).
 - Seek on the waveform, a queue you can drag, crossfade, a 10-band equalizer, output device, sleep timer.
 
-**Windows**
-- Media keys, the system media overlay, ⏮ ⏯ ⏭ under the taskbar preview, tray, global hotkeys, notifications.
-- Updates itself. Nothing moves while the window is hidden — only the sound keeps going.
+**On your computer**
+- Media keys, the system's media controls, tray / menu bar icon, global hotkeys, notifications, start with the system.
+- **Windows:** ⏮ ⏯ ⏭ under the taskbar preview.
+- **macOS:** the window's own buttons; closing the window keeps the music playing (the Dock icon brings it back).
+- Updates itself (Windows installer, Linux AppImage), or tells you a new version is out (macOS, .deb, portable).
+  Nothing moves while the window is hidden — only the sound keeps going.
 
 ---
 
 ## Install
 
-1. Download one file from the [latest release](../../releases/latest):
-   - `sc-player-setup-v….exe` — the installer (shortcuts on the desktop and in the Start menu);
-   - `sc-player-portable-v….exe` — runs without installing.
+### Windows
+1. Download `sc-player-setup-v….exe` (installer) or `sc-player-portable-v….exe` from the [latest release](../../releases/latest).
 2. The app isn't code-signed, so Windows may say "Windows protected your PC": click **More info → Run anyway**.
-3. Click **Sign in to SoundCloud** to see your likes and playlists. If the sign-in window says "access temporarily
-   restricted" or "something unexpected happened", use **Sign in with your browser** instead. Without signing in you can
-   still search, listen, make playlists and open any public profile.
+
+### macOS
+1. Download `sc-player-v…-arm64.dmg` (Apple Silicon: M1 and newer) or `sc-player-v…-x64.dmg` (Intel) from the
+   [latest release](../../releases/latest).
+2. Open the `.dmg` and drag **sc player** into **Applications**.
+3. The app isn't signed with a paid Apple certificate, so macOS blocks the first launch ("sc player can't be
+   opened", or "is damaged"). Open **Terminal** and run this once, then open sc player as usual:
+   ```bash
+   xattr -cr "/Applications/sc player.app"
+   ```
+   (Or, if macOS offers it: **System Settings → Privacy & Security**, scroll down, **Open Anyway** next to sc player.)
+4. Lyrics auto-sync (the speech model) needs Apple Silicon; everything else works on Intel Macs too.
+
+### Linux
+- **AppImage** (any distribution): download `sc-player-v…-x86_64.AppImage`, make it executable
+  (`chmod +x sc-player-*.AppImage`) and run it. It adds itself to the app menu and updates itself.
+- **Debian / Ubuntu:** download `sc-player-v…-amd64.deb` and install it (`sudo apt install ./sc-player-*.deb`).
+- On GNOME the tray icon needs the AppIndicator extension.
+
+### iPhone
+[sc player for iPhone](https://github.com/waterlilo/sc-player-ios) is the native iOS version, made by
+[pipse363team](https://github.com/pipse363team).
+1. Download `sc-player.ipa` from [its latest release](https://github.com/waterlilo/sc-player-ios/releases/latest).
+2. It isn't signed, so install it with **Sideloadly**, **AltStore** or **SideStore** and a free Apple ID (re-sign it
+   every 7 days), or with your own certificate.
+3. Unlike the computer version it has no route of its own to SoundCloud: where SoundCloud is blocked, it needs your
+   own VPN.
+
+### Sign in
+Click **Sign in to SoundCloud** to see your likes and playlists. If the sign-in window says "access temporarily restricted" or "something unexpected happened", use **Sign in with your browser** instead. Without signing in you can still search, listen, make playlists and open any public profile.
 
 New versions install over the old one; your sign-in, settings and playlists stay.
 
@@ -133,6 +167,8 @@ New versions install over the old one; your sign-in, settings and playlists stay
 - **[LRCLIB](https://lrclib.net)** — the open lyrics database.
 - **[Whisper](https://github.com/openai/whisper)** by OpenAI (MIT) — the speech model that matches plain lyrics to the
   song on your computer.
+- **[ggrk52](https://github.com/ggrk52)** — the macOS version.
+- **[pipse363team](https://github.com/pipse363team)** — [the iPhone version](https://github.com/waterlilo/sc-player-ios).
 - The zapret guide for SoundCloud by kkkwkswd.
 
 ---
