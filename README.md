@@ -111,6 +111,8 @@
 2. The app isn't code-signed, so Windows may say "Windows protected your PC": click **More info → Run anyway**.
 
 ### macOS
+Needs **macOS 13 Ventura or newer** (the Electron it's built on no longer runs on macOS 12).
+
 1. Download `sc-player-v…-arm64.dmg` (Apple Silicon: M1 and newer) or `sc-player-v…-x64.dmg` (Intel) from the
    [latest release](../../releases/latest).
 2. Open the `.dmg` and drag **sc player** into **Applications**.
