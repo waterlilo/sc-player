@@ -766,3 +766,9 @@ html[data-platform="darwin"] .s-tb {
 html[data-platform="darwin"] .s-ftb {
   padding-left: 84px;
 }
+
+/* Windows: the drawn window icons reach the window's right edge, where Windows' own buttons are (the shell's padding
+   would leave them 8 px short of their hover squares) */
+.s-tb .wco {
+  margin-right: -8px;
+}

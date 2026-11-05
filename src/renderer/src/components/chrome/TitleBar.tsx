@@ -27,7 +27,13 @@ export function WindowButtons() {
 
   if (overlay) {
     return (
-      <div aria-hidden="true" className="pointer-events-none flex h-full shrink-0" style={{ width: "calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw))" }}>
+      // drawn exactly over Windows' own buttons (their hover squares): from the window's top, as tall as that strip,
+      // and out to the window's right edge (.wco cancels the main window's side padding)
+      <div
+        aria-hidden="true"
+        className="wco pointer-events-none flex shrink-0 self-start"
+        style={{ width: "calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw))", height: "env(titlebar-area-height, 48px)" }}
+      >
         {buttons.map((b) => (
           <div key={b.icon} className="grid flex-1 place-items-center text-muted">
             <Icon name={b.icon} size={16} />
