@@ -3,7 +3,9 @@ import { app, BrowserWindow, shell } from "electron";
 import type { EventMap, WindowActivity } from "@shared/ipc";
 import { appIcon } from "../system/tray";
 
-export const TITLEBAR_HEIGHT = 40;
+/** Windows' own window buttons: as tall as the page's title bars (the main one's 52 px box, the full screen player's 48),
+ * so their hover squares sit around the page's drawn icons (WindowButtons draws them in this same strip) */
+export const TITLEBAR_HEIGHT = 48;
 const DEV_URL = process.env.ELECTRON_RENDERER_URL;
 
 export function isAppUrl(url: string) {
