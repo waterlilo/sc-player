@@ -78,7 +78,7 @@ function ThemeDialog({ id, onClose }: { id: string; onClose: () => void }) {
       toast(t.themeApplied(theme?.name ?? ""));
       onClose();
     } catch (err) {
-      toast(err instanceof Error && err.message && !/^HTTP d+$/.test(err.message) ? err.message : t.themeFailed);
+      toast(err instanceof Error && err.message && !/^HTTP \d+$/.test(err.message) ? err.message : t.themeFailed);
     } finally {
       setBusy("");
     }
