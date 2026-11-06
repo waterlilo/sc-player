@@ -2,7 +2,7 @@ import { create } from "zustand";
 import type { Track } from "@shared/types";
 import { queryClient } from "@/api/queries";
 import { tr as t } from "@/i18n";
-import { call, errorCode } from "@/lib/sky";
+import { call, errorCode, on } from "@/lib/sky";
 import { askCheck } from "./check";
 import { useAuth } from "./auth";
 import { useSettings } from "./settings";
@@ -29,7 +29,14 @@ export const useCanLike = () => {
   return signedIn || local;
 };
 
+/** what other devices can change through sync: read again when they did */
+const SYNCED = new Set(["likes", "savedPlaylists", "myPlaylists", "playlists", "playlist", "playlistTracks", "playlistCover"]);
+
 export function initLikes() {
+  on("sync:changed", () => {
+    if (canLike()) void load();
+    void queryClient.invalidateQueries({ predicate: (q) => SYNCED.has(String(q.queryKey[0])) });
+  });
   let mode = useAuth.getState().status?.mode;
   let local = useSettings.getState().prefs.localLikes;
   const reload = () => {

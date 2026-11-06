@@ -229,6 +229,10 @@ assert.equal((await api("GET", "/v1/me", { secret: a.secret })).status, 401);
   const vb = (await req("POST", "/v1/vault", { body: { id: B.vaultId, writeToken: B.writeToken } })).body;
   assert.equal(vb.created, true);
   assert.ok(vb.legacy > 0);
+  const old = await fetch(`${BASE}/v1/vault/${B.vaultId}/legacy`, { headers: { "x-vault-write": B.writeToken } });
+  assert.ok(Buffer.from(await old.arrayBuffer()).equals(blob));
+  assert.equal(Number(old.headers.get("x-updated")), vb.legacy);
+  assert.equal((await fetch(`${BASE}/v1/vault/${A.vaultId}/legacy`, { headers: { "x-vault-write": A.writeToken } })).status, 404);
 
   // accounts: prelogin answers the same for a login that doesn't exist (and its salt doesn't change)
   const login = `smoke${Date.now().toString(36)}`;

@@ -11,7 +11,8 @@ import type { MusicProvider, SearchKind } from "@shared/provider";
 import type { RoomOp, SocialTrack } from "@shared/social";
 import type { ImportItem, QueueSource, SyncRequest, Track, LyricsSuggestionState } from "@shared/types";
 import { DemoProvider } from "./demo";
-import { backupNow, backupStatus, initBackup, restoreBackup } from "./backup";
+import * as accounts from "./sync/accounts";
+import { initSync, syncNow, syncStatus as dataSyncStatus, useCode } from "./sync/engine";
 import { flushLocalLikes, savedPlaylists, setPlaylistSaved, visiblePlaylists, withLocalLikes } from "./local-likes";
 import { addDroppedFiles, addLocalFiles, flushLocalTracks, isLocalTrack, localLibrary, removeLocalTrack, serveLocalTracks, showLocalTrack, withLocalTracks } from "./local-tracks";
 import { addLocal, copiesOf, copyLocal, createLocal, deleteLocal, exportLocal, importLocal, flushLocalPlaylists, isLocal, localIds, localPlaylist, localPlaylists, localTracks, MAX_TRACKS, renameLocal, setLocalTracks } from "./local-playlists";
@@ -421,9 +422,39 @@ function registerIpc() {
   handle("data:waveform", (_e, url) => data.getWaveform(str(url, "url")));
 
   handle("bg:pick", () => pickBackground(main));
-  handle("backup:status", () => backupStatus());
-  handle("backup:now", () => backupNow(true));
-  handle("backup:restore", (_e, key, replace) => restoreBackup(str(key, "key").slice(0, 80), replace === true));
+  handle("sync:status", () => dataSyncStatus());
+  handle("sync:now", async () => {
+    await syncNow();
+    return dataSyncStatus();
+  });
+  handle("sync:useKey", async (_e, key) => {
+    await useCode(str(key, "key").slice(0, 80));
+    return dataSyncStatus();
+  });
+  // passwords stay in these calls: never logged, never stored (only what Argon2id makes of them)
+  const secret = (v: unknown, what: string) => (typeof v === "string" && v.length > 0 && v.length <= 256 ? v : bad(what));
+  handle("account:newCode", () => accounts.recoveryCodeForSignUp());
+  handle("account:available", (_e, login) => accounts.loginFree(str(login, "login").slice(0, 64)));
+  handle("account:register", (_e, login, password, code) => accounts.register(str(login, "login").slice(0, 64), secret(password, "password"), str(code, "code").slice(0, 80)));
+  handle("account:signIn", (_e, login, password) => accounts.signIn(str(login, "login").slice(0, 64), secret(password, "password")));
+  handle("account:recover", (_e, code, password) => accounts.recover(str(code, "code").slice(0, 80), secret(password, "password")));
+  handle("account:password", (_e, old, password, others) => accounts.changePassword(secret(old, "password"), secret(password, "password"), others !== false));
+  handle("account:devices", () => accounts.devices());
+  handle("account:revoke", (_e, sid) => accounts.revoke(sid === null ? null : id(sid)));
+  handle("account:signOut", () => accounts.signOut());
+  handle("account:delete", (_e, password) => accounts.deleteAccount(secret(password, "password")));
+  handle("account:saveCode", async (_e, code) => {
+    const r = await dialog.showSaveDialog(...((main ? [main] : []) as [BrowserWindow]), {
+      defaultPath: join(app.getPath("documents"), "sc player recovery code.txt"),
+      filters: [{ name: m().textFile, extensions: ["txt"] }],
+    });
+    if (r.canceled || !r.filePath) return false;
+    await writeFile(r.filePath, `${m().recoveryFile}
+
+${str(code, "code").slice(0, 80)}
+`, "utf8");
+    return true;
+  });
   handle("bg:steamFind", (_e, link) => {
     const wid = workshopId(str(link, "link"));
     return wid ? findWallpaper(wid) : { found: false as const, id: "", reason: "link" as const };
@@ -873,7 +904,7 @@ void app.whenReady().then(async () => {
   log("main", `start: set up in ${Math.round(process.uptime() * 1000) - readyMs} ms after ready`);
   updater.initUpdater(() => main, () => prefs().checkUpdates);
   social.initSocial(() => main);
-  initBackup();
+  initSync(() => main);
   rooms.initRooms(() => main);
   // back in front: the messenger catches up at once
   main.on("focus", () => void social.poll());

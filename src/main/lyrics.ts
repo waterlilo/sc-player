@@ -302,8 +302,19 @@ function ownLyrics(q: { artist: string; title: string }, text: string): Lyrics {
   return { id: 0, artist: q.artist, title: q.title, synced: timed.length >= 2 ? timed : null, plain: plain || null, instrumental: false, source: "own" };
 }
 
-/** All own words, for the backup (main/backup). */
+/** All own words, for the backup and sync. */
 export const ownLyricsData = () => ({ ...ownFile().get().byTrack });
+
+let onOwnChange: (() => void) | null = null;
+/** Called after own words change here (sync sends them a little later). */
+export const onOwnLyricsChange = (fn: () => void) => (onOwnChange = fn);
+
+/** Own words as merged with the other devices (main/sync): they replace these; changed tracks are looked up again. */
+export function applyOwnLyrics(byTrack: Record<string, { text: string; at: number }>) {
+  const was = ownFile().get().byTrack;
+  for (const id of new Set([...Object.keys(was), ...Object.keys(byTrack)])) if (was[id]?.text !== byTrack[id]?.text) found.delete(Number(id));
+  ownFile().patch({ byTrack });
+}
 
 /** Own words from a backup, for tracks that have none here; how many were added. */
 export function mergeOwnLyrics(from: Record<string, { text: string; at: number }>): number {
@@ -315,7 +326,10 @@ export function mergeOwnLyrics(from: Record<string, { text: string; at: number }
     found.delete(Number(id));
     n++;
   }
-  if (n) ownFile().patch({ byTrack });
+  if (n) {
+    ownFile().patch({ byTrack });
+    onOwnChange?.();
+  }
   return n;
 }
 
@@ -339,6 +353,7 @@ export function setOwnLyrics(q: { trackId: number; artist: string; title: string
   if (text?.trim()) byTrack[String(q.trackId)] = { text: text.trim(), at: Date.now() };
   else delete byTrack[String(q.trackId)];
   ownFile().patch({ byTrack });
+  onOwnChange?.();
   found.delete(q.trackId);
   return text?.trim() ? ownLyrics(q, text.trim()) : null;
 }
@@ -451,7 +466,10 @@ export async function pickLyrics(trackId: number, lyricsId: number): Promise<Lyr
   pickFile().patch({ byTrack: { ...pickFile().get().byTrack, [String(trackId)]: lyricsId } });
   // a pick replaces one's own words
   const mine = { ...ownFile().get().byTrack };
-  if (String(trackId) in mine && delete mine[String(trackId)]) ownFile().patch({ byTrack: mine });
+  if (String(trackId) in mine && delete mine[String(trackId)]) {
+    ownFile().patch({ byTrack: mine });
+    onOwnChange?.();
+  }
   return result;
 }
 

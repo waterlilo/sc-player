@@ -19,7 +19,7 @@ const trackId = (k: string) => /^\d{1,16}$/.test(k) && Number.isSafeInteger(Numb
 export interface LikesShape {
   liked: { id: number; at: number }[];
   hidden: number[];
-  playlists?: { playlist: { id: string } & Record<string, unknown>; at: number }[];
+  playlists?: { playlist: { id: string }; at: number }[];
   hiddenPlaylists?: string[];
 }
 

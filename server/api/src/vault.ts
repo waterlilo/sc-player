@@ -331,6 +331,20 @@ async function batch(c: C) {
   send(c.res, 200, writeDocs(vid, writes));
 }
 
+/**
+ * GET …/legacy: the old backup under this vault's name (apps before sync still write it), for whoever may open the
+ * vault: a new app folds what older ones added into the documents. Its time goes in X-Updated.
+ */
+function legacy(c: C) {
+  const vid = c.params[0]!;
+  openVault(c.req, vid);
+  limit(`legacy:${vid}`, 30, HOUR);
+  const b = one("SELECT data, updated FROM backups WHERE id = ?", vid) ?? fail(404, "no backup");
+  const data = Buffer.from(b.data as unknown as Uint8Array);
+  c.res.writeHead(200, { "content-type": "application/octet-stream", "content-length": data.length, "cache-control": "no-store", "x-updated": String(b.updated) });
+  c.res.end(data);
+}
+
 export const vaultRoutes = (): [string, RegExp, (c: C) => unknown][] => [
   ["POST", /^\/v1\/vault$/, postVault],
   ["GET", /^\/v1\/vault\/([0-9a-f]{64})\/head$/, head],
@@ -338,6 +352,7 @@ export const vaultRoutes = (): [string, RegExp, (c: C) => unknown][] => [
   ["PUT", /^\/v1\/vault\/([0-9a-f]{64})\/docs\/([0-9a-f]{32})$/, putDoc],
   ["DELETE", /^\/v1\/vault\/([0-9a-f]{64})\/docs\/([0-9a-f]{32})$/, deleteDoc],
   ["POST", /^\/v1\/vault\/([0-9a-f]{64})\/batch$/, batch],
+  ["GET", /^\/v1\/vault\/([0-9a-f]{64})\/legacy$/, legacy],
 ];
 
 /** The old backup by its id: the name alone opens it, unless an account owns the vault (then the write token too). */

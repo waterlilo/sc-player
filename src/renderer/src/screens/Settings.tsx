@@ -5,7 +5,7 @@ import Equalizer from "@/components/settings/Equalizer";
 import HotkeyRecorder from "@/components/settings/HotkeyRecorder";
 import LyricsSync from "@/components/settings/LyricsSync";
 import Messenger from "@/components/settings/Messenger";
-import Backup from "@/components/settings/Backup";
+import SyncAccount from "@/components/settings/SyncAccount";
 import { Choice, Row, Section, Slider, Toggle } from "@/components/settings/Controls";
 import { MarkerButton, PaperButton } from "@/components/ui/Buttons";
 import Tabs from "@/components/ui/Tabs";
@@ -532,7 +532,7 @@ export default function Settings() {
             </Row>
           </Section>
 
-          <Backup />
+          <SyncAccount />
 
           <Section title={t.secAbout}>
             <p className="px-3 text-sm text-muted">{t.unofficial}</p>

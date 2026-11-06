@@ -144,23 +144,39 @@ export type SteamWallpaper =
   | { found: true; id: string; title: string; sizeMb: number; /** scbg://import/… for the page to read it */ url: string }
   | { found: false; id: string; reason: "link" | "missing" | "not-video" };
 
-/** The backup of what lives only on this computer (main/backup): its transfer key, when it last went out. */
-export interface BackupStatus {
+/**
+ * Sync of likes, own playlists and lyrics between devices (main/sync): through an sc player account, or (without one)
+ * the transfer key, which is also the account's recovery code.
+ */
+export interface SyncStatus {
   /** this build knows a server */
   available: boolean;
-  /** made on the first backup; shown in Settings to type in on another computer */
+  mode: "none" | "key" | "account";
+  login: string | null;
+  /** key mode: the transfer key, to show and type in elsewhere */
   key: string | null;
-  /** the last upload this run (null: none yet) */
+  state: "idle" | "syncing" | "error" | "offline";
+  /** the last sync that went through */
   at: number | null;
   error: string | null;
+  /** key mode: an account owns this key's vault now — sign in as this login */
+  accountLogin: string | null;
+  /** a newer app wrote something this version can't: update to keep syncing it */
+  needsUpdate: boolean;
+  /** the account's session ended (signed out elsewhere, a new password or code): sign in again */
+  signedOut: boolean;
+  /** what the first sync brought from the other devices */
+  brought: { likes: number; playlists: number; lyrics: number } | null;
 }
 
-/** What a restore added. `code`: the friend code — none in the copy, the same as here, taken, or a different one here (asked first). */
-export interface RestoreResult {
-  likes: number;
-  playlists: number;
-  lyrics: number;
-  code: "none" | "same" | "restored" | "differs";
+/** A device signed in to the account. */
+export interface AccountDevice {
+  id: number;
+  name: string;
+  platform: string;
+  created: number;
+  seen: number;
+  current: boolean;
 }
 
 /** What became of my lyrics sent for review ("" — none sent). */

@@ -17,7 +17,7 @@ interface Item {
   durationMs: number;
   artworkUrl: string | null;
 }
-interface LocalList {
+export interface LocalList {
   id: string;
   title: string;
   items: Item[];
@@ -35,7 +35,22 @@ const PAGE = 50;
 let file: JsonFile<{ lists: LocalList[] }> | null = null;
 const store = () => (file ??= new JsonFile(join(app.getPath("userData"), "local-playlists.json"), { lists: [] as LocalList[] }));
 const lists = () => store().get().lists;
-const save = (next: LocalList[]) => store().patch({ lists: next });
+let onChange: (() => void) | null = null;
+/** Called after every change made here (sync sends it a little later). */
+export const onPlaylistsChange = (fn: () => void) => (onChange = fn);
+const save = (next: LocalList[]) => {
+  store().patch({ lists: next });
+  onChange?.();
+};
+
+/** All of them as kept, ids included (for sync). */
+export const playlistsData = (): readonly LocalList[] => lists();
+
+/** The playlists as merged with the other devices (main/sync): they replace these, without counting as a change here. */
+export const applyPlaylists = (next: LocalList[]) => store().patch({ lists: next });
+
+/** A playlist found to be one the vault already has (restored from a backup under a new id) takes the vault's id. */
+export const renamePlaylistId = (from: string, to: string) => store().patch({ lists: lists().map((l) => (l.id === from ? { ...l, id: to } : l)) });
 
 function find(id: string): LocalList {
   const l = lists().find((x) => x.id === id);

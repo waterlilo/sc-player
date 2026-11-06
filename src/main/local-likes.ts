@@ -66,9 +66,18 @@ export function setPlaylistSaved(id: string, playlist: Playlist | null) {
 }
 
 let onChange: (() => void) | null = null;
-/** Called after every change (the backup goes out a little later). */
+/** Called after every change made here (sync sends it a little later). */
 export const onLikesChange = (fn: () => void) => (onChange = fn);
 const changed = () => onChange?.();
+
+/**
+ * Likes as merged with the other devices (main/sync): they replace these. Files from this computer stay liked: they
+ * mean nothing elsewhere, so sync never sees them.
+ */
+export function applyLikes(d: Required<LikesData>, isLocalTrack: (id: number) => boolean) {
+  const files = store().get().liked.filter((l) => isLocalTrack(l.id));
+  store().patch({ liked: [...d.liked, ...files].sort((a, b) => a.at - b.at), hidden: d.hidden, playlists: d.playlists.map((l) => ({ ...l, playlist: { ...l.playlist, relation: "liked" as const } })), hiddenPlaylists: d.hiddenPlaylists });
+}
 
 const localIds = () => [...store().get().liked].reverse().map((l) => l.id);
 
