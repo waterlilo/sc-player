@@ -26,10 +26,11 @@ export interface LikesShape {
 export function likesChanges(d: LikesShape, shadow: Doc | null, stamp: () => Stamp, first: boolean): Doc {
   const at = new globalThis.Map<string, number>();
   const tracks: Record<string, Want> = {};
-  for (const l of d.liked) {
+  // likes made in the same millisecond keep their order: the clock's counter part tells them apart
+  d.liked.forEach((l, i) => {
     tracks[String(l.id)] = { on: true };
-    at.set(`t${l.id}`, hlc(l.at));
-  }
+    at.set(`t${l.id}`, hlc(l.at) + (i % 1000));
+  });
   const lists: Record<string, Want> = {};
   for (const l of d.playlists ?? []) {
     lists[l.playlist.id] = { on: true, playlist: l.playlist };

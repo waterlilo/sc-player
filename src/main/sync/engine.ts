@@ -521,6 +521,8 @@ async function run() {
   }
   check(head);
   const legacy = (head.body?.legacy as number | null) ?? null;
+  // nothing applied here yet from this vault: what comes from it is news worth a line
+  const first = !Object.values(s.docs).some((d) => d.shadow);
   await pull(c);
   await foldLegacy(c, legacy);
   matchPlaylists();
@@ -531,7 +533,6 @@ async function run() {
   const plans = plan(c, clock);
   await write(c, plans);
   s.clock = clock.last;
-  const first = s.lastAt === null;
   const brought = apply(plans, seen);
   s.lastAt = Date.now();
   if (s.dropKeyAfterSync && s.account) {
