@@ -16,7 +16,7 @@ const server = createServer(async (req, res) => {
     await route({ req, res, ip });
   } catch (e) {
     if (res.headersSent) return void res.destroy();
-    if (e instanceof HttpError) return send(res, e.status, { error: e.message });
+    if (e instanceof HttpError) return send(res, e.status, { error: e.message, ...e.extra }, e.headers);
     console.error(new Date().toISOString(), req.method, req.url, e);
     send(res, 500, { error: "server error" });
   }

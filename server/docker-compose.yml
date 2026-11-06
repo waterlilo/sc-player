@@ -18,6 +18,7 @@ services:
     restart: unless-stopped
     environment:
       ADMIN_TOKEN: ${ADMIN_TOKEN}
+      SCP_ACCOUNT_PEPPER: ${SCP_ACCOUNT_PEPPER}
     volumes:
       - api-data:/data
     # reachable only through Caddy

@@ -4,7 +4,9 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { join } from "node:path";
 import { all, DATA, one, run, tx, type Row } from "./db.ts";
 import { fail, HttpError, int, limit, readBody, readJson, send, text, url } from "./http.ts";
+import { accountRoutes } from "./account.ts";
 import { roomRoutes, rooms } from "./room-routes.ts";
+import { backupLocked, vaultRoutes } from "./vault.ts";
 
 const MIN = 60_000;
 const HOUR = 60 * MIN;
@@ -426,7 +428,8 @@ async function putBackup(c: Ctx) {
 function getBackup(c: Ctx) {
   limit(`backup-get:${c.ip}`, 30, HOUR);
   const r = one("SELECT data FROM backups WHERE id = ?", c.params[0]!);
-  if (!r) return fail(404, "no backup");
+  // once an account owns this key's vault, its name alone no longer opens the old copy
+  if (!r || backupLocked(c.params[0]!, c.req)) return fail(404, "no backup");
   const data = Buffer.from(r.data as unknown as Uint8Array);
   c.res.writeHead(200, { "content-type": "application/octet-stream", "content-length": data.length, "cache-control": "no-store" });
   c.res.end(data);
@@ -878,6 +881,8 @@ const ROUTES: [string, RegExp, Handler][] = [
   ["POST", new RegExp(`^/v1/admin/themes/${TID}/hide$`), (c) => adminSet(c, true)],
   ["POST", new RegExp(`^/v1/admin/themes/${TID}/keep$`), (c) => adminSet(c, false)],
   ...roomRoutes({ me, friend: friendOrFail, code: normCode, track }),
+  ...vaultRoutes(),
+  ...accountRoutes(),
 ];
 
 export async function route(c: Omit<Ctx, "params" | "query">) {
