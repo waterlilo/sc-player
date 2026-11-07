@@ -5,6 +5,7 @@ import { getSecret, setSecret } from "../store/secrets";
 import { argon2 } from "./argon2";
 import { checkKdf, cleanCode, codeKeys, formatCode, KDF_V1, loginProblem, newCode, normalizeLogin, passwordKeys, unwrapDek, wrapDek, type Kdf } from "./crypto";
 import { accountInfo, request, setAccount, syncNow, type Answer } from "./engine";
+import { maybeImport } from "./sc-import";
 
 /**
  * sc player accounts on this computer (design §5–7): a login and a password instead of the 32-letter key. The
@@ -38,7 +39,8 @@ function signedIn(login: string, vault: string, session: string, cookie: string,
   setSecret("accountSession", session);
   setSecret("deviceCookie", cookie);
   setAccount({ login, vault }, { dropKeyAfterSync: dropKey });
-  void syncNow();
+  // the first sync, then (signed in to SoundCloud here) the SoundCloud library moves into the account
+  void syncNow().then(() => maybeImport());
 }
 
 /**

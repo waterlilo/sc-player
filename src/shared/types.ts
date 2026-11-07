@@ -167,6 +167,23 @@ export interface SyncStatus {
   signedOut: boolean;
   /** what the first sync brought from the other devices */
   brought: { likes: number; playlists: number; lyrics: number } | null;
+  /** the SoundCloud library moving into the account (it runs by itself when both are signed in here) */
+  scImport: ScImportStatus | null;
+}
+
+/** The SoundCloud → sc player import (main/sync/sc-import): what it added so far and where it is. */
+export interface ScImportStatus {
+  state: "running" | "done" | "stopped";
+  /** the SoundCloud account it imports */
+  username: string;
+  likes: number;
+  playlists: number;
+  saved: number;
+  follows: number;
+  /** what SoundCloud says the account has (null: not known) */
+  totals: { likes: number | null; follows: number | null };
+  /** why it stopped: "verify" (SoundCloud asked for a check), "signed_out", "offline", "rate_limited" or a message */
+  reason: string | null;
 }
 
 /** A device signed in to the account. */

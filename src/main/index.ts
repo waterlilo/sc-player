@@ -13,6 +13,8 @@ import type { ImportItem, QueueSource, SyncRequest, Track, LyricsSuggestionState
 import { DemoProvider } from "./demo";
 import * as accounts from "./sync/accounts";
 import { initSync, syncNow, syncStatus as dataSyncStatus, useCode } from "./sync/engine";
+import { initScImport, maybeImport } from "./sync/sc-import";
+import { flushFollows } from "./local-follows";
 import { flushLocalLikes, savedPlaylists, setPlaylistSaved, visiblePlaylists, withLocalLikes } from "./local-likes";
 import { addDroppedFiles, addLocalFiles, flushLocalTracks, isLocalTrack, localLibrary, removeLocalTrack, serveLocalTracks, showLocalTrack, withLocalTracks } from "./local-tracks";
 import { addLocal, copiesOf, copyLocal, createLocal, deleteLocal, exportLocal, importLocal, flushLocalPlaylists, isLocal, localIds, localPlaylist, localPlaylists, localTracks, MAX_TRACKS, renameLocal, setLocalTracks } from "./local-playlists";
@@ -72,15 +74,17 @@ function devProfile(): string | undefined {
 
 /** SKY_DEMO=1 in development: made-up data instead of SoundCloud (src/main/demo.ts). */
 const DEMO = !app.isPackaged && process.env.SKY_DEMO === "1";
-// the demo keeps its own settings, history and sign-in, apart from the real ones
-if (DEMO) app.setPath("userData", join(app.getPath("appData"), "sc player demo"));
+// the demo keeps its own settings, history and sign-in, apart from the real ones (with SKY_PROFILE, one per profile)
+if (DEMO) app.setPath("userData", join(app.getPath("appData"), `sc player demo${devProfile() ? ` ${devProfile()!.replace(/[^\w-]/g, "")}` : ""}`));
 // SKY_PROFILE=<name> in development: real SoundCloud with a data folder of its own (signed out, fresh settings); a
 // scplayer:// link started by Windows carries it as --sky-profile=<name> (no environment then), so it reaches this
 // instance and not the main profile
 else if (!app.isPackaged && devProfile()) app.setPath("userData", join(app.getPath("appData"), `sc player ${devProfile()!.replace(/[^\w-]/g, "")}`));
 // music from this computer is answered by local-tracks, everything else by SoundCloud
 // and likes are kept on this computer (Settings → Playback), SoundCloud's shown with them
-const data: MusicProvider = withLocalLikes(withLocalTracks(DEMO ? new DemoProvider() : provider), () => prefs().localLikes);
+/** SoundCloud itself (or the demo's made-up one): what the account import reads */
+const sc: MusicProvider = DEMO ? new DemoProvider() : provider;
+const data: MusicProvider = withLocalLikes(withLocalTracks(sc), () => prefs().localLikes);
 const signedIn = () => DEMO || !!auth.token();
 /** full tracks for any number of ids, in their order (the provider takes 200 at a time) */
 async function tracksOf(ids: number[]): Promise<Track[]> {
@@ -707,6 +711,8 @@ async function signInFromBrowser(argv: string[]) {
     // the link stays registered: next time the bookmark alone signs in (after the question above)
     finishBrowserSignIn();
     log("main", "login: signed in through the browser");
+    // signed in to an sc player account too: the SoundCloud library moves into it now
+    void maybeImport();
   } else {
     log("main", "login: browser token refused");
     send(main, "auth:browserRefused", null);
@@ -756,6 +762,7 @@ app.on("before-quit", () => {
   flushLocalPlaylists();
   flushLocalTracks();
   flushLocalLikes();
+  flushFollows();
   setDiscordEnabled(false);
 });
 process.on("uncaughtException", (err) => log("main", `uncaught: ${err.stack ?? err.message}`));
@@ -905,6 +912,7 @@ void app.whenReady().then(async () => {
   updater.initUpdater(() => main, () => prefs().checkUpdates);
   social.initSocial(() => main);
   initSync(() => main);
+  initScImport(sc, signedIn);
   rooms.initRooms(() => main);
   // back in front: the messenger catches up at once
   main.on("focus", () => void social.poll());

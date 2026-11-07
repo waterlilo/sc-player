@@ -117,6 +117,13 @@ export const en = {
   accDeleteHint: "The account and everything synced to sc player's server are deleted. What's on your devices stays.",
   accDeleteConfirm: "Your password, to delete the account",
   accDeleted: "Account deleted",
+  scImportRunning: (who: string, counts: string) => `Moving your SoundCloud library${who ? ` (${who})` : ""} into the account: ${counts}…`,
+  scImportDone: (who: string, counts: string) => `SoundCloud${who ? ` (${who})` : ""} moved into the account: ${counts}. New likes and playlists come along by themselves while SoundCloud stays signed in here.`,
+  scImportCounts: (likes: number, total: number | null, playlists: number, saved: number, follows: number) =>
+    `likes ${likes}${total ? `/${total}` : ""}, playlists ${playlists}, albums and saved playlists ${saved}, artists followed ${follows}`,
+  scImportVerify: "SoundCloud asked for a check, so moving the library stopped. It goes on by itself later.",
+  scImportSignedOut: "SoundCloud signed this computer out, so moving the library stopped. Sign in to SoundCloud again to go on.",
+  scImportStopped: "Moving the SoundCloud library stopped for now (no answer). It goes on by itself later.",
   localLikes: "Keep likes on this computer",
   localLikesHint: "♥ is saved here instead of on SoundCloud (no SoundCloud checks, works signed out, files from this computer too). Your SoundCloud likes still show below. Sync carries them to your other devices.",
   secSound: "Sound",

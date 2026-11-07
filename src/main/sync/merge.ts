@@ -35,6 +35,7 @@ const SCHEMA: Record<string, { maps: string[]; regs: string[] }> = {
   playlist: { maps: ["items"], regs: ["title", "deleted"] },
   lyrics: { maps: ["byTrack"], regs: [] },
   secrets: { maps: [], regs: ["friend"] },
+  follows: { maps: ["users"], regs: [] },
 };
 
 /** `a` wins over `b`: a later stamp, or the same time and the bigger tag. */

@@ -111,7 +111,8 @@ export function playlistChanges(list: ListShape | null, shadow: Doc | null, stam
   for (const i of list.items) want[String(i.id)] = { on: true, durationMs: i.durationMs, artworkUrl: i.artworkUrl };
   const items = diffMap(want, map(shadow, "items"), s, { on: false }, t0 ? () => t0.at : undefined);
   const order = list.items.map((i) => String(i.id));
-  const pos = shadow ? placeOrder(order, map(shadow, "items")) : Object.fromEntries(order.map((k, i) => [k, spread(order.length)[i]!]));
+  const fresh = shadow ? null : spread(order.length);
+  const pos = fresh ? Object.fromEntries(order.map((k, i) => [k, fresh[i]!])) : placeOrder(order, map(shadow, "items"));
   const moved: Map = {};
   for (const [k, p] of Object.entries(pos)) {
     const st = s();
@@ -143,6 +144,29 @@ export function playlistFrom(doc: Doc): ListShape | null {
 
 /** The same name and tracks: the key a restored copy's playlist (with a new id) is matched by on a first sync. */
 export const listKey = (title: string, ids: number[]) => `${title}\u0000${ids.join(",")}`;
+
+// ---- followed artists (from the SoundCloud import, design §8.4.6) ----------------------------------------------------
+
+export interface FollowShape {
+  user: { id: number; username: string; permalinkUrl: string; avatarUrl: string | null };
+  at: number;
+}
+
+export function followsChanges(users: Record<string, FollowShape>, shadow: Doc | null, stamp: () => Stamp, first: boolean): Doc {
+  const want: Record<string, Want> = {};
+  for (const [id, f] of Object.entries(users)) want[id] = { on: true, user: f.user };
+  return { ...emptyDoc("follows", "follows"), users: diffMap(want, map(shadow, "users"), stamp, { on: false }, first ? (k) => hlc(users[k]?.at) : undefined) };
+}
+
+export function followsFrom(doc: Doc): Record<string, FollowShape> {
+  const out: Record<string, FollowShape> = {};
+  for (const [k, e] of Object.entries(map(doc, "users"))) {
+    const u = e.user as Partial<FollowShape["user"]> | undefined;
+    if (!live(e) || !trackId(k) || !u || u.id !== Number(k) || typeof u.username !== "string") continue;
+    out[k] = { user: { id: u.id, username: u.username.slice(0, 200), permalinkUrl: typeof u.permalinkUrl === "string" && /^https:\/\/soundcloud\.com\//.test(u.permalinkUrl) ? u.permalinkUrl : "", avatarUrl: scArtwork(u.avatarUrl) }, at: ms(e.at) };
+  }
+  return out;
+}
 
 // ---- the friend code -----------------------------------------------------------------------------------------------
 

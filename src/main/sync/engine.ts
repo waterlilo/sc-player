@@ -2,7 +2,8 @@ import { createDecipheriv, randomBytes } from "node:crypto";
 import { readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { app, net, type BrowserWindow } from "electron";
-import { isLocalTrack, type SyncStatus } from "@shared/types";
+import { isLocalTrack, type ScImportStatus, type SyncStatus } from "@shared/types";
+import { applyFollows, followsData, onFollowsChange } from "../local-follows";
 import { applyLikes, likesData, mergeLikes, onLikesChange } from "../local-likes";
 import { applyPlaylists, importLocal, onPlaylistsChange, playlistsData, renamePlaylistId, type LocalList } from "../local-playlists";
 import { applyOwnLyrics, mergeOwnLyrics, onOwnLyricsChange, ownLyricsData } from "../lyrics";
@@ -11,7 +12,7 @@ import { getSecret, setSecret } from "../store/secrets";
 import { log } from "../system/log";
 import { send } from "../windows/main-window";
 import { cleanCode, codeKeys, docId, formatCode, newCode, openDoc, sealDoc } from "./crypto";
-import { emptyDoc, friendFrom, likesChanges, likesFrom, listKey, LYRICS_SHARDS, lyricsChanges, lyricsFrom, lyricsShard, playlistChanges, playlistFrom, secretsChanges } from "./docs";
+import { emptyDoc, followsChanges, followsFrom, friendFrom, likesChanges, likesFrom, listKey, LYRICS_SHARDS, lyricsChanges, lyricsFrom, lyricsShard, playlistChanges, playlistFrom, secretsChanges } from "./docs";
 import { canon, capFor, Clock, gcDoc, mergeDocs, SCHEMA_V, sameContent, stampsOf, TOMB_DAYS, type Doc } from "./merge";
 
 /**
@@ -169,7 +170,30 @@ const errorOf = (a: Answer) => String(a.body?.error ?? `HTTP ${a.status}`);
 // ---- status --------------------------------------------------------------------------------------------------------
 
 let win: () => BrowserWindow | null = () => null;
-let status: Omit<SyncStatus, "available" | "mode" | "login" | "key"> = { state: "idle", at: null, error: null, accountLogin: null, needsUpdate: false, signedOut: false, brought: null };
+let status: Omit<SyncStatus, "available" | "mode" | "login" | "key"> = { state: "idle", at: null, error: null, accountLogin: null, needsUpdate: false, signedOut: false, brought: null, scImport: null };
+
+/** The SoundCloud import's progress, for Settings → Account (main/sync/sc-import). */
+export const setImportStatus = (s: ScImportStatus | null) => setStatus({ scImport: s });
+
+/**
+ * Whether the vault has anything under this key of a document's map: "live", "tomb" (removed somewhere) or null.
+ * The SoundCloud import adds only what the vault has never had, so what the person removed doesn't come back.
+ */
+export function vaultEntry(name: string, field: string, key: string): "live" | "tomb" | null {
+  for (const d of Object.values(state().docs)) {
+    if (d.name !== name) continue;
+    const e = ((d.server ?? d.shadow)?.[field] as Record<string, { on?: unknown; text?: unknown }> | undefined)?.[key];
+    if (!e) return null;
+    return e.on === false || e.text === null ? "tomb" : "live";
+  }
+  return null;
+}
+
+/** A playlist copied from this SoundCloud playlist is (or was, deleted since) in the vault. */
+export const vaultHasPlaylistFrom = (from: string) => Object.values(state().docs).some((d) => d.name.startsWith("pl:") && (d.server ?? d.shadow)?.from === from);
+
+/** Signed in to an sc player account on this computer (the import needs one). */
+export const accountReady = () => !!state().account && !!getSecret("accountSession");
 
 export function syncStatus(): SyncStatus {
   const s = state();
@@ -204,7 +228,7 @@ function sessionEnded(why: string) {
 // ---- documents in and out ------------------------------------------------------------------------------------------
 
 /** The kind a name says, for the documents a device may know without having read them. */
-const knownName = (name: string) => name === "likes" || name === "secrets" || /^pl:local-[0-9a-f]{16}$/.test(name) || /^lyrics:[0-9a-f]$/.test(name);
+const knownName = (name: string) => name === "likes" || name === "secrets" || name === "follows" || /^pl:local-[0-9a-f]{16}$/.test(name) || /^lyrics:[0-9a-f]$/.test(name);
 
 /** A sealed document from the server: its JSON, if it opens and its name (inside) matches the id it was stored under. */
 function readDoc(c: Creds, id: string, b64: string): Doc | null {
@@ -312,7 +336,7 @@ async function foldLegacy(c: Creds, updated: number | null) {
 // ---- one sync ------------------------------------------------------------------------------------------------------
 
 /** Changes here since the last read of each module; a sync applies only to modules that didn't change meanwhile. */
-const dirty = { likes: 0, playlists: 0, lyrics: 0 };
+const dirty = { likes: 0, playlists: 0, lyrics: 0, follows: 0 };
 
 interface Plan {
   id: string;
@@ -372,6 +396,9 @@ function plan(c: Creds, clock: Clock): Plan[] {
     const list = l ? { ...l, items: l.items.filter((i) => !isLocalTrack(i.id)) } : null;
     add(name, (shadow, server) => (list || shadow ? playlistChanges(list, shadow ?? (list ? null : server), stamp, !shadow) : null), "playlist");
   }
+
+  const follows = followsData();
+  add("follows", (shadow) => followsChanges(follows, shadow, stamp, !shadow), "follows");
 
   add("secrets", (shadow, server) => secretsChanges(friendSecret(), shadow, server, stamp), "secrets");
   return out.filter((p) => p.name && knownName(p.name));
@@ -467,6 +494,12 @@ function apply(plans: Plan[], seen: typeof dirty): { likes: number; playlists: n
     brought.lyrics = Math.max(0, Object.keys(all).length - before);
     settle(lyricsP);
   }
+  const followsP = plans.find((p) => p.name === "follows");
+  if (followsP && seen.follows === dirty.follows) {
+    const all = followsFrom(docOf(followsP));
+    if (canon(all) !== canon(followsData())) applyFollows(all);
+    settle([followsP]);
+  }
   const secretsP = plans.find((p) => p.name === "secrets");
   if (secretsP) {
     const friend = friendFrom(docOf(secretsP));
@@ -543,7 +576,7 @@ async function run() {
   saveState();
   setStatus({ state: "idle", error: null, signedOut: false, ...(first && (brought.likes || brought.playlists || brought.lyrics) ? { brought } : {}) });
   if (brought.likes || brought.playlists || brought.lyrics || plans.length) send(win(), "sync:changed", null);
-  if (seen.likes !== dirty.likes || seen.playlists !== dirty.playlists || seen.lyrics !== dirty.lyrics) again = true;
+  if (seen.likes !== dirty.likes || seen.playlists !== dirty.playlists || seen.lyrics !== dirty.lyrics || seen.follows !== dirty.follows) again = true;
 }
 
 const hasData = () => {
@@ -595,6 +628,7 @@ export function initSync(w: () => BrowserWindow | null) {
   onLikesChange(() => changed("likes"));
   onPlaylistsChange(() => changed("playlists"));
   onOwnLyricsChange(() => changed("lyrics"));
+  onFollowsChange(() => changed("follows"));
   setTimeout(() => void syncNow(), 5000);
   let last = Date.now();
   setInterval(() => {

@@ -133,6 +133,13 @@ export const ru: Dict = {
   accDeleteHint: "Аккаунт и всё, что синхронизировано на сервер sc player, удалится. То, что на ваших устройствах, останется.",
   accDeleteConfirm: "Пароль, чтобы удалить аккаунт",
   accDeleted: "Аккаунт удалён",
+  scImportRunning: (who: string, counts: string) => `Переносим библиотеку SoundCloud${who ? ` (${who})` : ""} в аккаунт: ${counts}…`,
+  scImportDone: (who: string, counts: string) => `SoundCloud${who ? ` (${who})` : ""} перенесён в аккаунт: ${counts}. Новые лайки и плейлисты будут переноситься сами, пока здесь выполнен вход в SoundCloud.`,
+  scImportCounts: (likes: number, total: number | null, playlists: number, saved: number, follows: number) =>
+    `лайки ${likes}${total ? `/${total}` : ""}, плейлисты ${playlists}, альбомы и сохранённые плейлисты ${saved}, подписки ${follows}`,
+  scImportVerify: "SoundCloud попросил проверку, поэтому перенос библиотеки остановлен. Он продолжится сам позже.",
+  scImportSignedOut: "SoundCloud вышел из аккаунта на этом компьютере, перенос остановлен. Войдите в SoundCloud снова, чтобы продолжить.",
+  scImportStopped: "Перенос библиотеки SoundCloud пока остановлен (нет ответа). Он продолжится сам позже.",
   localLikes: "Хранить лайки на этом компьютере",
   localLikesHint: "♥ сохраняется здесь, а не на SoundCloud (без проверок SoundCloud, работает без входа, и для файлов с компьютера). Лайки с SoundCloud по-прежнему видны ниже. Синхронизация переносит их на другие ваши устройства.",
   secSound: "Звук",

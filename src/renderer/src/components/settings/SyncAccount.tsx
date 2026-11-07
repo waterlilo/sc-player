@@ -88,6 +88,7 @@ function Home({ s, go, signInAs }: { s: SyncStatus; go: (v: View) => void; signI
       )}
       {s.needsUpdate && <Note>{t.syncNeedsUpdate}</Note>}
       {s.brought && <Note>{t.syncBrought(s.brought.likes, s.brought.playlists, s.brought.lyrics)}</Note>}
+      {s.scImport && <ImportNote i={s.scImport} />}
 
       {s.mode === "account" ? (
         <>
@@ -182,6 +183,15 @@ function Devices() {
       {list.length > 1 && <PaperButton onClick={() => void revoke(null)}>{t.accDisconnectAll}</PaperButton>}
     </Row>
   );
+}
+
+/** The SoundCloud library moving into the account (it runs by itself): how far, done, or why it stopped. */
+function ImportNote({ i }: { i: NonNullable<SyncStatus["scImport"]> }) {
+  const t = useT();
+  if (i.state === "stopped") return <Note>{i.reason === "verify" ? t.scImportVerify : i.reason === "signed_out" ? t.scImportSignedOut : t.scImportStopped}</Note>;
+  // while it runs, likes show against what SoundCloud has; done, only what came
+  const counts = t.scImportCounts(i.likes, i.state === "running" ? i.totals.likes : null, i.playlists, i.saved, i.follows);
+  return <Note>{i.state === "running" ? t.scImportRunning(i.username, counts) : t.scImportDone(i.username, counts)}</Note>;
 }
 
 // ---- pieces ------------------------------------------------------------------------------------------------------

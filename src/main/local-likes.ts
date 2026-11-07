@@ -71,6 +71,20 @@ export const onLikesChange = (fn: () => void) => (onChange = fn);
 const changed = () => onChange?.();
 
 /**
+ * Likes brought from SoundCloud by the account import (main/sync/sc-import), newest first as SoundCloud lists them:
+ * the ones not here yet are added, timed so that SoundCloud's order holds (the newest gets `now`).
+ */
+export function addImportedLikes(ids: number[], now: number) {
+  const s = store().get();
+  const have = new Set(s.liked.map((l) => l.id));
+  const added = ids.filter((id) => !have.has(id)).map((id, i) => ({ id, at: now - i }));
+  if (!added.length) return 0;
+  store().patch({ liked: [...s.liked, ...added].sort((a, b) => a.at - b.at) });
+  changed();
+  return added.length;
+}
+
+/**
  * Likes as merged with the other devices (main/sync): they replace these. Files from this computer stay liked: they
  * mean nothing elsewhere, so sync never sees them.
  */
