@@ -3,7 +3,9 @@ import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import type { SyncStatus } from "@shared/types";
 import { dateLocale, useT } from "@/i18n";
 import { call, errorCode, on, SkyError } from "@/lib/sky";
+import { useAuth } from "@/state/auth";
 import { ask } from "@/state/dialog";
+import { useNav } from "@/state/nav";
 import { useUi } from "@/state/ui";
 import { PaperButton } from "../ui/Buttons";
 import { Row, Section } from "./Controls";
@@ -34,6 +36,8 @@ export default function SyncAccount() {
   const q = useQuery({ queryKey: statusKey, queryFn: () => call("sync:status") });
   const [view, setView] = useState<View>("home");
   const [prefill, setPrefill] = useState("");
+  // just signed up: once, a hint to connect SoundCloud (when it isn't), which can be closed
+  const [justMade, setJustMade] = useState(false);
   useEffect(() => on("sync:status", (s) => client.setQueryData(statusKey, s)), [client]);
   const s = q.data;
   if (!s?.available) return null;
@@ -41,8 +45,8 @@ export default function SyncAccount() {
 
   return (
     <Section title={t.syncTitle}>
-      {view === "home" && <Home s={s} go={setView} signInAs={(l) => (setPrefill(l), setView("signin"))} />}
-      {view === "register" && <Register done={back} />}
+      {view === "home" && <Home s={s} go={setView} signInAs={(l) => (setPrefill(l), setView("signin"))} justMade={justMade} dismiss={() => setJustMade(false)} />}
+      {view === "register" && <Register done={back} created={() => setJustMade(true)} />}
       {view === "signin" && <SignIn login={prefill} done={back} forgot={() => setView("recover")} />}
       {view === "recover" && <Recover done={back} />}
       {view === "password" && <ChangePassword done={back} />}
@@ -53,7 +57,29 @@ export default function SyncAccount() {
 
 // ---- the overview ------------------------------------------------------------------------------------------------
 
-function Home({ s, go, signInAs }: { s: SyncStatus; go: (v: View) => void; signInAs: (login: string) => void }) {
+/** The app's own SoundCloud sign-in (the same page as everywhere else); the import starts by itself after it. */
+const connectSoundCloud = () => useNav.getState().open("signin", { name: "signin" });
+
+/**
+ * SoundCloud in the account: optional. Connected, its library moves in by itself (the status line under it);
+ * not connected, an offer to connect it once.
+ */
+function SoundCloudRow({ s }: { s: SyncStatus }) {
+  const t = useT();
+  const auth = useAuth((x) => x.status);
+  const on = auth?.mode === "session";
+  return (
+    <>
+      <Row label={on ? t.scLinked(auth?.user?.username ?? "") : t.scNotLinked} hint={on ? undefined : t.scLinkHint}>
+        {!on && <PaperButton onClick={connectSoundCloud}>{t.scLink}</PaperButton>}
+      </Row>
+      {s.scImport && <ImportNote i={s.scImport} />}
+    </>
+  );
+}
+
+function Home({ s, go, signInAs, justMade, dismiss }: { s: SyncStatus; go: (v: View) => void; signInAs: (login: string) => void; justMade: boolean; dismiss: () => void }) {
+  const scOn = useAuth((x) => x.status?.mode === "session");
   const t = useT();
   const toast = useUi((x) => x.showToast);
   const [shown, setShown] = useState(false);
@@ -88,7 +114,16 @@ function Home({ s, go, signInAs }: { s: SyncStatus; go: (v: View) => void; signI
       )}
       {s.needsUpdate && <Note>{t.syncNeedsUpdate}</Note>}
       {s.brought && <Note>{t.syncBrought(s.brought.likes, s.brought.playlists, s.brought.lyrics)}</Note>}
-      {s.scImport && <ImportNote i={s.scImport} />}
+      {s.mode !== "account" && s.scImport && <ImportNote i={s.scImport} />}
+      {s.mode === "account" && justMade && !scOn && (
+        <Note>
+          {t.scLinkAfterSignUp}
+          <PaperButton onClick={connectSoundCloud}>{t.scLink}</PaperButton>
+          <button type="button" onClick={dismiss} className="font-type text-xs text-muted underline-offset-2 hover:text-text hover:underline">
+            {t.scLinkLater}
+          </button>
+        </Note>
+      )}
 
       {s.mode === "account" ? (
         <>
@@ -106,6 +141,7 @@ function Home({ s, go, signInAs }: { s: SyncStatus; go: (v: View) => void; signI
               {t.accSignOut}
             </PaperButton>
           </Row>
+          <SoundCloudRow s={s} />
           <Devices />
           <Row label={t.accChangePassword}>
             <PaperButton onClick={() => go("password")}>{t.accChangePassword}</PaperButton>
@@ -271,7 +307,7 @@ function message(t: ReturnType<typeof useT>, err: unknown): string {
 
 // ---- sign-up -----------------------------------------------------------------------------------------------------
 
-function Register({ done }: { done: () => void }) {
+function Register({ done, created }: { done: () => void; created: () => void }) {
   const t = useT();
   const toast = useUi((x) => x.showToast);
   const [step, setStep] = useState<"form" | "code" | "confirm">("form");
@@ -316,6 +352,7 @@ function Register({ done }: { done: () => void }) {
     try {
       await call("account:register", cleanLogin(login), pw, code.code);
       toast(t.accCreated);
+      created();
       done();
     } catch (err) {
       const m = message(t, err);

@@ -133,6 +133,12 @@ export const ru: Dict = {
   accDeleteHint: "Аккаунт и всё, что синхронизировано на сервер sc player, удалится. То, что на ваших устройствах, останется.",
   accDeleteConfirm: "Пароль, чтобы удалить аккаунт",
   accDeleted: "Аккаунт удалён",
+  scNotLinked: "SoundCloud не подключён",
+  scLinkHint: "Подключи, чтобы перенести лайки, плейлисты, альбомы и подписки в аккаунт — один раз, дальше новые добавляются сами. Необязательно.",
+  scLink: "Подключить SoundCloud",
+  scLinked: (name: string) => `SoundCloud: ${name || "вход выполнен"} · подключён`,
+  scLinkAfterSignUp: "Подключи SoundCloud, чтобы перенести лайки, плейлисты, альбомы и подписки в аккаунт. Необязательно.",
+  scLinkLater: "Не сейчас",
   scImportRunning: (who: string, counts: string) => `Переносим библиотеку SoundCloud${who ? ` (${who})` : ""} в аккаунт: ${counts}…`,
   scImportDone: (who: string, counts: string) => `SoundCloud${who ? ` (${who})` : ""} перенесён в аккаунт: ${counts}. Новые лайки и плейлисты будут переноситься сами, пока здесь выполнен вход в SoundCloud.`,
   scImportCounts: (likes: number, total: number | null, playlists: number, saved: number, follows: number) =>

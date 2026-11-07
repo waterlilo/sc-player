@@ -117,6 +117,12 @@ export const en = {
   accDeleteHint: "The account and everything synced to sc player's server are deleted. What's on your devices stays.",
   accDeleteConfirm: "Your password, to delete the account",
   accDeleted: "Account deleted",
+  scNotLinked: "SoundCloud isn't connected",
+  scLinkHint: "Connect it to move your likes, playlists, albums and followed artists into the account: once, after that new ones come along by themselves. Optional.",
+  scLink: "Connect SoundCloud",
+  scLinked: (name: string) => `SoundCloud: ${name || "signed in"} · connected`,
+  scLinkAfterSignUp: "Connect SoundCloud to move your likes, playlists, albums and followed artists into the account. Optional.",
+  scLinkLater: "Not now",
   scImportRunning: (who: string, counts: string) => `Moving your SoundCloud library${who ? ` (${who})` : ""} into the account: ${counts}…`,
   scImportDone: (who: string, counts: string) => `SoundCloud${who ? ` (${who})` : ""} moved into the account: ${counts}. New likes and playlists come along by themselves while SoundCloud stays signed in here.`,
   scImportCounts: (likes: number, total: number | null, playlists: number, saved: number, follows: number) =>
