@@ -4,7 +4,7 @@ One small VPS runs everything the app needs from its own side:
 
 | Part | Where | What |
 |---|---|---|
-| **Proxy** | `caddy/` | HTTPS forward proxy for SoundCloud only (site, API, audio, artwork, bot protection). Anything else is refused. Without the password it looks like an ordinary site. |
+| **Proxy** | `caddy/` | HTTPS forward proxy for SoundCloud only (site, API, audio, artwork, bot protection), plus LRCLIB for lyrics. Anything else is refused. Without the password it looks like an ordinary site. |
 | **API** | `api/` | `/v1/*`: the track messenger (friend codes, no accounts), the theme workshop, an anonymous count of running apps. Node 24, SQLite, no packages. |
 
 Caddy takes the certificate from Let's Encrypt itself and renews it (no e-mail needed: Let's Encrypt no longer sends expiry notices).

@@ -1,6 +1,7 @@
 # sc player's server, one name for everything (values from .env via docker-compose):
-#  - the proxy: only SoundCloud (site, API, audio, artwork) and its bot protection go through; anything else is
-#    refused, so it can't be used as an open proxy;
+#  - the proxy: only SoundCloud (site, API, audio, artwork), its bot protection and LRCLIB (lyrics: some mobile
+#    networks stall its answers, so the phone app falls back to the proxy when direct fails) go through; anything
+#    else is refused, so it can't be used as an open proxy;
 #  - /v1/*: the API (messenger, workshop, user count), passed to the api container.
 {
 	order forward_proxy first
@@ -18,7 +19,8 @@
 		probe_resistance {$SCP_SECRET_HOST}
 		ports 443 80
 		acl {
-			allow soundcloud.com *.soundcloud.com *.sndcdn.com *.soundcloud.cloud *.datadome.co *.captcha-delivery.com
+			# lrclib.net serves its API itself (no subdomains, no redirects): only that name
+			allow soundcloud.com *.soundcloud.com *.sndcdn.com *.soundcloud.cloud *.datadome.co *.captcha-delivery.com lrclib.net
 			deny all
 		}
 	}
