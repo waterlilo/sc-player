@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { all, DATA, one, run, tx, type Row } from "./db.ts";
 import { fail, HttpError, int, limit, readBody, readJson, send, text, url } from "./http.ts";
 import { accountRoutes } from "./account.ts";
+import { clearNow, instanceOf, memberOf, setFeatures, setNow } from "./instances.ts";
 import { roomRoutes, rooms } from "./room-routes.ts";
 import { backupLocked, vaultRoutes } from "./vault.ts";
 
@@ -40,7 +41,11 @@ const normCode = (v: unknown) => {
   return c;
 };
 
-/** The device making the request (Authorization: Bearer <secret>); 401 without a known one. */
+/**
+ * The device making the request (Authorization: Bearer <secret>); 401 without a known one. With X-Instance (one app of
+ * a code several share) the row also carries `member` (that app in rooms) and `instance`; its features and "now
+ * playing" are then kept per app (instances.ts).
+ */
 function me(c: Ctx): Row {
   const auth = String(c.req.headers.authorization ?? "");
   const secret = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
@@ -48,17 +53,26 @@ function me(c: Ctx): Row {
   const d = one("SELECT * FROM devices WHERE secret = ?", sha(secret));
   if (!d) return fail(401, "who are you");
   if (Date.now() - Number(d.seen) > MIN) run("UPDATE devices SET seen = ? WHERE id = ?", Date.now(), d.id);
+  limit(`dev:${d.id}`, 600, MIN);
   // what this app can do (an update may add to it): only words from a short list are kept
   const features = String(c.req.headers["x-sc-features"] ?? "")
     .split(",")
     .map((f) => f.trim())
     .filter((f) => f === "rooms")
     .join(",");
+  // one app of several under this code: the code can do what any of its apps can
+  const inst = instanceOf(c.req, d, (m) => {
+    const r = rooms.roomOf(m);
+    if (r) rooms.leave(r.id, m);
+  });
+  if (inst) {
+    setFeatures(inst, features);
+    return { ...d, member: memberOf(inst), instance: Number(inst.id) };
+  }
   if (features !== d.features) {
     run("UPDATE devices SET features = ? WHERE id = ?", features, d.id);
     d.features = features;
   }
-  limit(`dev:${d.id}`, 600, MIN);
   return d;
 }
 
@@ -106,6 +120,7 @@ async function putMe(c: Ctx) {
   if (body.shareNow !== undefined) {
     const on = body.shareNow === true;
     run("UPDATE devices SET share_now = ?, now_track = CASE WHEN ? THEN now_track ELSE NULL END WHERE id = ?", on ? 1 : 0, on ? 1 : 0, d.id);
+    if (!on) clearNow(Number(d.id));
   }
   if (body.name !== undefined) bumpFriendsOf(Number(d.id));
   getMe(c);
@@ -113,19 +128,21 @@ async function putMe(c: Ctx) {
 
 async function putNow(c: Ctx) {
   const d = me(c);
-  limit(`now:${d.id}`, 30, MIN);
+  limit(`now:${d.instance ?? d.id}`, 30, MIN);
   const body = await readJson(c.req);
   if (!d.share_now) return send(c.res, 204, null);
   const t = body.track ? JSON.stringify(track(body.track)) : null;
-  run("UPDATE devices SET now_track = ?, now_at = ? WHERE id = ?", t, Date.now(), d.id);
+  // one app of several: friends see the newest track any of them plays
+  if (d.instance) setNow({ id: d.instance, device: d.id }, t);
+  else run("UPDATE devices SET now_track = ?, now_at = ? WHERE id = ?", t, Date.now(), d.id);
   send(c.res, 204, null);
 }
 
 /** Forget this device and everything it sent or shared. */
 function deleteMe(c: Ctx) {
   const d = me(c);
-  const room = rooms.roomOf(Number(d.id));
-  if (room) rooms.leave(room.id, Number(d.id));
+  // every app of this code leaves its room (older apps are in one as the device itself)
+  rooms.leaveEverywhere(Number(d.id));
   for (const t of all("SELECT id FROM themes WHERE author = ?", d.id)) removeThemeFiles(String(t.id));
   const friends = all("SELECT a, b FROM friends WHERE a = ? OR b = ?", d.id, d.id).map((f) => (f.a === d.id ? Number(f.b) : Number(f.a)));
   run("DELETE FROM devices WHERE id = ?", d.id);

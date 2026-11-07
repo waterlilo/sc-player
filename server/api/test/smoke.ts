@@ -162,6 +162,66 @@ assert.equal((await api("GET", "/v1/friends", { secret: b.secret })).body.friend
 assert.equal((await api("GET", `/v1/themes/${th.id}`)).status, 404);
 assert.equal((await api("GET", "/v1/me", { secret: a.secret })).status, 401);
 
+// ---- one friend code on several apps (X-Instance): own rooms and "now playing" per app, the rest per code ----------
+{
+  const call = async (method: string, path: string, secret: string, inst?: string, body?: unknown, features = "rooms") => {
+    const headers: Record<string, string> = { authorization: `Bearer ${secret}`, "x-sc-features": features };
+    if (inst !== undefined) headers["x-instance"] = inst;
+    if (body !== undefined) headers["content-type"] = "application/json";
+    const r = await fetch(BASE + path, { method, headers, body: body !== undefined ? JSON.stringify(body) : undefined });
+    const t = await r.text();
+    return { status: r.status, body: t && r.headers.get("content-type")?.includes("json") ? JSON.parse(t) : t };
+  };
+  // registering is limited to 5 an hour per address: the two made for the workshop serve here
+  const x = c;
+  const y = d;
+  await api("POST", "/v1/friends", { secret: x.secret, body: { code: y.code } });
+  await api("POST", `/v1/friends/${x.code}/accept`, { secret: y.secret });
+  const PC = "pc-instance-tag-0001";
+  const PHONE = "phone-instance-tag-01";
+  assert.equal((await call("GET", "/v1/me", x.secret, "short")).status, 400);
+  assert.equal((await call("GET", "/v1/me", x.secret, "bad tag with spaces!!")).status, 400);
+
+  // features: the phone can't do rooms, the PC can; friends see the code as able to (no flipping)
+  await call("GET", "/v1/me", x.secret, PHONE, undefined, "");
+  await call("GET", "/v1/me", x.secret, PC);
+  await call("GET", "/v1/me", x.secret, PHONE, undefined, "");
+  assert.equal((await api("GET", "/v1/friends", { secret: y.secret })).body.friends[0].rooms, true);
+
+  // now playing per app: friends see the newest; the phone stopping doesn't hide the PC's
+  await call("PUT", "/v1/me", x.secret, PC, { shareNow: true });
+  await call("PUT", "/v1/me/now", x.secret, PC, { track: { ...track, id: 1, title: "On the PC" } });
+  await new Promise((r) => setTimeout(r, 5));
+  await call("PUT", "/v1/me/now", x.secret, PHONE, { track: { ...track, id: 2, title: "On the phone" } });
+  assert.equal((await api("GET", "/v1/updates", { secret: y.secret })).body.now[x.code].title, "On the phone");
+  await call("PUT", "/v1/me/now", x.secret, PHONE, {});
+  assert.equal((await api("GET", "/v1/updates", { secret: y.secret })).body.now[x.code].title, "On the PC");
+
+  // rooms per app: the phone's room doesn't take the PC out of its own
+  const pcRoom = (await call("POST", "/v1/rooms", x.secret, PC, { startTogether: false })).body;
+  const phoneRoom = (await call("POST", "/v1/rooms", x.secret, PHONE, { startTogether: false })).body;
+  assert.equal((await call("GET", "/v1/rooms/mine", x.secret, PC)).body.room.id, pcRoom.id);
+  assert.equal((await call("GET", "/v1/rooms/mine", x.secret, PHONE)).body.room.id, phoneRoom.id);
+  // an app without the header is the code itself, as before (in no room here)
+  assert.equal((await api("GET", "/v1/rooms/mine", { secret: x.secret })).body.room, null);
+  // an invitation goes to the code: any app may take it, one at a time
+  const yRoom = (await api("POST", "/v1/rooms", { secret: y.secret, body: { startTogether: false } })).body;
+  await api("POST", `/v1/rooms/${yRoom.id}/invite`, { secret: y.secret, body: { to: [x.code] } });
+  assert.equal((await call("GET", "/v1/updates", x.secret, PHONE)).body.invites[0].room, yRoom.id);
+  assert.equal((await call("POST", `/v1/rooms/${yRoom.id}/join`, x.secret, PHONE)).status, 200);
+  assert.equal((await call("POST", `/v1/rooms/${yRoom.id}/join`, x.secret, PC)).status, 409);
+  assert.equal((await call("GET", "/v1/rooms/mine", x.secret, PC)).body.room.id, pcRoom.id);
+
+  // at most 8 apps per code: a ninth pushes out the one seen longest ago (the phone, first here), which leaves its room
+  for (let i = 0; i < 7; i++) assert.equal((await call("GET", "/v1/me", x.secret, `more-instance-tag-${i}0`)).status, 200);
+  assert.equal((await api("GET", `/v1/rooms/${yRoom.id}`, { secret: y.secret })).body.members.length, 1);
+  assert.equal((await call("GET", "/v1/rooms/mine", x.secret, PC)).body.room.id, pcRoom.id);
+
+  // the code deleted: every app leaves its room
+  assert.equal((await call("DELETE", "/v1/me", x.secret, PC)).status, 204);
+  assert.equal((await call("GET", "/v1/rooms/mine", x.secret, PC)).status, 401);
+}
+
 // ---- sync and accounts: the app's own crypto against the server -----------------------------------------------------
 {
   const { argon2Sync } = await import("node:crypto");

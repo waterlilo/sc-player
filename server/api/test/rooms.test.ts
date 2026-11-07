@@ -290,3 +290,28 @@ test("a playlist taken when the room has stopped starts at once", () => {
   assert.equal(rooms.get(id)!.track?.id, 60);
   assert.equal(rooms.get(id)!.playing, true);
 });
+
+test("one friend code on two apps (X-Instance): each app has its own room; invitations go to the code", () => {
+  const { rooms } = setup();
+  // Bob's PC and phone: two members of the same code (device 2)
+  const bobPc = { id: -10, device: 2, code: "SKY-BBBBB", name: "Bob" };
+  const bobPhone = { id: -11, device: 2, code: "SKY-BBBBB", name: "Bob" };
+  const pcRoom = rooms.create(bobPc, { startTogether: false });
+  const phoneRoom = rooms.create(bobPhone, { startTogether: false });
+  // the phone making a room doesn't take the PC out of its own
+  assert.equal(rooms.roomOf(-10)?.id, pcRoom.id);
+  assert.equal(rooms.roomOf(-11)?.id, phoneRoom.id);
+  // Ann invites the code: every app of it sees the invitation, either may take it, but only one at a time
+  const annRoom = rooms.create(people.ann, { startTogether: false });
+  rooms.invite(annRoom.id, 1, [{ id: 2, code: "SKY-BBBBB", name: "Bob" }]);
+  assert.equal(rooms.invitesFor(2).length, 1);
+  rooms.join(annRoom.id, bobPhone);
+  assert.equal(rooms.invitesFor(2).length, 0);
+  assert.throws(() => rooms.join(annRoom.id, bobPc), /another device/);
+  assert.equal(rooms.roomOf(-10)?.id, pcRoom.id);
+  // the code deleted: all its apps leave
+  rooms.leaveEverywhere(2);
+  assert.equal(rooms.roomOf(-10), undefined);
+  assert.equal(rooms.roomOf(-11), undefined);
+  assert.equal(rooms.get(annRoom.id)?.members.length, 1);
+});
