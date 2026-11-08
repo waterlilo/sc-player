@@ -46,7 +46,8 @@ export interface Sink {
   hasSaved(id: string): boolean;
   addSaved(p: ScPlaylist): void;
   hasOwn(scId: string): boolean;
-  addOwn(p: ScPlaylist, tracks: (ScTrack & Record<string, unknown>)[]): void;
+  /** `created`: the time to make it with (lists show the newest first, so SoundCloud's first gets the latest) */
+  addOwn(p: ScPlaylist, tracks: (ScTrack & Record<string, unknown>)[], created: number): void;
   hasFollow(id: number): boolean;
   addFollows(users: ScUser[]): void;
 }
@@ -176,7 +177,8 @@ export async function runImport(source: ScSource, sink: Sink, o: Options): Promi
               tracks.push(...t.items);
               tc = t.next;
             } while (tc && tracks.length < 5000);
-            sink.addOwn(pl, tracks);
+            // SoundCloud's order kept: each next one a second older (room for the parts of a long one in between)
+            sink.addOwn(pl, tracks, start - p.playlists * 1000);
             p.playlists++;
           }
           seen.own.add(pl.id);

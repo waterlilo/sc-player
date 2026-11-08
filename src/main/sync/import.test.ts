@@ -36,14 +36,17 @@ function fakeSc(o: { likes: number; own: number; liked: number; follows: number;
 
 /** sc player as the import sees it: what it has (live) and had (tombstones), and what was added. */
 function fakeSink() {
-  const s = { likes: [] as number[], own: new Map<string, number>(), saved: new Set<string>(), follows: new Set<number>(), gone: new Set<string>() };
+  const s = { created: [] as [string, number][], likes: [] as number[], own: new Map<string, number>(), saved: new Set<string>(), follows: new Set<number>(), gone: new Set<string>() };
   const sink: Sink = {
     hasLike: (id) => s.likes.includes(id) || s.gone.has(`t${id}`),
     addLikes: (ids) => s.likes.push(...ids),
     hasSaved: (id) => s.saved.has(id) || s.gone.has(`s${id}`),
     addSaved: (p) => s.saved.add(p.id),
     hasOwn: (id) => s.own.has(id) || s.gone.has(`p${id}`),
-    addOwn: (p, tracks) => s.own.set(p.id, tracks.length),
+    addOwn: (p, tracks, created) => {
+      s.own.set(p.id, tracks.length);
+      s.created.push([p.id, created]);
+    },
     hasFollow: (id) => s.follows.has(id) || s.gone.has(`f${id}`),
     addFollows: (us) => us.forEach((u) => s.follows.add(u.id)),
   };
@@ -67,6 +70,16 @@ test("first run brings everything; a later one only what is new, and stops at th
   assert.deepEqual([r2.likes, r2.playlists, r2.saved, r2.follows], [3, 0, 0, 0]);
   assert.equal(sc.state.calls.filter((c) => c.startsWith("likes:")).length, 2, "the second page has nothing new: it stops there");
   assert.equal(sc.state.calls.filter((c) => c.startsWith("tracks:")).length, 0, "own playlists already brought aren't read again");
+});
+
+test("own playlists keep SoundCloud's order in lists that show the newest first", async () => {
+  const sc = fakeSc({ likes: 0, own: 60, liked: 0, follows: 0 });
+  const { sink, s } = fakeSink();
+  await runImport(sc.source, sink, { ...opts(new Map()), now: () => 1_000_000_000 });
+  const newestFirst = [...s.created].sort((a, b) => b[1] - a[1]).map(([id]) => id);
+  assert.deepEqual(newestFirst, Array.from({ length: 60 }, (_, i) => String(500 + i)), "the first on SoundCloud is the first here");
+  // a second apart: the parts of a long playlist (a few ms apart) never mix with the next one
+  assert.ok(s.created.every(([, t], i) => i === 0 || s.created[i - 1]![1] - t === 1000));
 });
 
 test("what the person removed in sc player doesn't come back, even on another computer (a new memory)", async () => {

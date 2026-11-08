@@ -107,9 +107,8 @@ export const copiesOf = (from: string): Playlist[] =>
  * A SoundCloud playlist (yours or anyone's) as playlists of your own on this computer, to change from now on. Longer
  * than a playlist holds: parts "Title (1/2)", "Title (2/2)" in order.
  */
-export function copyLocal(from: string, title: string, tracks: Track[]): Playlist[] {
+export function copyLocal(from: string, title: string, tracks: Track[], now = Date.now()): Playlist[] {
   const parts = playlistParts(title, tracks.map(item), MAX_TRACKS);
-  const now = Date.now();
   const made: LocalList[] = parts.map((part, i) => ({
     id: LOCAL_PREFIX + randomBytes(8).toString("hex"),
     ...part,

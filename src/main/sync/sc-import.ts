@@ -54,7 +54,7 @@ const sink: Sink = {
   },
   addSaved: (p) => setPlaylistSaved(p.id, p as unknown as Playlist),
   hasOwn: (scId) => copiesOf(scId).length > 0 || vaultHasPlaylistFrom(scId),
-  addOwn: (p, tracks) => void copyLocal(p.id, String(p.title).slice(0, 100) || "SoundCloud", tracks as unknown as Track[]),
+  addOwn: (p, tracks, created) => void copyLocal(p.id, String(p.title).slice(0, 100) || "SoundCloud", tracks as unknown as Track[], created),
   hasFollow: (id) => !!followsData()[String(id)] || !!vaultEntry("follows", "users", String(id)),
   addFollows: (users) => addFollows(users.map((u) => ({ id: u.id, username: u.username, permalinkUrl: u.permalinkUrl, avatarUrl: u.avatarUrl }))),
 };
