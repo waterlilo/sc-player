@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join as joinPath } from "node:path";
 import { app, nativeImage, net, Notification, type BrowserWindow } from "electron";
@@ -31,6 +31,11 @@ interface Local {
   v: number;
   install: string;
   pinged: string;
+  /**
+   * This app among others under the same friend code (an account's PC and phone share it): X-Instance. Random and of
+   * its own, so it ties to nothing else (not even the install id the user count uses).
+   */
+  instance: string;
 }
 const localPath = () => joinPath(app.getPath("userData"), "social.json");
 let local: Local | null = null;
@@ -38,12 +43,13 @@ let local: Local | null = null;
 function loc(): Local {
   if (local) return local;
   try {
-    local = { since: 0, v: -1, install: "", pinged: "", ...(JSON.parse(readFileSync(localPath(), "utf8")) as Partial<Local>) };
+    local = { since: 0, v: -1, install: "", pinged: "", instance: "", ...(JSON.parse(readFileSync(localPath(), "utf8")) as Partial<Local>) };
   } catch {
-    local = { since: 0, v: -1, install: "", pinged: "" };
+    local = { since: 0, v: -1, install: "", pinged: "", instance: "" };
   }
-  if (!local.install) {
-    local.install = randomUUID();
+  if (!local.install || !/^[A-Za-z0-9_-]{16,64}$/.test(local.instance ?? "")) {
+    local.install ||= randomUUID();
+    local.instance = randomBytes(16).toString("base64url");
     saveLocal();
   }
   return local;
@@ -68,7 +74,10 @@ export async function api<T>(
   const headers: Record<string, string> = { "user-agent": `scplayer/${app.getVersion()}`, "x-sc-features": "rooms" };
   const secret = getSecret("socialSecret");
   if (opts.admin) headers.authorization = `Admin ${opts.admin}`;
-  else if (opts.auth !== false && secret) headers.authorization = `Bearer ${secret}`;
+  else if (opts.auth !== false && secret) {
+    headers.authorization = `Bearer ${secret}`;
+    headers["x-instance"] = instanceTag();
+  }
   if (opts.body !== undefined) headers["content-type"] = "application/json";
   Object.assign(headers, opts.headers);
   let res: Response;
@@ -97,6 +106,8 @@ export async function api<T>(
 }
 
 export const joined = () => !!BASE && !!getSecret("socialSecret");
+/** this app's X-Instance tag (sent with the friend code's secret) */
+export const instanceTag = () => loc().instance;
 /** the friend code's secret, for the backup (main/backup) */
 export const friendSecret = () => getSecret("socialSecret");
 /** A friend code from a backup becomes this computer's (the old one, if any, stays among the sealed old secrets). */

@@ -129,9 +129,11 @@ if (!columns("lyrics").includes("decided_key")) db.exec("ALTER TABLE lyrics ADD 
 
 export type Row = Record<string, string | number | null>;
 
-export const one = (sql: string, ...args: (string | number | null)[]) => db.prepare(sql).get(...args) as Row | undefined;
-export const all = (sql: string, ...args: (string | number | null)[]) => db.prepare(sql).all(...args) as Row[];
-export const run = (sql: string, ...args: (string | number | null)[]) => db.prepare(sql).run(...args);
+/** what a statement takes: blobs (sealed bytes) too */
+type Arg = string | number | null | Uint8Array;
+export const one = (sql: string, ...args: Arg[]) => db.prepare(sql).get(...args) as Row | undefined;
+export const all = (sql: string, ...args: Arg[]) => db.prepare(sql).all(...args) as Row[];
+export const run = (sql: string, ...args: Arg[]) => db.prepare(sql).run(...args);
 
 export function tx<T>(fn: () => T): T {
   db.exec("BEGIN");

@@ -25,7 +25,9 @@ export interface Helpers {
   track(v: unknown): RoomTrack;
 }
 
-const person = (d: Row): Person => ({ id: Number(d.id), code: String(d.code), name: String(d.name) });
+/** who is in a room: the asking app (`member`, set by me() for an X-Instance) of the friend code `d` */
+const member = (d: Row) => Number(d.member ?? d.id);
+const person = (d: Row): Person => ({ id: member(d), device: Number(d.id), code: String(d.code), name: String(d.name) });
 
 export function roomRoutes(h: Helpers): [string, RegExp, (c: Ctx) => unknown][] {
   const RID = "([A-Za-z0-9_-]{8})";
@@ -56,7 +58,7 @@ export function roomRoutes(h: Helpers): [string, RegExp, (c: Ctx) => unknown][] 
     const body = await readJson(c.req);
     if (!Array.isArray(body.to) || !body.to.length || body.to.length > 20) fail(400, "to: 1..20 friend codes");
     const friends = [...new Set((body.to as unknown[]).map(h.code))].map((code) => person(h.friend(d, code)));
-    rooms.invite(c.params[0]!, Number(d.id), friends);
+    rooms.invite(c.params[0]!, member(d), friends);
     view(c, c.params[0]!);
   }
 
@@ -68,7 +70,7 @@ export function roomRoutes(h: Helpers): [string, RegExp, (c: Ctx) => unknown][] 
 
   function leave(c: Ctx) {
     const d = mine(c);
-    rooms.leave(c.params[0]!, Number(d.id));
+    rooms.leave(c.params[0]!, member(d));
     send(c.res, 204, null);
   }
 
@@ -76,7 +78,7 @@ export function roomRoutes(h: Helpers): [string, RegExp, (c: Ctx) => unknown][] 
   async function act(c: Ctx) {
     const d = mine(c);
     const id = c.params[0]!;
-    const me = Number(d.id);
+    const me = member(d);
     // a list put on carries up to 500 tracks
     const b = await readJson(c.req, 320 * 1024);
     const position = () => (typeof b.position === "number" && Number.isFinite(b.position) ? Math.max(0, b.position) : 0);
@@ -148,7 +150,7 @@ export function roomRoutes(h: Helpers): [string, RegExp, (c: Ctx) => unknown][] 
   function history(c: Ctx) {
     const d = mine(c);
     const r = rooms.get(c.params[0]!) ?? fail(404, "this room is closed");
-    if (!r.members.some((m) => m.id === Number(d.id))) fail(403, "not in this room");
+    if (!r.members.some((m) => m.id === member(d))) fail(403, "not in this room");
     send(c.res, 200, { history: r.history });
   }
 
@@ -157,7 +159,7 @@ export function roomRoutes(h: Helpers): [string, RegExp, (c: Ctx) => unknown][] 
     const d = h.me(c);
     const id = c.params[0]!;
     const r = rooms.get(id) ?? fail(404, "this room is closed");
-    const me = Number(d.id);
+    const me = member(d);
     if (!r.members.some((m) => m.id === me)) fail(403, "not in this room");
     c.res.writeHead(200, {
       "content-type": "text/event-stream; charset=utf-8",
@@ -197,7 +199,7 @@ export function roomRoutes(h: Helpers): [string, RegExp, (c: Ctx) => unknown][] 
       "GET",
       /^\/v1\/rooms\/mine$/,
       (c) => {
-        const r = rooms.roomOf(Number(h.me(c).id));
+        const r = rooms.roomOf(member(h.me(c)));
         send(c.res, 200, { room: r ? rooms.view(r) : null });
       },
     ],
@@ -207,9 +209,9 @@ export function roomRoutes(h: Helpers): [string, RegExp, (c: Ctx) => unknown][] 
       new RegExp(`^/v1/rooms/${RID}$`),
       (c) => {
         // the room's people and tracks: for its members and those invited (an invitation shows it before joining)
-        const me = Number(mine(c).id);
+        const d = mine(c);
         const r = rooms.get(c.params[0]!) ?? fail(404, "this room is closed");
-        if (!r.members.some((m) => m.id === me) && !r.invited.has(me)) fail(404, "this room is closed");
+        if (!r.members.some((m) => m.id === member(d)) && !r.invited.has(Number(d.id))) fail(404, "this room is closed");
         view(c, r.id);
       },
     ],

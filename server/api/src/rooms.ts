@@ -24,10 +24,16 @@ export interface RoomTrack {
 }
 
 export interface Person {
+  /** who is in a room: a device, or one app of it (an X-Instance: then a negative id, see instances.ts) */
   id: number;
+  /** the friend code's device row, when `id` is one of its apps: invitations go to the code, not to one app */
+  device?: number;
   code: string;
   name: string;
 }
+
+/** The friend code a member or invitee belongs to. */
+const codeOf = (p: Person) => p.device ?? p.id;
 
 interface Member extends Person {
   joined: number;
@@ -118,13 +124,13 @@ export class Rooms {
     return undefined;
   }
 
-  /** Invitations waiting for this device (rooms it isn't in yet). */
+  /** Invitations waiting for this friend code (rooms none of its apps is in yet). */
   invitesFor(device: number): { room: string; by: string; at: number; host: string; track: RoomTrack | null; members: number }[] {
     const now = this.now();
     const out = [];
     for (const r of this.rooms.values()) {
       const inv = r.invited.get(device);
-      if (!inv || inv.until <= now || r.members.some((m) => m.id === device)) continue;
+      if (!inv || inv.until <= now || r.members.some((m) => codeOf(m) === device)) continue;
       out.push({ room: r.id, by: inv.by, at: inv.at, host: this.hostOf(r).code, track: r.track, members: r.members.length });
     }
     return out;
@@ -208,23 +214,30 @@ export class Rooms {
     this.onlyHost(r, device);
     const now = this.now();
     const by = this.hostOf(r).code;
-    for (const f of friends) if (!r.members.some((m) => m.id === f.id)) r.invited.set(f.id, { by, at: now, until: now + LIMITS.inviteMs });
+    for (const f of friends) if (!r.members.some((m) => codeOf(m) === codeOf(f))) r.invited.set(codeOf(f), { by, at: now, until: now + LIMITS.inviteMs });
     this.changed(r);
   }
 
   join(id: string, who: Person): Room {
     const r = this.room(id);
     if (r.members.some((m) => m.id === who.id)) return r;
-    const inv = r.invited.get(who.id);
+    // one friend code is one person in a room: their other app is already here
+    if (r.members.some((m) => codeOf(m) === codeOf(who))) fail(409, "in this room on another device");
+    const inv = r.invited.get(codeOf(who));
     if (!inv || inv.until <= this.now()) fail(403, "the invitation has run out");
     if (r.members.length >= LIMITS.members) fail(409, "the room is full");
     const other = this.roomOf(who.id);
     if (other) this.leave(other.id, who.id);
     const now = this.now();
     r.members.push({ ...who, joined: now, streams: 0, gone: now });
-    r.invited.delete(who.id);
+    r.invited.delete(codeOf(who));
     this.changed(r);
     return r;
+  }
+
+  /** Every app of a friend code out of every room (the code is deleted). */
+  leaveEverywhere(device: number) {
+    for (const r of [...this.rooms.values()]) for (const m of r.members.filter((x) => codeOf(x) === device)) this.leave(r.id, m.id);
   }
 
   leave(id: string, device: number) {

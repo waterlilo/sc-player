@@ -193,4 +193,218 @@ assert.equal((await api("GET", "/v1/friends", { secret: b.secret })).body.friend
 assert.equal((await api("GET", `/v1/themes/${th.id}`)).status, 404);
 assert.equal((await api("GET", "/v1/me", { secret: a.secret })).status, 401);
 
+// ---- one friend code on several apps (X-Instance): own rooms and "now playing" per app, the rest per code ----------
+{
+  const call = async (method: string, path: string, secret: string, inst?: string, body?: unknown, features = "rooms") => {
+    const headers: Record<string, string> = { authorization: `Bearer ${secret}`, "x-sc-features": features };
+    if (inst !== undefined) headers["x-instance"] = inst;
+    if (body !== undefined) headers["content-type"] = "application/json";
+    const r = await fetch(BASE + path, { method, headers, body: body !== undefined ? JSON.stringify(body) : undefined });
+    const t = await r.text();
+    return { status: r.status, body: t && r.headers.get("content-type")?.includes("json") ? JSON.parse(t) : t };
+  };
+  // registering is limited to 5 an hour per address: the two made for the workshop serve here
+  const x = c;
+  const y = d;
+  await api("POST", "/v1/friends", { secret: x.secret, body: { code: y.code } });
+  await api("POST", `/v1/friends/${x.code}/accept`, { secret: y.secret });
+  const PC = "pc-instance-tag-0001";
+  const PHONE = "phone-instance-tag-01";
+  assert.equal((await call("GET", "/v1/me", x.secret, "short")).status, 400);
+  assert.equal((await call("GET", "/v1/me", x.secret, "bad tag with spaces!!")).status, 400);
+
+  // features: the phone can't do rooms, the PC can; friends see the code as able to (no flipping)
+  await call("GET", "/v1/me", x.secret, PHONE, undefined, "");
+  await call("GET", "/v1/me", x.secret, PC);
+  await call("GET", "/v1/me", x.secret, PHONE, undefined, "");
+  assert.equal((await api("GET", "/v1/friends", { secret: y.secret })).body.friends[0].rooms, true);
+
+  // now playing per app: friends see the newest; the phone stopping doesn't hide the PC's
+  await call("PUT", "/v1/me", x.secret, PC, { shareNow: true });
+  await call("PUT", "/v1/me/now", x.secret, PC, { track: { ...track, id: 1, title: "On the PC" } });
+  await new Promise((r) => setTimeout(r, 5));
+  await call("PUT", "/v1/me/now", x.secret, PHONE, { track: { ...track, id: 2, title: "On the phone" } });
+  assert.equal((await api("GET", "/v1/updates", { secret: y.secret })).body.now[x.code].title, "On the phone");
+  await call("PUT", "/v1/me/now", x.secret, PHONE, {});
+  assert.equal((await api("GET", "/v1/updates", { secret: y.secret })).body.now[x.code].title, "On the PC");
+
+  // rooms per app: the phone's room doesn't take the PC out of its own
+  const pcRoom = (await call("POST", "/v1/rooms", x.secret, PC, { startTogether: false })).body;
+  const phoneRoom = (await call("POST", "/v1/rooms", x.secret, PHONE, { startTogether: false })).body;
+  assert.equal((await call("GET", "/v1/rooms/mine", x.secret, PC)).body.room.id, pcRoom.id);
+  assert.equal((await call("GET", "/v1/rooms/mine", x.secret, PHONE)).body.room.id, phoneRoom.id);
+  // an app without the header is the code itself, as before (in no room here)
+  assert.equal((await api("GET", "/v1/rooms/mine", { secret: x.secret })).body.room, null);
+  // an invitation goes to the code: any app may take it, one at a time
+  const yRoom = (await api("POST", "/v1/rooms", { secret: y.secret, body: { startTogether: false } })).body;
+  await api("POST", `/v1/rooms/${yRoom.id}/invite`, { secret: y.secret, body: { to: [x.code] } });
+  assert.equal((await call("GET", "/v1/updates", x.secret, PHONE)).body.invites[0].room, yRoom.id);
+  assert.equal((await call("POST", `/v1/rooms/${yRoom.id}/join`, x.secret, PHONE)).status, 200);
+  assert.equal((await call("POST", `/v1/rooms/${yRoom.id}/join`, x.secret, PC)).status, 409);
+  assert.equal((await call("GET", "/v1/rooms/mine", x.secret, PC)).body.room.id, pcRoom.id);
+
+  // at most 8 apps per code: a ninth pushes out the one seen longest ago (the phone, first here), which leaves its room
+  for (let i = 0; i < 7; i++) assert.equal((await call("GET", "/v1/me", x.secret, `more-instance-tag-${i}0`)).status, 200);
+  assert.equal((await api("GET", `/v1/rooms/${yRoom.id}`, { secret: y.secret })).body.members.length, 1);
+  assert.equal((await call("GET", "/v1/rooms/mine", x.secret, PC)).body.room.id, pcRoom.id);
+
+  // the code deleted: every app leaves its room
+  assert.equal((await call("DELETE", "/v1/me", x.secret, PC)).status, 204);
+  assert.equal((await call("GET", "/v1/rooms/mine", x.secret, PC)).status, 401);
+}
+
+// ---- sync and accounts: the app's own crypto against the server -----------------------------------------------------
+{
+  const { argon2Sync } = await import("node:crypto");
+  const k = await import("../../../src/main/sync/crypto.ts");
+  const argon2: import("../../../src/main/sync/crypto.ts").Argon2 = async (pw, salt, kdf) => argon2Sync("argon2id", { message: pw, nonce: salt, parallelism: 1, tagLength: 32, memory: kdf.m, passes: kdf.t });
+  const req = async (method: string, path: string, o: { write?: string; session?: string; body?: unknown; raw?: Buffer; headers?: Record<string, string> } = {}) => {
+    const headers: Record<string, string> = { ...o.headers };
+    if (o.write) headers["x-vault-write"] = o.write;
+    if (o.session) headers["x-account-session"] = o.session;
+    if (o.body !== undefined) headers["content-type"] = "application/json";
+    const r = await fetch(BASE + path, { method, headers, body: o.raw ? new Uint8Array(o.raw) : o.body !== undefined ? JSON.stringify(o.body) : undefined });
+    const t = await r.text();
+    return { status: r.status, body: t && r.headers.get("content-type")?.includes("json") ? JSON.parse(t) : t };
+  };
+  const b64 = (x: Uint8Array) => Buffer.from(x).toString("base64");
+
+  // a vault by a code alone; the token decides who writes
+  const A = k.codeKeys(k.newCode());
+  assert.equal((await req("POST", "/v1/vault", { body: { id: A.vaultId, writeToken: A.writeToken } })).status, 201);
+  assert.equal((await req("POST", "/v1/vault", { body: { id: A.vaultId, writeToken: A.writeToken } })).status, 200);
+  assert.equal((await req("POST", "/v1/vault", { body: { id: A.vaultId, writeToken: "0".repeat(64) } })).status, 403);
+  const V = `/v1/vault/${A.vaultId}`;
+  assert.equal((await req("GET", `${V}/head`)).status, 401);
+  assert.equal((await req("GET", `${V}/head`, { write: "0".repeat(64) })).status, 403);
+  assert.equal((await req("GET", `${V}/head`, { write: A.writeToken })).body.seq, 0);
+
+  // documents: If-Match decides, a conflict brings the current one back
+  const likesId = k.docId(A.dek, "likes");
+  const seal = (json: string) => k.sealDoc(A.dek, A.vaultId, likesId, json, { compress: true });
+  const put = (raw: Buffer, h: Record<string, string>) => req("PUT", `${V}/docs/${likesId}`, { write: A.writeToken, raw, headers: h });
+  assert.equal((await put(Buffer.from("SCB1 not a sync document at all, no"), { "if-none-match": "*" })).status, 400);
+  assert.equal((await put(seal('{"v":1}'), {})).status, 428);
+  assert.equal((await put(seal('{"v":1}'), { "if-none-match": "*" })).body.version, 1);
+  const lost = await put(seal('{"v":1,"x":2}'), { "if-match": '"0"' });
+  assert.equal(lost.status, 409);
+  assert.equal(lost.body.version, 1);
+  assert.equal(k.openDoc(A.dek, A.vaultId, likesId, Buffer.from(lost.body.data, "base64")), '{"v":1}');
+  assert.equal((await put(seal('{"v":1,"x":2}'), { "if-match": '"1"' })).body.version, 2);
+  let ch = (await req("GET", `${V}/changes?since=0`, { write: A.writeToken })).body;
+  assert.equal(ch.docs.length, 1);
+  assert.equal(ch.seq, 2);
+  assert.equal(k.openDoc(A.dek, A.vaultId, likesId, Buffer.from(ch.docs[0].data, "base64")), '{"v":1,"x":2}');
+  assert.equal((await req("GET", `${V}/changes?since=2`, { write: A.writeToken })).body.docs.length, 0);
+
+  // a batch is all or nothing
+  const p1 = k.docId(A.dek, "pl:local-0000000000000001");
+  const p2 = k.docId(A.dek, "pl:local-0000000000000002");
+  const sealAs = (id: string) => b64(k.sealDoc(A.dek, A.vaultId, id, "{}", { compress: false }));
+  const bad = await req("POST", `${V}/batch`, { write: A.writeToken, body: { docs: [{ doc: p1, ifMatch: 0, data: sealAs(p1) }, { doc: likesId, ifMatch: 1, data: sealAs(likesId) }] } });
+  assert.equal(bad.status, 409);
+  assert.equal(bad.body.conflicts[0].doc, likesId);
+  assert.equal((await req("GET", `${V}/head`, { write: A.writeToken })).body.seq, 2);
+  const ok = await req("POST", `${V}/batch`, { write: A.writeToken, body: { docs: [{ doc: p1, ifMatch: 0, data: sealAs(p1) }, { doc: p2, ifMatch: 0, data: sealAs(p2) }] } });
+  assert.deepEqual(ok.body.versions, { [p1]: 3, [p2]: 4 });
+  // deleting leaves a note in the changes
+  assert.equal((await req("DELETE", `${V}/docs/${p2}`, { write: A.writeToken, headers: { "if-match": '"4"' } })).body.version, 5);
+  ch = (await req("GET", `${V}/changes?since=4`, { write: A.writeToken })).body;
+  assert.deepEqual(ch.docs, [{ doc: p2, version: 5, data: null }]);
+
+  // an old backup becomes the vault of the same key; it says when the old copy last changed
+  const B = k.codeKeys(k.newCode());
+  const blob = Buffer.concat([Buffer.from("SCB1"), Buffer.alloc(60, 9)]);
+  assert.equal((await fetch(`${BASE}/v1/backup/${B.vaultId}`, { method: "PUT", headers: { "x-backup-write": B.writeToken }, body: new Uint8Array(blob) })).status, 204);
+  assert.equal((await req("POST", "/v1/vault", { body: { id: B.vaultId, writeToken: A.writeToken } })).status, 403);
+  const vb = (await req("POST", "/v1/vault", { body: { id: B.vaultId, writeToken: B.writeToken } })).body;
+  assert.equal(vb.created, true);
+  assert.ok(vb.legacy > 0);
+  const old = await fetch(`${BASE}/v1/vault/${B.vaultId}/legacy`, { headers: { "x-vault-write": B.writeToken } });
+  assert.ok(Buffer.from(await old.arrayBuffer()).equals(blob));
+  assert.equal(Number(old.headers.get("x-updated")), vb.legacy);
+  assert.equal((await fetch(`${BASE}/v1/vault/${A.vaultId}/legacy`, { headers: { "x-vault-write": A.writeToken } })).status, 404);
+
+  // accounts: prelogin answers the same for a login that doesn't exist (and its salt doesn't change)
+  const login = `smoke${Date.now().toString(36)}`;
+  const pre1 = (await req("POST", "/v1/account/prelogin", { body: { login } })).body;
+  const pre2 = (await req("POST", "/v1/account/prelogin", { body: { login } })).body;
+  assert.equal(pre1.salt, pre2.salt);
+  assert.deepEqual(pre1.kdf, k.KDF_V1);
+  assert.equal((await req("GET", `/v1/account/available?login=${login}`)).body.free, true);
+  assert.equal((await req("GET", "/v1/account/available?login=admin")).status, 400);
+
+  // sign-up over the key's vault: the key alone opens it no more (423 says whose it is)
+  const salt = Buffer.alloc(16, 1);
+  const kdf = { ...k.KDF_V1, m: 19456, t: 2 }; // the floor: quick for a test
+  const pw = await k.passwordKeys("correct horse battery", salt, kdf, argon2);
+  const wrapped = k.wrapDek(pw.kek, A.dek, A.vaultId);
+  const signUp = (l: string, v = A) =>
+    req("POST", "/v1/account", { body: { login: l, kdf, salt: b64(salt), authKey: b64(pw.authKey), wrappedKey: b64(wrapped), vault: { id: v.vaultId, writeToken: v.writeToken }, device: { name: "Smoke PC", platform: "windows" } } });
+  assert.equal((await req("POST", "/v1/account", { body: { login, kdf: { ...kdf, m: 1024 }, salt: b64(salt), authKey: b64(pw.authKey), wrappedKey: b64(wrapped), vault: { id: A.vaultId, writeToken: A.writeToken } } })).status, 400);
+  const acc = await signUp(login);
+  assert.equal(acc.status, 201);
+  assert.equal((await signUp(login)).body.error, "login_taken");
+  assert.equal((await signUp(`${login}x`)).body.error, "vault_bound");
+  const locked = await req("GET", `${V}/head`, { write: A.writeToken });
+  assert.equal(locked.status, 423);
+  assert.equal(locked.body.login, login);
+  assert.equal((await req("GET", `${V}/head`, { session: acc.body.session })).body.seq, 5);
+  assert.equal((await req("GET", `/v1/vault/${B.vaultId}/head`, { session: acc.body.session })).status, 410);
+
+  // signing in: the wrapped key opens with the password's key
+  const prelogin = (await req("POST", "/v1/account/prelogin", { body: { login: login.toUpperCase() } })).body;
+  assert.equal(prelogin.salt, b64(salt));
+  const signIn = (authKey: Buffer, cookie?: string) => req("POST", "/v1/account/login", { body: { login, authKey: b64(authKey), deviceCookie: cookie, device: { name: "Phone", platform: "android" } } });
+  assert.equal((await signIn(Buffer.alloc(32, 7))).status, 401);
+  const inn = (await signIn(pw.authKey)).body;
+  assert.equal(inn.vaultId, A.vaultId);
+  assert.ok(k.unwrapDek(pw.kek, Buffer.from(inn.wrappedKey, "base64"), inn.vaultId)!.equals(A.dek));
+  const me = (await req("GET", "/v1/account", { session: inn.session })).body;
+  assert.equal(me.sessions.length, 2);
+  assert.equal(me.sessions.find((s: { current: boolean }) => s.current).name, "Phone");
+
+  // a new password: the same data key under a new wrapping; other devices signed out
+  const salt2 = Buffer.alloc(16, 2);
+  const pw2 = await k.passwordKeys("another long passphrase", salt2, kdf, argon2);
+  const change = (proof: unknown) =>
+    req("POST", "/v1/account/password", { session: inn.session, body: { proof, kdf, salt: b64(salt2), authKey: b64(pw2.authKey), wrappedKey: b64(k.wrapDek(pw2.kek, A.dek, A.vaultId)), signOutOthers: true } });
+  assert.equal((await change({ authKey: b64(Buffer.alloc(32)) })).status, 401);
+  assert.equal((await change({ authKey: b64(pw.authKey) })).status, 204);
+  assert.equal((await req("GET", "/v1/account", { session: acc.body.session })).status, 401);
+  assert.equal((await signIn(pw.authKey)).status, 401);
+  const again = (await signIn(pw2.authKey)).body;
+  assert.ok(k.unwrapDek(pw2.kek, Buffer.from(again.wrappedKey, "base64"), A.vaultId)!.equals(A.dek));
+
+  // guessing: 5 tries, then the login waits — but a device that signed in before (its cookie) does not
+  for (let i = 0; i < 5; i++) assert.equal((await signIn(Buffer.alloc(32, i))).status, 401);
+  const slow = await signIn(pw2.authKey);
+  assert.equal(slow.status, 429);
+  assert.ok(slow.body.retryAfter > 0);
+  assert.equal((await signIn(pw2.authKey, again.deviceCookie)).status, 200);
+
+  // forgot the password: the recovery code is enough (no login), everyone else is signed out
+  const salt3 = Buffer.alloc(16, 3);
+  const pw3 = await k.passwordKeys("third time lucky ok", salt3, kdf, argon2);
+  const rec = await req("POST", "/v1/account/recover", {
+    body: { vaultId: A.vaultId, writeToken: A.writeToken, kdf, salt: b64(salt3), authKey: b64(pw3.authKey), wrappedKey: b64(k.wrapDek(pw3.kek, A.dek, A.vaultId)), device: { name: "New PC" } },
+  });
+  assert.equal(rec.body.login, login);
+  assert.equal((await req("GET", "/v1/account", { session: again.session })).status, 401);
+  assert.equal((await req("POST", "/v1/account/recover", { body: { vaultId: B.vaultId, writeToken: B.writeToken, kdf, salt: b64(salt3), authKey: b64(pw3.authKey), wrappedKey: b64(wrapped) } })).body.error, "no_account");
+  assert.equal((await signIn(pw3.authKey)).status, 200);
+
+  // an account over an old backup: its name alone no longer opens the copy
+  const accB = await signUp(`${login}b`, B);
+  assert.equal(accB.status, 201);
+  assert.equal((await fetch(`${BASE}/v1/backup/${B.vaultId}`)).status, 404);
+  assert.equal((await fetch(`${BASE}/v1/backup/${B.vaultId}`, { headers: { "x-backup-write": B.writeToken } })).status, 200);
+
+  // deleting the account takes its vault along
+  assert.equal((await req("DELETE", "/v1/account", { session: accB.body.session, body: { proof: { writeToken: B.writeToken } } })).status, 204);
+  assert.equal((await req("POST", "/v1/vault", { body: { id: B.vaultId, writeToken: B.writeToken } })).status, 201);
+  assert.equal((await req("POST", "/v1/account/logout", { session: rec.body.session })).status, 204);
+  assert.equal((await req("GET", `${V}/head`, { session: rec.body.session })).status, 401);
+}
+
 console.log("smoke: all good");

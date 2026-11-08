@@ -1,16 +1,20 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
-/** An error with an HTTP status; its message goes to the client as { error }. */
+/** An error with an HTTP status; its message goes to the client as { error }, with `extra` fields and `headers`. */
 export class HttpError extends Error {
   status: number;
-  constructor(status: number, message: string) {
+  extra: Record<string, unknown>;
+  headers: Record<string, string>;
+  constructor(status: number, message: string, extra: Record<string, unknown> = {}, headers: Record<string, string> = {}) {
     super(message);
     this.status = status;
+    this.extra = extra;
+    this.headers = headers;
   }
 }
 
-export const fail = (status: number, message: string): never => {
-  throw new HttpError(status, message);
+export const fail = (status: number, message: string, extra?: Record<string, unknown>, headers?: Record<string, string>): never => {
+  throw new HttpError(status, message, extra, headers);
 };
 
 export function send(res: ServerResponse, status: number, body: unknown, headers: Record<string, string> = {}) {

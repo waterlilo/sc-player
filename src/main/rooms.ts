@@ -4,7 +4,7 @@ import { app, net, type BrowserWindow } from "electron";
 import type { Room, RoomOp, RoomState, SocialTrack } from "@shared/social";
 import { ScError } from "./soundcloud";
 import { getSecret } from "./store/secrets";
-import { api, joined, pollSoon, serverBase, status } from "./social";
+import { api, instanceTag, joined, pollSoon, serverBase, status } from "./social";
 import { log } from "./system/log";
 import { send } from "./windows/main-window";
 
@@ -84,7 +84,7 @@ function connect(id: string) {
       try {
         await measureClock();
         const res = await net.fetch(`${serverBase()}/v1/rooms/${id}/events`, {
-          headers: { authorization: `Bearer ${getSecret("socialSecret") ?? ""}`, accept: "text/event-stream", "x-sc-features": "rooms" },
+          headers: { authorization: `Bearer ${getSecret("socialSecret") ?? ""}`, "x-instance": instanceTag(), accept: "text/event-stream", "x-sc-features": "rooms" },
           signal: ctl.signal,
         });
         if (res.status === 404 || res.status === 403) {

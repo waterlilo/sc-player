@@ -29,7 +29,7 @@ with its own small server (`server/`). These are the project's working rules. Th
 | `src/renderer/src/` | React UI (`screens/`, `components/`, `state/` stores, `i18n/en.ts` + `i18n/ru.ts`) |
 | `src/shared/` | types and the IPC contract shared by both sides |
 | `server/api/` | the API: Node 24, no dependencies, SQLite (`node:sqlite`) |
-| `server/caddy/` | HTTPS + a forward proxy limited to SoundCloud's domains |
+| `server/caddy/` | HTTPS + a forward proxy limited to SoundCloud's domains (and LRCLIB for lyrics) |
 | `scripts/` | builds (`dist.mjs`), icons, stats |
 
 ## Running and checking

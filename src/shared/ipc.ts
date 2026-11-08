@@ -1,6 +1,6 @@
 import type { SearchKind } from "./provider";
 import type { Friends, Message, ModRoles, Room, RoomOp, RoomState, SocialStatus, SocialTrack, SocialUpdate, WsPage, WsReported, WsSort, WsThemeFull, SharedPlaylist } from "./social";
-import type { AppErrorInfo, ImportItem, ImportList, ImportMatch, Lyrics, LyricsHit, LyricsSyncStatus, Page, Playlist, QueueSource, Resolved, SavedProfile, StreamInfo, SyncRequest, SyncResult, Track, TrackDetails, User, LyricsForReview, LyricsDecided, LyricsSuggestionState, SteamWallpaper, BackupStatus, RestoreResult } from "./types";
+import type { AppErrorInfo, ImportItem, ImportList, ImportMatch, Lyrics, LyricsHit, LyricsSyncStatus, Page, Playlist, QueueSource, Resolved, SavedProfile, StreamInfo, SyncRequest, SyncResult, Track, TrackDetails, User, LyricsForReview, LyricsDecided, LyricsSuggestionState, SteamWallpaper, SyncStatus, AccountDevice } from "./types";
 
 /**
  * The one contract between main and renderer. main registers a handler for every InvokeMap channel, preload exposes
@@ -363,11 +363,26 @@ export interface InvokeMap {
 
   /** Settings → background: pick an image, GIF or video; main copies it into userData. null when cancelled */
   "bg:pick": () => { file: string; type: "image" | "video" } | null;
-  "backup:status": () => BackupStatus;
-  /** the copy now (even unchanged) */
-  "backup:now": () => BackupStatus;
-  /** another computer's copy by its transfer key, merged in; `replaceCode`: its friend code replaces this one's */
-  "backup:restore": (key: string, replaceCode: boolean) => RestoreResult;
+  "sync:status": () => SyncStatus;
+  /** a sync now */
+  "sync:now": () => SyncStatus;
+  /** another computer's transfer key: this one syncs with it from now on (what's here is added) */
+  "sync:useKey": (key: string) => SyncStatus;
+  /** the recovery code to show at sign-up: this computer's transfer key, or a new one */
+  "account:newCode": () => { code: string; existing: boolean };
+  "account:available": (login: string) => boolean;
+  "account:register": (login: string, password: string, code: string) => void;
+  "account:signIn": (login: string, password: string) => void;
+  /** a forgotten password: the recovery code and a new password; the account's login comes back */
+  "account:recover": (code: string, password: string) => string;
+  "account:password": (old: string, password: string, signOutOthers: boolean) => void;
+  "account:devices": () => AccountDevice[];
+  /** one device signed out; null: all but this one */
+  "account:revoke": (id: number | null) => void;
+  "account:signOut": () => void;
+  "account:delete": (password: string) => void;
+  /** the recovery code to a .txt file the person picks: false when cancelled */
+  "account:saveCode": (code: string) => boolean;
   /** music from this computer (main/local-tracks), newest first */
   "local:list": () => Track[];
   /** files (or a folder) picked in a dialog; how many were added */
@@ -495,6 +510,9 @@ export interface EventMap {
   "update:status": UpdateStatus;
   /** the messenger: new tracks, unread counts, friends — after every poll that brought something */
   "social:update": SocialUpdate;
+  "sync:status": SyncStatus;
+  /** likes, playlists or lyrics came from other devices: lists to read again */
+  "sync:changed": null;
   /** a pop-up about a sent track was clicked: open the inbox (at this friend) */
   "social:open": string;
   /** a friend link opened the app: the code to add (asked first) */
@@ -547,9 +565,20 @@ export const INVOKE_CHANNELS = [
   "ws:reports",
   "ws:moderate",
   "bg:pick",
-  "backup:status",
-  "backup:now",
-  "backup:restore",
+  "sync:status",
+  "sync:now",
+  "sync:useKey",
+  "account:newCode",
+  "account:available",
+  "account:register",
+  "account:signIn",
+  "account:recover",
+  "account:password",
+  "account:devices",
+  "account:revoke",
+  "account:signOut",
+  "account:delete",
+  "account:saveCode",
   "local:list",
   "local:add",
   "local:addPaths",
@@ -642,7 +671,7 @@ export const INVOKE_CHANNELS = [
   "update:download",
   "update:install",
 ] as const satisfies readonly InvokeChannel[];
-export const EVENT_CHANNELS = ["win:activity", "win:maximized", "auth:changed", "auth:browserRefused", "player:command", "hotkeys:failed", "update:status", "social:update", "social:open", "social:friendLink", "lyricsSync:status", "room:state"] as const satisfies readonly (keyof EventMap)[];
+export const EVENT_CHANNELS = ["win:activity", "win:maximized", "auth:changed", "auth:browserRefused", "player:command", "hotkeys:failed", "update:status", "social:update", "social:open", "social:friendLink", "lyricsSync:status", "room:state", "sync:status", "sync:changed"] as const satisfies readonly (keyof EventMap)[];
 
 type MissingInvoke = Exclude<InvokeChannel, (typeof INVOKE_CHANNELS)[number]>;
 type MissingEvent = Exclude<keyof EventMap, (typeof EVENT_CHANNELS)[number]>;
