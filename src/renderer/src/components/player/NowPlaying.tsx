@@ -463,6 +463,19 @@ function StudioFull() {
   const track = useCurrentTrack();
   const sound = useStreamTrack(track);
   const from = useSourceLabel();
+
+  // Esc leaves the full screen player, unless something on top of it takes the key: a menu, a sheet or a dialog
+  // closes itself on the same press (its element is still in the page while this runs), and a text field keeps it
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      if ((e.target as HTMLElement | null)?.closest?.("input, textarea, select, [contenteditable='true']")) return;
+      if (document.querySelector('[role="dialog"], [role="alertdialog"], [role="menu"]')) return;
+      close();
+    };
+    window.addEventListener("keydown", key);
+    return () => window.removeEventListener("keydown", key);
+  }, [close]);
   const canSend = useSocial((s) => !!s.status?.profile);
   const openSend = useSocial((s) => s.openSend);
   const words = useShownLyrics(track);

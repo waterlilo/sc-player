@@ -445,6 +445,9 @@ engine.bindEngine({
     const { queue, index } = get();
     let at = queue.indexOf(track, index + 1);
     if (at < 0) at = queue.findIndex((t, i) => i > index && t.id === track.id);
+    // with "repeat all" the cross-fade from the last track goes into the first one: the queue starts over
+    if (at < 0) at = queue.indexOf(track);
+    if (at < 0) at = queue.findIndex((t) => t.id === track.id);
     if (at < 0) return;
     starts++;
     const alt = needsSub(track) ? substituteFor(track) : null;
